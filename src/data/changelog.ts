@@ -9,11 +9,14 @@ export const CHANGELOG: Release[] = [
   {
     id: 8,
     version: '1.2.5',
-    date: '2026-03-12',
+    date: '2026-03-17',
     updates: [
-      'Manage all your external MCP servers (outside of Dorothy) from the settings page',
+      'Add support of PI agent provider',
+      'Add support of OpenCode agent provider',
+      'Add support of JIRA self hosted domain',
       'Added macOS menu bar tray with live agent status panel',
       'Status tabs in tray: Working, Waiting for inputs, Ready to work, Idle',
+      'Manage all your external MCP servers (outside of Dorothy) from the settings page',
       'Live task preview next to agent name when working or waiting',
       'Full-color Dorothy logo in the macOS menu bar',
       'Revamped agents page with improved layout and filtering',
