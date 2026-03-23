@@ -70,6 +70,12 @@ pub fn run() {
             commands::memory::memory_create_file,
             // Shell/filesystem commands
             commands::shell::projects_list,
+            // Window commands
+            commands::window::window_popout,
+            commands::window::window_dock,
+            commands::window::window_focus,
+            commands::window::window_list,
+            commands::window::notification_navigate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
