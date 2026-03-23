@@ -1,5 +1,6 @@
 import { useStore } from '@/store';
 import Sidebar from './Sidebar';
+import NotificationToast from './NotificationToast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -114,6 +115,8 @@ export default function ClientLayout() {
       >
         <Outlet />
       </motion.main>
+
+      <NotificationToast />
     </div>
   );
 }

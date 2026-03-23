@@ -26,6 +26,7 @@ const PalletTownIcon = ({ className }: { className?: string }) => (
   <img src="/pokemon/p.png" alt="" className={className} style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
 );
 import { useStore } from '@/store';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Link, useLocation } from 'react-router';
 
 const navItems = [
@@ -67,6 +68,8 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
   const pathname = useLocation().pathname;
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen, darkMode, toggleDarkMode, vaultUnreadCount } = useStore();
   const whatsNewHasNew = useWhatsNewBadge();
+  const { undismissed: undismissedNotifications } = useNotifications();
+  const notificationCount = undismissedNotifications.length;
 
   // For mobile, sidebar is always expanded (240px) when open
   const sidebarWidth = isMobile ? 240 : (sidebarCollapsed ? 72 : 240);
@@ -129,6 +132,11 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                       {vaultUnreadCount}
                     </span>
                   )}
+                  {item.href === '/agents' && notificationCount > 0 && !showLabels && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center text-[8px] font-bold bg-orange-500 text-white rounded-full px-0.5">
+                      {notificationCount}
+                    </span>
+                  )}
                 </div>
                 {showLabels && (
                   <span className="text-sm flex-1">
@@ -138,6 +146,11 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                 {item.href === '/vault' && vaultUnreadCount > 0 && showLabels && (
                   <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full px-1">
                     {vaultUnreadCount}
+                  </span>
+                )}
+                {item.href === '/agents' && notificationCount > 0 && showLabels && (
+                  <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-orange-500 text-white rounded-full px-1">
+                    {notificationCount}
                   </span>
                 )}
               </Link>
@@ -290,6 +303,11 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                   {item.href === '/vault' && vaultUnreadCount > 0 && (
                     <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full px-1">
                       {vaultUnreadCount}
+                    </span>
+                  )}
+                  {item.href === '/agents' && notificationCount > 0 && (
+                    <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-orange-500 text-white rounded-full px-1">
+                      {notificationCount}
                     </span>
                   )}
                 </Link>
