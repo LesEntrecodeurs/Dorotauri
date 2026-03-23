@@ -1,4 +1,4 @@
-'use client';
+
 import { useRef, useEffect, useCallback } from 'react';
 import { InteriorConfig, InteriorRoomConfig, InteriorNPC, InteriorInteractable, GameAssets, Direction, PlayerState } from '../types';
 import { TILE_SIZE, MOVE_DURATION } from '../constants';

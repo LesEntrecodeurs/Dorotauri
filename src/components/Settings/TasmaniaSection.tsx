@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, CheckCircle, XCircle, Play, Square, RefreshCw, Cpu, Server } from 'lucide-react';

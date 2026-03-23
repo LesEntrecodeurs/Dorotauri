@@ -1,4 +1,4 @@
-'use client';
+
 
 interface ResizeHandleProps {
   type: 'col' | 'row';

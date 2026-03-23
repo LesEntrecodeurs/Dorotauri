@@ -1,4 +1,4 @@
-'use client';
+
 import { useCallback } from 'react';
 import { NPC, GameAssets } from '../types';
 import AgentBattleView from './AgentBattleView';

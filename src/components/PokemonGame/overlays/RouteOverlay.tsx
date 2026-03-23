@@ -1,4 +1,4 @@
-'use client';
+
 import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { GameAssets, Direction, PlayerState } from '../types';
 import { TILE, SCALED_TILE, SCALE, MOVE_DURATION, ROUTE1_MAP_DATA, ROUTE1_WIDTH, ROUTE1_HEIGHT, ROUTE1_PLAYER_START, ROUTE1_BUILDINGS } from '../constants';

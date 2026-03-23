@@ -1,4 +1,4 @@
-'use client';
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { InteriorContentProps, PokemonMenuItem } from '../types';
 import { isElectron } from '@/hooks/useElectron';

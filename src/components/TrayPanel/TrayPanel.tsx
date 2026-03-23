@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import type { AgentTickItem, DisplayStatus } from '@/types/electron';

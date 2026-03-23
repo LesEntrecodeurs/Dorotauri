@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';

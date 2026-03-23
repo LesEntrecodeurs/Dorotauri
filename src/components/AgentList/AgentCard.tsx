@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Loader2, AlertTriangle, GitBranch, Pencil, Crown, Cpu } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';

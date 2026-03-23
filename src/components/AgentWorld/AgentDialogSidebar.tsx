@@ -1,5 +1,4 @@
-import { memo } from 'react';
-import dynamic from 'next/dynamic';
+import { memo, lazy, Suspense } from 'react';
 import {
   GitBranch,
   Code2,
@@ -16,21 +15,8 @@ import type { PanelType } from './AgentDialogTypes';
 import { AgentDialogPanelHeader } from './AgentDialogPanelHeader';
 import { AgentDialogSecondaryProject } from './AgentDialogSecondaryProject';
 
-const GitPanel = dynamic(() => import('./GitPanel'), {
-  loading: () => (
-    <div className="flex items-center justify-center h-full">
-      <Loader2 className="w-6 h-6 animate-spin text-orange-400" />
-    </div>
-  ),
-});
-
-const CodePanel = dynamic(() => import('./CodePanel'), {
-  loading: () => (
-    <div className="flex items-center justify-center h-full">
-      <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
-    </div>
-  ),
-});
+const GitPanel = lazy(() => import('./GitPanel'));
+const CodePanel = lazy(() => import('./CodePanel'));
 
 interface AgentDialogSidebarProps {
   agent: AgentStatus;
@@ -114,7 +100,9 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
           onToggle={() => onTogglePanel('code')}
         />
         <AccordionPanel expanded={expandedPanels.has('code')} height="h-[250px]">
-          <CodePanel projectPath={projectPath} className="h-full" />
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-purple-400" /></div>}>
+            <CodePanel projectPath={projectPath} className="h-full" />
+          </Suspense>
         </AccordionPanel>
       </div>
 
@@ -135,7 +123,9 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
           onToggle={() => onTogglePanel('git')}
         />
         <AccordionPanel expanded={expandedPanels.has('git')} height="h-[200px]">
-          <GitPanel projectPath={projectPath} className="h-full" hideHeader onBranchChange={onGitBranchChange} />
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-orange-400" /></div>}>
+            <GitPanel projectPath={projectPath} className="h-full" hideHeader onBranchChange={onGitBranchChange} />
+          </Suspense>
         </AccordionPanel>
       </div>
 

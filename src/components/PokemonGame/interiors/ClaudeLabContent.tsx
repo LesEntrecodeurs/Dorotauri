@@ -1,4 +1,4 @@
-'use client';
+
 import { useCallback } from 'react';
 import { InteriorContentProps } from '../types';
 import { getAgentSpritePath } from '../constants';

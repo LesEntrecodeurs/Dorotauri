@@ -1,3 +1,15 @@
+import { useEffect } from 'react';
+import PokemonGame from '@/components/PokemonGame';
+import { useStore } from '@/store';
+
 export default function PalletTownPage() {
-  return <div className="p-8">Pallet Town — coming soon</div>
+  useEffect(() => {
+    useStore.setState({ sidebarCollapsed: true });
+  }, []);
+
+  return (
+    <div className="fixed inset-0 overflow-hidden">
+      <PokemonGame />
+    </div>
+  );
 }

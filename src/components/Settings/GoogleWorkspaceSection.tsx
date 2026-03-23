@@ -1,4 +1,4 @@
-'use client';
+
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, CheckCircle, XCircle, Cloud, RefreshCw, Download, KeyRound, LogIn, ShieldCheck, Mail, HardDrive, Table2, CalendarDays, FileText, Presentation, ListChecks, MessageSquare, Users, ClipboardList, Lightbulb } from 'lucide-react';

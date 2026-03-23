@@ -1,4 +1,4 @@
-'use client';
+
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle, X } from 'lucide-react';

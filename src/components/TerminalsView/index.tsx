@@ -1,6 +1,6 @@
-'use client';
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { isElectron } from '@/hooks/useElectron';
 import { DndContext } from '@dnd-kit/core';
 import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
@@ -27,8 +27,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 // Lazy-load NewChatModal only when needed
-import dynamic from 'next/dynamic';
-const NewChatModal = dynamic(() => import('@/components/NewChatModal'), { ssr: false });
+const NewChatModal = lazy(() => import('@/components/NewChatModal'));
 
 export default function TerminalsView() {
   const {
@@ -409,15 +408,17 @@ export default function TerminalsView() {
 
         {/* New Chat Modal */}
         {showNewChatModal && (
-          <NewChatModal
-            open={showNewChatModal}
-            onClose={() => setShowNewChatModal(false)}
-            onSubmit={handleNewAgent}
-            projects={projects}
-            onBrowseFolder={openFolderDialog}
-            installedSkills={installedSkills}
-            onRefreshSkills={refreshSkills}
-          />
+          <Suspense fallback={null}>
+            <NewChatModal
+              open={showNewChatModal}
+              onClose={() => setShowNewChatModal(false)}
+              onSubmit={handleNewAgent}
+              projects={projects}
+              onBrowseFolder={openFolderDialog}
+              installedSkills={installedSkills}
+              onRefreshSkills={refreshSkills}
+            />
+          </Suspense>
         )}
       </div>
     </DndContext>

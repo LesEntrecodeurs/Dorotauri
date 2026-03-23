@@ -1,4 +1,4 @@
-'use client';
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GenerativeZone } from '@/types/world';
 

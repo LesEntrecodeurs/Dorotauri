@@ -1,6 +1,6 @@
-'use client';
 
-import { useState, useMemo, Component, ReactNode } from 'react';
+
+import { useState, useMemo, Component, ReactNode, lazy, Suspense } from 'react';
 import {
   Loader2,
   Globe,
@@ -22,20 +22,8 @@ import {
 import { useClaude } from '@/hooks/useClaude';
 import { useElectronAgents } from '@/hooks/useElectron';
 import StatsCard from './StatsCard';
-import dynamic from 'next/dynamic';
 
-// Dynamically import CanvasView to avoid SSR issues
-const CanvasView = dynamic(() => import('@/components/CanvasView'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading Board...</p>
-      </div>
-    </div>
-  ),
-});
+const CanvasView = lazy(() => import('@/components/CanvasView'));
 
 // Error boundary for 3D world
 class WorldErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
@@ -72,31 +60,8 @@ class WorldErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
   }
 }
 
-// Dynamically import AgentWorld to avoid SSR issues with Three.js
-const AgentWorld = dynamic(() => import('@/components/AgentWorld'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading 3D World...</p>
-      </div>
-    </div>
-  ),
-});
-
-// Dynamically import TerminalsView to avoid SSR issues with xterm
-const TerminalsView = dynamic(() => import('@/components/TerminalsView'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading Terminals...</p>
-      </div>
-    </div>
-  ),
-});
+const AgentWorld = lazy(() => import('@/components/AgentWorld'));
+const TerminalsView = lazy(() => import('@/components/TerminalsView'));
 
 export default function Dashboard() {
   const { data, loading, error } = useClaude();
@@ -332,7 +297,9 @@ export default function Dashboard() {
           style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}
         >
           <WorldErrorBoundary>
-            <AgentWorld />
+            <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading 3D World...</p></div></div>}>
+              <AgentWorld />
+            </Suspense>
           </WorldErrorBoundary>
         </div>
       )}
@@ -343,7 +310,9 @@ export default function Dashboard() {
           className="border border-border bg-card overflow-hidden"
           style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}
         >
-          <CanvasView />
+          <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Board...</p></div></div>}>
+            <CanvasView />
+          </Suspense>
         </div>
       )}
 
@@ -353,7 +322,9 @@ export default function Dashboard() {
           className="border border-border bg-card overflow-hidden"
           style={{ height: 'calc(100vh - 130px)', minHeight: '400px' }}
         >
-          <TerminalsView />
+          <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Terminals...</p></div></div>}>
+            <TerminalsView />
+          </Suspense>
         </div>
       )}
 

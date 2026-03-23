@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Play, Square, Pencil, Trash2, AlertTriangle, Crown, Clock } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';

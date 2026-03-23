@@ -1,6 +1,6 @@
-'use client';
+
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router';
 import { BUILDINGS } from '../constants';
 
 interface GameMenuProps {
@@ -9,14 +9,14 @@ interface GameMenuProps {
 }
 
 export default function GameMenu({ onClose, onSettings }: GameMenuProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const menuItems = [
     { label: 'RESUME', action: () => onClose() },
     ...BUILDINGS.map(b => ({
       label: b.label,
-      action: () => router.push(b.route),
+      action: () => navigate(b.route),
     })),
     ...(onSettings ? [{ label: 'SETTINGS', action: () => { onClose(); onSettings(); } }] : []),
   ];

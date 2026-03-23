@@ -1,4 +1,4 @@
-'use client';
+
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Circle } from 'lucide-react';

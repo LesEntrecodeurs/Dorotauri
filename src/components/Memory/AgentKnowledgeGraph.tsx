@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, RefreshCw, ZoomIn, ZoomOut, Maximize2, X, Save, Eye, Pencil } from 'lucide-react';

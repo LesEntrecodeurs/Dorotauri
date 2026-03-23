@@ -1,7 +1,6 @@
-'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+
+import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -29,9 +28,8 @@ import { KanbanDoneSummary } from './components/KanbanDoneSummary';
 import { COLUMN_ORDER } from './constants';
 
 // Lazy load the terminal dialog
-const AgentTerminalDialog = dynamic(
-  () => import('@/components/AgentWorld/AgentTerminalDialog'),
-  { ssr: false }
+const AgentTerminalDialog = lazy(
+  () => import('@/components/AgentWorld/AgentTerminalDialog')
 );
 
 export default function KanbanBoard() {
@@ -430,14 +428,16 @@ export default function KanbanBoard() {
 
       {/* Agent Terminal Dialog - skip historical output to avoid display issues */}
       {terminalAgentId && terminalAgent && (
-        <AgentTerminalDialog
-          agent={terminalAgent}
-          open={!!terminalAgentId}
-          onClose={handleCloseTerminal}
-          onStart={handleAgentStart}
-          onStop={handleAgentStop}
-          skipHistoricalOutput={true}
-        />
+        <Suspense fallback={null}>
+          <AgentTerminalDialog
+            agent={terminalAgent}
+            open={!!terminalAgentId}
+            onClose={handleCloseTerminal}
+            onStart={handleAgentStart}
+            onStop={handleAgentStop}
+            skipHistoricalOutput={true}
+          />
+        </Suspense>
       )}
     </div>
   );

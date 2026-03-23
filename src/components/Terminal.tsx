@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useEffect, useRef, useCallback } from 'react';
 import { Terminal as XTerm } from 'xterm';

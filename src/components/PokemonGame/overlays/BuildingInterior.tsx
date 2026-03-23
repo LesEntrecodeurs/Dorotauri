@@ -1,4 +1,4 @@
-'use client';
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { InteriorConfig, InteriorPhase, InteriorContentProps, InteriorNPC, TerminalConfig, GameAssets } from '../types';
 import { INTERIOR_ROOM_CONFIGS, AGENT_GRID_POSITIONS, getAgentSpritePath } from '../constants';

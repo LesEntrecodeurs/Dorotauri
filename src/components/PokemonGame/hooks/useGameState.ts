@@ -1,4 +1,4 @@
-'use client';
+
 import { useRef, useCallback } from 'react';
 import { GameState, PlayerState, NPC, Direction, Building } from '../types';
 import { PLAYER_START, BUILDINGS } from '../constants';

@@ -1,6 +1,6 @@
-'use client';
+
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router';
 import { NPC, Building, Screen } from './types';
 import { CHARACTER_POKEMON_MAP, POKEMON_SPRITE_COLS, INTERIOR_CONFIGS, ROUTE1_BUILDINGS, getAgentSpritePath } from './constants';
 import { useAssetLoader } from './hooks/useAssetLoader';
@@ -209,7 +209,7 @@ function MusicPlayer({ screen, inBattle }: { screen: Screen; inBattle: boolean }
 }
 
 export default function PokemonGame() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { assets, loaded, progress } = useAssetLoader();
   const { refresh: refreshClaude } = useClaude();
   const { refresh: refreshSkills } = useElectronSkills();
@@ -424,7 +424,7 @@ export default function PokemonGame() {
       const pendingRoute = (window as any).__pendingRoute;
       if (pendingRoute) {
         delete (window as any).__pendingRoute;
-        router.push(pendingRoute);
+        navigate(pendingRoute);
       }
     }
   }, [dialogueQueue, router, worldBuilderPending]);

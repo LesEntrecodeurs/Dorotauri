@@ -1,8 +1,8 @@
-'use client';
+
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
 import { useClaude } from '@/hooks/useClaude';
 import AgentTerminalDialog from '@/components/AgentWorld/AgentTerminalDialog';
@@ -28,7 +28,7 @@ import {
 } from './components';
 
 export default function CanvasView() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // External hooks
@@ -232,7 +232,7 @@ export default function CanvasView() {
 
       {/* Empty state */}
       {agentNodes.length === 0 && projectNodes.length === 0 && (
-        <EmptyState onNavigateToAgents={() => router.push('/agents')} />
+        <EmptyState onNavigateToAgents={() => navigate('/agents')} />
       )}
 
       {/* Title */}

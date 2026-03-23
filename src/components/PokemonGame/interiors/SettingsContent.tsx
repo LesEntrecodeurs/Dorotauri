@@ -1,4 +1,4 @@
-'use client';
+
 import { useState, useMemo, useCallback } from 'react';
 import { InteriorContentProps, PokemonMenuItem } from '../types';
 import { useSettings } from '@/hooks/useSettings';

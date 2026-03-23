@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState, useCallback, useMemo } from 'react';
 import type { AgentStatus } from '@/types/electron';

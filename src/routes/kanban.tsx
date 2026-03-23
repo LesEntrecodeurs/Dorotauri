@@ -1,3 +1,5 @@
+import KanbanBoard from '@/components/KanbanBoard';
+
 export default function KanbanPage() {
-  return <div className="p-8">Kanban — coming soon</div>
+  return <KanbanBoard />;
 }

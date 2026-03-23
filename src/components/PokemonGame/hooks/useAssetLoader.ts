@@ -1,4 +1,4 @@
-'use client';
+
 import { useState, useEffect } from 'react';
 import { GameAssets } from '../types';
 import { BUILDINGS, INTERIOR_CONFIGS } from '../constants';

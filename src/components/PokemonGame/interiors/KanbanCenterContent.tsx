@@ -1,4 +1,4 @@
-'use client';
+
 import { useMemo } from 'react';
 import { InteriorContentProps, PokemonMenuItem } from '../types';
 import { useElectronKanban } from '@/hooks/useElectronKanban';

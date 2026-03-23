@@ -1,4 +1,4 @@
-'use client';
+
 import { useRef, useEffect, useCallback } from 'react';
 import { GameAssets, NPC, Building, Direction } from './types';
 import { SCALED_TILE, MOVE_DURATION, TILE, MAP_HEIGHT } from './constants';

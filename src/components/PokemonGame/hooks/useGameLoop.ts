@@ -1,4 +1,4 @@
-'use client';
+
 import { useEffect, useRef } from 'react';
 
 export function useGameLoop(callback: (deltaTime: number) => void, running: boolean) {

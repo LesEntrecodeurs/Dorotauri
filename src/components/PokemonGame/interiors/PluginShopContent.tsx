@@ -1,4 +1,4 @@
-'use client';
+
 import { useMemo, useCallback } from 'react';
 import { InteriorContentProps, PokemonMenuItem } from '../types';
 import { usePluginsDatabase } from '@/lib/plugins-database';

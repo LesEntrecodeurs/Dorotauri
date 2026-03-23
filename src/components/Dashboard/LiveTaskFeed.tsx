@@ -1,4 +1,4 @@
-'use client';
+
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
