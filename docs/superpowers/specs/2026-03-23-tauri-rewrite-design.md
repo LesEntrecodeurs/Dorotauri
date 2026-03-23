@@ -91,6 +91,10 @@ Persists to `~/.dorothy/` (agents.json, app-settings.json) — same locations as
 
 `AgentStatus` carries the same fields as the current TypeScript interface: id, status (idle/running/completed/error/waiting), projectPath, skills, output buffer, character, provider, etc.
 
+**Note on PTY types:** The current Electron app manages four separate PTY maps (agents, skills, quick terminals, plugins). The Rust core unifies these into a single `pty_handles` map with a `PtyType` enum discriminator to simplify the API while preserving the distinct behaviors.
+
+**CLI binary discovery:** `AppSettings` includes `cli_paths` tracking paths to provider binaries (claude, codex, gemini, pi, etc.). Tauri inherits the user's shell `$PATH` when spawning PTY processes, same as the current Electron behavior. The settings allow manual overrides for non-standard installations.
+
 ### PTY Manager (`src-tauri/src/pty.rs`)
 
 Uses `portable-pty` crate (works on macOS and Linux).
@@ -385,6 +389,11 @@ This replaces the current `useElectron*` hooks with the same interface shape, mi
 | `/settings` | Settings | Hub |
 | `/skills` | Skills marketplace | Hub |
 | `/automations` | Automations | Hub |
+| `/plugins` | Plugin management | Hub |
+| `/projects` | Project browser | Hub |
+| `/recurring-tasks` | Recurring tasks | Hub |
+| `/usage` | Usage tracking | Hub |
+| `/whats-new` | Changelog | Hub |
 | `/tray-panel` | Tray popover | macOS tray |
 
 ---
@@ -487,7 +496,7 @@ Each phase produces a testable result on both macOS and Fedora Linux.
 
 ### Phase 5: Node.js Sidecar
 
-- Extract Telegram, Slack, MCP, API server from `electron/` into sidecar bundle
+- Extract services from `electron/` into sidecar bundle: Telegram, Slack, MCP orchestrator, API HTTP server, JIRA, GWS, SocialData, X API, hooks-manager, kanban-automation, obsidian-service, tasmania-client, scheduler/cron
 - Implement `sidecar.rs` (lifecycle, JSON-RPC bridge)
 - Wire sidecar events to Tauri events (e.g., Telegram message → agent trigger)
 - Verify: Telegram bot works, API server on port 1280 responds, MCP orchestrator spawns, on both platforms
@@ -540,3 +549,4 @@ Each phase produces a testable result on both macOS and Fedora Linux.
 | xterm.js performance in Tauri webview | Tauri uses system webview (WebKit on macOS, WebKitGTK on Linux) — benchmark in Phase 2 |
 | JSON-RPC latency for sidecar calls | Only non-critical-path services use sidecar; PTY path is pure Rust |
 | WebKitGTK version on Fedora | Fedora ships recent WebKitGTK; document minimum version requirement |
+| WebKitGTK keyboard/clipboard quirks on Linux | WebKitGTK has minor differences in keyboard event handling and clipboard access vs WebKit/macOS — test xterm.js input handling explicitly in Phase 2 |
