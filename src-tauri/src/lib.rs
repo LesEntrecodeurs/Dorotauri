@@ -1,17 +1,50 @@
+use tauri::Manager;
+
 mod commands;
 mod pty;
 mod state;
+mod windows;
 
 pub fn run() {
     let app_state = state::AppState::load();
     let pty_manager = pty::PtyManager::new();
+    let window_registry = windows::WindowRegistry::new();
 
     tauri::Builder::default()
         .manage(app_state)
         .manage(pty_manager)
+        .manage(window_registry)
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .setup(|app| {
+            let registry = app.state::<windows::WindowRegistry>();
+            registry.register(
+                "main",
+                windows::WindowInfo {
+                    id: "main".to_string(),
+                    window_type: windows::WindowType::Hub,
+                    displayed_agents: vec![],
+                },
+            );
+            Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::Focused(focused) => {
+                let registry = window.state::<windows::WindowRegistry>();
+                let mut fw = registry.focused_window.lock().unwrap();
+                if *focused {
+                    *fw = Some(window.label().to_string());
+                } else if fw.as_deref() == Some(window.label()) {
+                    *fw = None;
+                }
+            }
+            tauri::WindowEvent::Destroyed => {
+                let registry = window.state::<windows::WindowRegistry>();
+                registry.unregister(window.label());
+            }
+            _ => {}
+        })
         .invoke_handler(tauri::generate_handler![
             // Agent commands
             commands::agent::agent_list,
