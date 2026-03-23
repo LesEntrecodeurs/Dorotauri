@@ -60,3 +60,6 @@ mcp-world/dist
 electron/dist
 
 .idea
+
+# Tauri / Rust
+src-tauri/target/
