@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';
-import { STATUS_COLORS, CHARACTER_FACES } from '@/app/agents/constants';
+import { STATUS_COLORS, CHARACTER_FACES } from '@/components/AgentList/constants';
 
 interface AgentDetailPanelProps {
   agent: AgentStatus;

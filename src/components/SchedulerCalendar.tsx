@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Play, FileText, Pencil, Trash2, Clock } from 'lucide-react';
-import type { ScheduledTask } from '@/app/recurring-tasks/types';
+import type { ScheduledTask } from '@/components/RecurringTasks/types';
 
 export type { ScheduledTask };
 

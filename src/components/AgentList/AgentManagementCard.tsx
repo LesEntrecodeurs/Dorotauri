@@ -7,7 +7,7 @@ import {
   STATUS_LABELS,
   CHARACTER_FACES,
   isSuperAgentCheck,
-} from '@/app/agents/constants';
+} from '@/components/AgentList/constants';
 
 function formatTimeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();

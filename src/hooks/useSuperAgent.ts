@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/hooks/useTauri';
 import type { AgentStatus, AgentCharacter } from '@/types/electron';
-import { ORCHESTRATOR_PROMPT } from '@/app/agents/constants';
+import { ORCHESTRATOR_PROMPT } from '@/components/AgentList/constants';
 
 interface Project {
   path: string;
