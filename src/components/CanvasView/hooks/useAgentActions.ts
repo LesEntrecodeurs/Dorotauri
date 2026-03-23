@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import type { AgentCharacter, AgentStatus } from '@/types/electron';
 
 interface CreateAgentConfig {
@@ -100,19 +101,24 @@ export function useAgentActions({
       return;
     }
 
-    if (!window.electronAPI?.orchestrator?.getStatus) {
-      console.error('Orchestrator API not available');
-      return;
-    }
+    try {
+      const status = await invoke<{ configured?: boolean; error?: string }>('orchestrator_get_status');
 
-    const status = await window.electronAPI.orchestrator.getStatus();
-
-    if (!status.configured && window.electronAPI?.orchestrator?.setup) {
-      const setupResult = await window.electronAPI.orchestrator.setup();
-      if (!setupResult.success) {
-        console.error('Failed to setup orchestrator:', setupResult.error);
-        return;
+      if (!status.configured) {
+        try {
+          const setupResult = await invoke<{ success?: boolean; error?: string }>('orchestrator_setup');
+          if (!setupResult.success) {
+            console.error('Failed to setup orchestrator:', setupResult.error);
+            return;
+          }
+        } catch (err) {
+          console.error('Orchestrator setup not available:', err);
+          return;
+        }
       }
+    } catch (err) {
+      console.error('Orchestrator status not available:', err);
+      return;
     }
 
     setIsCreatingSuperAgent(true);

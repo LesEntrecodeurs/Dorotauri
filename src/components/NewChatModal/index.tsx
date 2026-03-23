@@ -3,9 +3,11 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Play, Check } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 
 import type { NewChatModalProps, AgentPersonaValues } from './types';
 import type { AgentProvider } from '@/types/electron';
+import type { AppSettings } from '@/components/Settings/types';
 import { CHARACTER_OPTIONS } from './constants';
 import { useSkillInstall } from './hooks/useSkillInstall';
 import StepProject from './StepProject';
@@ -131,8 +133,10 @@ export default function NewChatModal({
   // Refresh both parent skills and local provider-skill map
   const handleRefreshSkills = useCallback(() => {
     onRefreshSkills?.();
-    window.electronAPI?.skill?.listInstalledAll().then((byProvider) => {
+    invoke<Record<string, string[]>>('skill_list_installed_all').then((byProvider) => {
       if (byProvider) setInstalledSkillsByProvider(byProvider);
+    }).catch(() => {
+      // Command not implemented yet in Tauri
     });
   }, [onRefreshSkills]);
 
@@ -192,45 +196,52 @@ export default function NewChatModal({
       }
 
       // Load app settings (Tasmania, favorites, default project)
-      window.electronAPI?.appSettings?.get().then((settings) => {
-        setTasmaniaEnabled(settings?.tasmaniaEnabled || false);
-        if (Array.isArray(settings?.favoriteProjects)) {
+      invoke<AppSettings | null>('app_settings_get').then((settings) => {
+        if (!settings) return;
+        setTasmaniaEnabled(settings.tasmaniaEnabled || false);
+        if (Array.isArray(settings.favoriteProjects)) {
           setFavoriteProjects(settings.favoriteProjects);
         }
-        if (Array.isArray(settings?.hiddenProjects)) {
+        if (Array.isArray(settings.hiddenProjects)) {
           setHiddenProjects(settings.hiddenProjects);
         }
         // Store default project path for sorting
-        if (settings?.defaultProjectPath) {
+        if (settings.defaultProjectPath) {
           setDefaultProjectPath(settings.defaultProjectPath);
         }
         // Auto-select default project if no project pre-selected
-        if (!initialProjectPath && !editAgent && settings?.defaultProjectPath) {
+        if (!initialProjectPath && !editAgent && settings.defaultProjectPath) {
           setSelectedProject(settings.defaultProjectPath);
         }
-      });
+      }).catch(() => {});
 
       // Load registered obsidian vaults
-      window.electronAPI?.obsidian?.getVaultInfo().then((info) => {
+      invoke<{ vaultPaths?: string[] }>('obsidian_get_vault_info').then((info) => {
         setRegisteredVaults(info?.vaultPaths || []);
+      }).catch(() => {
+        setRegisteredVaults([]);
       });
 
       // Detect installed CLI providers
-      window.electronAPI?.cliPaths?.detect().then((paths) => {
+      invoke<Record<string, string>>('cli_paths_detect').then((paths) => {
         if (paths) {
           setInstalledProviders({
             claude: !!paths.claude,
             codex: !!paths.codex,
             gemini: !!paths.gemini,
-            opencode: !!(paths as Record<string, string>).opencode,
-            pi: !!(paths as Record<string, string>).pi,
+            opencode: !!paths.opencode,
+            pi: !!paths.pi,
           });
         }
+      }).catch(() => {
+        // Command not implemented yet — keep defaults
       });
 
       // Fetch per-provider installed skills
-      window.electronAPI?.skill?.listInstalledAll().then((byProvider) => {
+      invoke<Record<string, string[]>>('skill_list_installed_all').then((byProvider) => {
         if (byProvider) setInstalledSkillsByProvider(byProvider);
+      }).catch(() => {
+        // Command not implemented yet
       });
     }
   }, [open, initialProjectPath, initialStep, editAgent]);
@@ -243,22 +254,32 @@ export default function NewChatModal({
   // Detect Obsidian vault when project path changes
   useEffect(() => {
     if (!projectPath || !open) return;
-    window.electronAPI?.obsidian?.detectVault(projectPath).then(async (result) => {
-      if (result?.detected && result.vaultPath) {
-        setDetectedVault(result.vaultPath);
-        // Auto-register if not already registered
-        if (!registeredVaults.includes(result.vaultPath)) {
-          await window.electronAPI?.obsidian?.addVault(result.vaultPath);
-          setRegisteredVaults(prev => [...prev, result.vaultPath!]);
+    (async () => {
+      try {
+        const result = await invoke<{ detected?: boolean; vaultPath?: string }>('obsidian_detect_vault', { projectPath });
+        if (result?.detected && result.vaultPath) {
+          setDetectedVault(result.vaultPath);
+          // Auto-register if not already registered
+          if (!registeredVaults.includes(result.vaultPath)) {
+            try {
+              await invoke('obsidian_add_vault', { vaultPath: result.vaultPath });
+            } catch {
+              // Command not implemented yet
+            }
+            setRegisteredVaults(prev => [...prev, result.vaultPath!]);
+          }
+          // Auto-select the detected vault
+          setSelectedObsidianVaults(prev =>
+            prev.includes(result.vaultPath!) ? prev : [...prev, result.vaultPath!]
+          );
+        } else {
+          setDetectedVault(null);
         }
-        // Auto-select the detected vault
-        setSelectedObsidianVaults(prev =>
-          prev.includes(result.vaultPath!) ? prev : [...prev, result.vaultPath!]
-        );
-      } else {
+      } catch {
+        // Obsidian commands not implemented yet
         setDetectedVault(null);
       }
-    });
+    })();
   }, [projectPath, open, registeredVaults]);
 
   // Stable callbacks for child components
