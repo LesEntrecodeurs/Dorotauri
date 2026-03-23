@@ -1,5 +1,3 @@
-'use client';
-
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -28,8 +26,7 @@ const PalletTownIcon = ({ className }: { className?: string }) => (
   <img src="/pokemon/p.png" alt="" className={className} style={{ imageRendering: 'pixelated', objectFit: 'contain' }} />
 );
 import { useStore } from '@/store';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router';
 
 const navItems = [
   { href: '/', icon: LayoutDashboard, label: 'Dashboard', shortcut: '1' },
@@ -67,7 +64,7 @@ function useWhatsNewBadge() {
 }
 
 export default function Sidebar({ isMobile = false }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen, darkMode, toggleDarkMode, vaultUnreadCount } = useStore();
   const whatsNewHasNew = useWhatsNewBadge();
 
@@ -116,7 +113,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                to={item.href}
                 className={`
                   group flex items-center gap-3 px-3 py-2.5 transition-all duration-150
                   ${isActive
@@ -153,7 +150,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           {showLabels && (
             <>
               <Link
-                href="/whats-new"
+                to="/whats-new"
                 className={`flex items-center gap-3 px-5 py-3 transition-colors ${
                   pathname === '/whats-new'
                     ? 'bg-primary/20 text-primary border-l-2 border-primary'
@@ -186,7 +183,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           )}
           {!showLabels && (
             <Link
-              href="/whats-new"
+              to="/whats-new"
               className={`flex items-center justify-center py-3 transition-colors ${
                 pathname === '/whats-new'
                   ? 'bg-primary/20 text-primary'
@@ -206,7 +203,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
         {/* Settings & Collapse */}
         <div className="border-t border-border">
           <Link
-            href="/settings"
+            to="/settings"
             className={`
               flex items-center gap-3 px-5 py-3 transition-colors
               ${pathname === '/settings' || pathname.startsWith('/settings/')
@@ -274,7 +271,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  to={item.href}
                   onClick={handleNavClick}
                   className={`
                     group flex items-center gap-3 px-3 py-2.5 transition-all duration-150
@@ -303,7 +300,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           {/* What's New + Status indicator */}
           <div className="border-t border-border">
             <Link
-              href="/whats-new"
+              to="/whats-new"
               onClick={handleNavClick}
               className={`flex items-center gap-3 px-5 py-3 transition-colors ${
                 pathname === '/whats-new'
@@ -338,7 +335,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           {/* Settings & Theme Toggle */}
           <div className="border-t border-border">
             <Link
-              href="/settings"
+              to="/settings"
               onClick={handleNavClick}
               className={`
                 flex items-center gap-3 px-5 py-3 transition-colors
