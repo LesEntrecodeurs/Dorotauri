@@ -131,8 +131,9 @@ export default function Console() {
       }).then((fn) => { unlistenError = fn })
 
       // Subscribe to agent status changes to update the title bar
-      listen<{ agent_id: string; status: string }>('agent:status', (event) => {
-        if (event.payload.agent_id === agentId) {
+      // Rust emits full AgentStatus object with 'id' and 'status' fields
+      listen<{ id: string; status: string }>('agent:status', (event) => {
+        if (event.payload.id === agentId) {
           setAgentStatus(event.payload.status)
         }
       }).then((fn) => { unlistenStatus = fn })
