@@ -1,7 +1,6 @@
-'use client';
-
 import { useState, useEffect, useCallback } from 'react';
-import { isElectron } from '@/hooks/useElectron';
+import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/hooks/useTauri';
 import type { ClaudeSettings, ClaudeInfo, Skill, AppSettings } from '@/components/Settings/types';
 import { DEFAULT_APP_SETTINGS } from '@/components/Settings/constants';
 
@@ -17,7 +16,7 @@ export const useSettings = () => {
   const [hasChanges, setHasChanges] = useState(false);
 
   const fetchSettings = useCallback(async () => {
-    if (!isElectron() || !window.electronAPI?.settings) {
+    if (!isTauri()) {
       setError('Settings are only available in the desktop app');
       setLoading(false);
       return;
@@ -26,10 +25,10 @@ export const useSettings = () => {
     try {
       setLoading(true);
       const [settingsData, infoData, claudeData, appSettingsData] = await Promise.all([
-        window.electronAPI.settings.get(),
-        window.electronAPI.settings.getInfo(),
-        window.electronAPI.claude?.getData(),
-        window.electronAPI.appSettings?.get(),
+        invoke<ClaudeSettings | null>('settings_get').catch(() => null),
+        invoke<ClaudeInfo | null>('settings_get_info').catch(() => null),
+        invoke<{ skills?: Skill[] } | null>('claude_get_data').catch(() => null),
+        invoke<AppSettings | null>('app_settings_get').catch(() => null),
       ]);
 
       if (settingsData) {
@@ -61,11 +60,11 @@ export const useSettings = () => {
   }, [fetchSettings]);
 
   const handleSave = async () => {
-    if (!settings || !window.electronAPI?.settings) return;
+    if (!settings || !isTauri()) return;
 
     try {
       setSaving(true);
-      const result = await window.electronAPI.settings.save(settings);
+      const result = await invoke<{ success: boolean; error?: string }>('settings_save', { settings });
 
       if (result.success) {
         setSaved(true);
@@ -85,10 +84,10 @@ export const useSettings = () => {
     const updated = { ...appSettings, ...newSettings };
     setAppSettings(updated);
 
-    if (!window.electronAPI?.appSettings) return;
+    if (!isTauri()) return;
 
     try {
-      const result = await window.electronAPI.appSettings.save(updated);
+      const result = await invoke<{ success: boolean; error?: string }>('app_settings_save', { settings: updated });
       if (!result.success) {
         setError(result.error || 'Failed to save notification settings');
       }
