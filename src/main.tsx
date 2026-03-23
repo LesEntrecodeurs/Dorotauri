@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, Component, ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router'
 import './globals.css'
@@ -20,29 +20,48 @@ import WhatsNewPage from './routes/whats-new'
 import PalletTownPage from './routes/pallet-town'
 import TrayPanel from './routes/tray-panel'
 
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+  static getDerivedStateFromError(error: Error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, fontFamily: 'monospace', color: '#c00', background: 'white' }}>
+          <h1>React Error</h1>
+          <pre>{this.state.error.message}</pre>
+          <pre style={{ fontSize: 12, color: '#666' }}>{this.state.error.stack}</pre>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route element={<ClientLayout />}>
-          <Route path="/" element={<Hub />} />
-          <Route path="/agents" element={<AgentsPage />} />
-          <Route path="/kanban" element={<KanbanPage />} />
-          <Route path="/memory" element={<MemoryPage />} />
-          <Route path="/vault" element={<VaultPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/skills" element={<SkillsPage />} />
-          <Route path="/automations" element={<AutomationsPage />} />
-          <Route path="/plugins" element={<PluginsPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
-          <Route path="/usage" element={<UsagePage />} />
-          <Route path="/whats-new" element={<WhatsNewPage />} />
-          <Route path="/pallet-town" element={<PalletTownPage />} />
-        </Route>
-        <Route path="/console/:agentId" element={<Console />} />
-        <Route path="/tray-panel" element={<TrayPanel />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<ClientLayout />}>
+            <Route path="/" element={<Hub />} />
+            <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/kanban" element={<KanbanPage />} />
+            <Route path="/memory" element={<MemoryPage />} />
+            <Route path="/vault" element={<VaultPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/skills" element={<SkillsPage />} />
+            <Route path="/automations" element={<AutomationsPage />} />
+            <Route path="/plugins" element={<PluginsPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
+            <Route path="/usage" element={<UsagePage />} />
+            <Route path="/whats-new" element={<WhatsNewPage />} />
+            <Route path="/pallet-town" element={<PalletTownPage />} />
+          </Route>
+          <Route path="/console/:agentId" element={<Console />} />
+          <Route path="/tray-panel" element={<TrayPanel />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>
 )
