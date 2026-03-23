@@ -23,6 +23,7 @@ pub fn run() {
             commands::agent::agent_update,
             commands::agent::agent_send_input,
             // PTY commands
+            commands::pty::pty_create,
             commands::pty::pty_write,
             commands::pty::pty_resize,
             commands::pty::pty_kill,

@@ -1,13 +1,16 @@
 
 
+
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { attachShiftEnterHandler } from '@/lib/terminal';
 import { QUICK_TERMINAL_THEME } from './constants';
 import type { PanelType } from './AgentDialogTypes';
 
 // Module-level map: persist PTY sessions across dialog open/close
-export const persistentTerminals = new Map<string, { ptyId: string; outputBuffer: string[] }>();
+export const persistentTerminals = new Map<string, { ptyId: string; outputBuffer: Uint8Array[] }>();
 
 interface UseQuickTerminalOptions {
   agentId: string | undefined;
@@ -82,12 +85,12 @@ export function useQuickTerminal({
         if (existing) {
           quickPtyIdRef.current = existing.ptyId;
           existing.outputBuffer.forEach((data) => term.write(data));
-          if (window.electronAPI?.pty?.resize) {
-            window.electronAPI.pty.resize({ id: existing.ptyId, cols: term.cols, rows: term.rows });
+          if (isTauri()) {
+            invoke('pty_resize', { ptyId: existing.ptyId, cols: term.cols, rows: term.rows }).catch(() => {});
           }
           setQuickTerminalReady(true);
-        } else if (window.electronAPI?.pty?.create) {
-          const { id: ptyId } = await window.electronAPI.pty.create({ cwd: projectPath, cols: term.cols, rows: term.rows });
+        } else if (isTauri()) {
+          const ptyId = await invoke<string>('pty_create', { cwd: projectPath, cols: term.cols, rows: term.rows });
           if (!cancelled) {
             quickPtyIdRef.current = ptyId;
             persistentTerminals.set(agentId, { ptyId, outputBuffer: [] });
@@ -96,8 +99,8 @@ export function useQuickTerminal({
         }
 
         attachShiftEnterHandler(term, (data) => {
-          if (quickPtyIdRef.current && window.electronAPI?.pty?.write) {
-            window.electronAPI.pty.write({ id: quickPtyIdRef.current, data }).catch(() => {});
+          if (quickPtyIdRef.current && isTauri()) {
+            invoke('pty_write', { ptyId: quickPtyIdRef.current, data }).catch(() => {});
           }
         });
 
@@ -109,14 +112,14 @@ export function useQuickTerminal({
             .replace(/\x1b\[(?:I|O)/g, '')
             .replace(/\d+;\d+c/g, '');
           if (!cleaned) return;
-          if (quickPtyIdRef.current && window.electronAPI?.pty?.write) {
-            await window.electronAPI.pty.write({ id: quickPtyIdRef.current, data: cleaned });
+          if (quickPtyIdRef.current && isTauri()) {
+            await invoke('pty_write', { ptyId: quickPtyIdRef.current, data: cleaned });
           }
         });
 
         term.onResize(({ cols, rows }) => {
-          if (quickPtyIdRef.current && window.electronAPI?.pty?.resize) {
-            window.electronAPI.pty.resize({ id: quickPtyIdRef.current, cols, rows });
+          if (quickPtyIdRef.current && isTauri()) {
+            invoke('pty_resize', { ptyId: quickPtyIdRef.current, cols, rows }).catch(() => {});
           }
         });
       } catch (e) {
@@ -149,25 +152,31 @@ export function useQuickTerminal({
     }
   }, [open]);
 
-  // Route incoming PTY data to xterm and buffer it
+  // Route incoming PTY data to xterm and buffer it via Tauri events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.pty?.onData) return;
-    return window.electronAPI.pty.onData((event) => {
+    if (!isTauri()) return;
+
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
       if (!agentId) return;
       const existing = persistentTerminals.get(agentId);
-      if (!existing || event.id !== existing.ptyId) return;
+      if (!existing || event.payload.pty_id !== existing.ptyId) return;
 
-      existing.outputBuffer.push(event.data);
+      const bytes = new Uint8Array(event.payload.data);
+      existing.outputBuffer.push(bytes);
       if (existing.outputBuffer.length > 1000) existing.outputBuffer.shift();
-      quickXtermRef.current?.write(event.data);
-    });
+      quickXtermRef.current?.write(bytes);
+    }).then(fn => { unlisten = fn; });
+
+    return () => { unlisten?.(); };
   }, [agentId]);
 
   const closeQuickTerminal = useCallback(() => {
     if (agentId) {
       const existing = persistentTerminals.get(agentId);
-      if (existing && window.electronAPI?.pty?.kill) {
-        window.electronAPI.pty.kill({ id: existing.ptyId });
+      if (existing && isTauri()) {
+        invoke('pty_kill', { ptyId: existing.ptyId }).catch(() => {});
         persistentTerminals.delete(agentId);
       }
     }

@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
 import { DndContext } from '@dnd-kit/core';
 import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
 import { useMultiTerminal } from './hooks/useMultiTerminal';
@@ -49,21 +51,21 @@ export default function TerminalsView() {
   const [terminalFontSize, setTerminalFontSize] = useState(11);
   const pendingStartRef = useRef<{ agentId: string; prompt: string; options?: { model?: string } } | null>(null);
   const [terminalTheme, setTerminalTheme] = useState<'dark' | 'light'>('dark');
-  const [terminalSettingsLoaded, setTerminalSettingsLoaded] = useState(!isElectron());
+  const [terminalSettingsLoaded, setTerminalSettingsLoaded] = useState(!isTauri());
 
   // Load terminal settings from app settings
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.appSettings) {
+    if (!isTauri()) {
       setTerminalSettingsLoaded(true);
       return;
     }
-    window.electronAPI.appSettings.get().then((settings) => {
+    invoke<{ terminalFontSize?: number; terminalTheme?: 'dark' | 'light' } | null>('app_settings_get').then((settings) => {
       if (settings) {
         if (settings.terminalFontSize) setTerminalFontSize(settings.terminalFontSize);
         if (settings.terminalTheme) setTerminalTheme(settings.terminalTheme);
       }
       setTerminalSettingsLoaded(true);
-    });
+    }).catch(() => { setTerminalSettingsLoaded(true); });
   }, []);
 
   // Tab manager — core state for two-tier tab system
@@ -126,8 +128,8 @@ export default function TerminalsView() {
     initialFontSize: terminalFontSize,
     onFontSizeChange: (size) => {
       setTerminalFontSize(size);
-      if (isElectron() && window.electronAPI?.appSettings) {
-        window.electronAPI.appSettings.save({ terminalFontSize: size });
+      if (isTauri()) {
+        invoke('app_settings_save', { settings: { terminalFontSize: size } }).catch(() => {});
       }
     },
     theme: terminalTheme,

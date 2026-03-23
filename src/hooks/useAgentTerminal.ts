@@ -239,7 +239,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
     };
   }, [selectedAgentId, terminalRef, provider, terminalTheme, terminalFontSize]);
 
-  // Listen for agent output events
+  // Listen for agent output events (Rust PTY sends bytes as number[])
   useEffect(() => {
     if (!isTauri()) {
       console.log('Agent output listener not set up - Tauri API not available');
@@ -248,10 +248,11 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
 
     let unlisten: (() => void) | undefined;
 
-    listen<AgentEvent>('agent:output', (event) => {
-      const e = event.payload;
-      if (e.agentId === selectedAgentIdRef.current && xtermRef.current) {
-        xtermRef.current.write(e.data);
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { agent_id, data } = event.payload;
+      if (agent_id === selectedAgentIdRef.current && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
       }
     }).then(fn => { unlisten = fn; });
 

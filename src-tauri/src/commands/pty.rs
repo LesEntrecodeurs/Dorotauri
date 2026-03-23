@@ -1,5 +1,24 @@
-use tauri::State;
+use tauri::{AppHandle, State};
 use crate::pty::PtyManager;
+
+/// Create a standalone PTY (not tied to an agent). Used by quick terminals,
+/// skill install dialogs, plugin install dialogs, etc.
+#[tauri::command]
+pub fn pty_create(
+    pty_manager: State<'_, PtyManager>,
+    app_handle: AppHandle,
+    cwd: Option<String>,
+    cols: Option<u16>,
+    rows: Option<u16>,
+) -> Result<String, String> {
+    let pty_id = uuid::Uuid::new_v4().to_string();
+    let working_dir = cwd.unwrap_or_else(|| {
+        std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string())
+    });
+    let _ = (cols, rows); // TODO: pass initial size to spawn
+    pty_manager.spawn(&pty_id, &pty_id, &working_dir, &app_handle)?;
+    Ok(pty_id)
+}
 
 #[tauri::command]
 pub fn pty_write(pty_manager: State<'_, PtyManager>, pty_id: String, data: String) -> Result<(), String> {

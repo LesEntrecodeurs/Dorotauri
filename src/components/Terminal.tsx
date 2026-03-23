@@ -1,8 +1,12 @@
 
 
+
 import { useEffect, useRef, useCallback } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '@/hooks/useTauri';
 import 'xterm/css/xterm.css';
 
 interface TerminalProps {
@@ -67,20 +71,16 @@ export default function Terminal({ ptyId, onData, className = '' }: TerminalProp
       onData?.(cleaned);
 
       // If we have a PTY, send input to it
-      if (ptyId && window.electronAPI?.pty) {
-        window.electronAPI.pty.write({ id: ptyId, data: cleaned });
+      if (ptyId && isTauri()) {
+        invoke('pty_write', { ptyId, data: cleaned }).catch(() => {});
       }
     });
 
     // Handle resize
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
-      if (ptyId && window.electronAPI?.pty) {
-        window.electronAPI.pty.resize({
-          id: ptyId,
-          cols: term.cols,
-          rows: term.rows,
-        });
+      if (ptyId && isTauri()) {
+        invoke('pty_resize', { ptyId, cols: term.cols, rows: term.rows }).catch(() => {});
       }
     });
     resizeObserver.observe(terminalRef.current);
@@ -98,17 +98,21 @@ export default function Terminal({ ptyId, onData, className = '' }: TerminalProp
     return cleanup;
   }, [initTerminal]);
 
-  // Listen for PTY data
+  // Listen for PTY data via Tauri events
   useEffect(() => {
-    if (!ptyId || !window.electronAPI?.pty) return;
+    if (!ptyId || !isTauri()) return;
 
-    const unsubscribe = window.electronAPI.pty.onData(({ id, data }) => {
-      if (id === ptyId && xtermRef.current) {
-        xtermRef.current.write(data);
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { pty_id: eventPtyId, data } = event.payload;
+      if (eventPtyId === ptyId && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
       }
-    });
+    }).then(fn => { unlisten = fn; });
 
-    return unsubscribe;
+    return () => { unlisten?.(); };
   }, [ptyId]);
 
   // Public method to write to terminal

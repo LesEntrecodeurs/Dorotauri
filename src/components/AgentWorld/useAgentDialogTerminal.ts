@@ -1,8 +1,11 @@
 
 
+
 import { useState, useEffect, useRef } from 'react';
 import type { AgentStatus } from '@/types/electron';
-import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { attachShiftEnterHandler, stripCursorSequences } from '@/lib/terminal';
 import { TERMINAL_THEME } from './constants';
 
@@ -87,8 +90,11 @@ export function useAgentDialogTerminal({
         const fitAndResize = () => {
           try {
             fitAddon.fit();
-            if (window.electronAPI?.agent?.resize && agent?.id) {
-              window.electronAPI.agent.resize({ id: agent.id, cols: term.cols, rows: term.rows }).catch(() => {});
+            if (isTauri() && agent?.id) {
+              // Resize via pty_resize using agent's ptyId if available
+              if (agent.ptyId) {
+                invoke('pty_resize', { ptyId: agent.ptyId, cols: term.cols, rows: term.rows }).catch(() => {});
+              }
             }
           } catch (e) {
             console.warn('Failed to fit terminal:', e);
@@ -102,8 +108,8 @@ export function useAgentDialogTerminal({
 
         attachShiftEnterHandler(term, (data) => {
           const id = agentIdRef.current;
-          if (id && window.electronAPI?.agent?.sendInput) {
-            window.electronAPI.agent.sendInput({ id, input: data }).catch(() => {});
+          if (id && isTauri()) {
+            invoke('agent_send_input', { id, input: data }).catch(() => {});
           }
         });
 
@@ -112,9 +118,9 @@ export function useAgentDialogTerminal({
           const cleaned = cleanInput(data);
           if (!cleaned) return;
           const id = agentIdRef.current;
-          if (id && window.electronAPI?.agent?.sendInput) {
+          if (id && isTauri()) {
             try {
-              await window.electronAPI.agent.sendInput({ id, input: cleaned });
+              await invoke('agent_send_input', { id, input: cleaned });
             } catch (err) {
               console.error('Error sending input:', err);
             }
@@ -126,9 +132,9 @@ export function useAgentDialogTerminal({
         term.writeln(`\x1b[36m● Connected to ${agent.name || 'Agent'}\x1b[0m`);
         term.writeln('');
 
-        if (window.electronAPI?.agent?.get) {
+        if (isTauri()) {
           try {
-            const latestAgent = await window.electronAPI.agent.get(agent.id);
+            const latestAgent = await invoke<AgentStatus | null>('agent_get', { id: agent.id });
             if (latestAgent?.output?.length) {
               const isGemini = agent.provider === 'gemini';
               const writeLine = (line: string) => term.write(isGemini ? stripCursorSequences(line) : line);
@@ -163,15 +169,22 @@ export function useAgentDialogTerminal({
     };
   }, [open, agent?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Subscribe to live agent output
+  // Subscribe to live agent output via Tauri events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.agent?.onOutput || !terminalReady || !agent?.id) return;
+    if (!isTauri() || !terminalReady || !agent?.id) return;
     agentIdRef.current = agent.id;
-    return window.electronAPI.agent.onOutput((event) => {
-      if (event.agentId === agent.id && xtermRef.current) {
-        xtermRef.current.write(event.data);
+
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { agent_id, data } = event.payload;
+      if (agent_id === agent.id && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
       }
-    });
+    }).then(fn => { unlisten = fn; });
+
+    return () => { unlisten?.(); };
   }, [terminalReady, agent?.id]);
 
   // Resize observer
@@ -182,8 +195,10 @@ export function useAgentDialogTerminal({
         try {
           fitAddonRef.current.fit();
           const id = agentIdRef.current;
-          if (id && window.electronAPI?.agent?.resize) {
-            window.electronAPI.agent.resize({ id, cols: xtermRef.current.cols, rows: xtermRef.current.rows }).catch(() => {});
+          if (id && isTauri()) {
+            // We don't have ptyId in this scope easily, so use agent_send_input as a proxy
+            // or attempt pty_resize if the agent has a ptyId
+            invoke('pty_resize', { ptyId: id, cols: xtermRef.current.cols, rows: xtermRef.current.rows }).catch(() => {});
           }
         } catch (e) {
           console.warn('Failed to fit terminal:', e);
@@ -200,8 +215,8 @@ export function useAgentDialogTerminal({
     const t1 = setTimeout(() => {
       fitAddonRef.current?.fit();
       const id = agentIdRef.current;
-      if (id && xtermRef.current && window.electronAPI?.agent?.resize) {
-        window.electronAPI.agent.resize({ id, cols: xtermRef.current.cols, rows: xtermRef.current.rows }).catch(() => {});
+      if (id && xtermRef.current && isTauri()) {
+        invoke('pty_resize', { ptyId: id, cols: xtermRef.current.cols, rows: xtermRef.current.rows }).catch(() => {});
       }
     }, 50);
     const t2 = setTimeout(() => fitAddonRef.current?.fit(), 150);
