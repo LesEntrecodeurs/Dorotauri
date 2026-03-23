@@ -15,8 +15,7 @@ pub fn pty_create(
     let working_dir = cwd.unwrap_or_else(|| {
         std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string())
     });
-    let _ = (cols, rows); // TODO: pass initial size to spawn
-    pty_manager.spawn(&pty_id, &pty_id, &working_dir, &app_handle)?;
+    pty_manager.spawn(&pty_id, &pty_id, &working_dir, &app_handle, cols, rows)?;
     Ok(pty_id)
 }
 

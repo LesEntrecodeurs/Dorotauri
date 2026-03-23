@@ -24,6 +24,7 @@ pub struct PtyOutputEvent {
 // ---------------------------------------------------------------------------
 
 pub struct PtyHandle {
+    pub master: Box<dyn portable_pty::MasterPty + Send>,
     pub writer: Box<dyn Write + Send>,
     pub child: Box<dyn portable_pty::Child + Send>,
     pub agent_id: String,
@@ -54,12 +55,14 @@ impl PtyManager {
         agent_id: &str,
         cwd: &str,
         app_handle: &AppHandle,
+        cols: Option<u16>,
+        rows: Option<u16>,
     ) -> Result<(), String> {
         let pty_system = native_pty_system();
 
         let size = PtySize {
-            rows: 24,
-            cols: 80,
+            rows: rows.unwrap_or(24),
+            cols: cols.unwrap_or(80),
             pixel_width: 0,
             pixel_height: 0,
         };
@@ -116,8 +119,9 @@ impl PtyManager {
             }
         });
 
-        // Store the handle
+        // Store the handle (keep master for resize support)
         let pty_handle = PtyHandle {
+            master: pair.master,
             writer,
             child,
             agent_id: agent_id.to_string(),
@@ -150,12 +154,19 @@ impl PtyManager {
 
     /// Resize a PTY.
     pub fn resize(&self, pty_id: &str, rows: u16, cols: u16) -> Result<(), String> {
-        // portable-pty doesn't expose resize through the handle we keep,
-        // so this is a no-op placeholder. The MasterPty is consumed when we
-        // take_writer / try_clone_reader. A future iteration can store the
-        // master fd and call ioctl directly on Unix.
-        let _ = (pty_id, rows, cols);
-        Ok(())
+        let handles = self.handles.lock().unwrap();
+        let handle = handles
+            .get(pty_id)
+            .ok_or_else(|| format!("pty not found: {pty_id}"))?;
+        handle
+            .master
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| format!("resize error: {e}"))
     }
 
     /// Kill a PTY process and remove it from the map.

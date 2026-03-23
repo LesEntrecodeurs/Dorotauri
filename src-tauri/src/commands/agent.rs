@@ -27,62 +27,70 @@ pub fn agent_get(id: AgentId, state: State<'_, AppState>) -> Option<AgentStatus>
 // agent_create — create a new agent and persist
 // ---------------------------------------------------------------------------
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateAgentPayload {
-    pub id: AgentId,
-    pub project_path: String,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub character: Option<String>,
-    #[serde(default)]
-    pub skills: Vec<String>,
-    #[serde(default)]
-    pub skip_permissions: bool,
-    #[serde(default)]
-    pub provider: Option<String>,
-    #[serde(default)]
-    pub local_model: Option<String>,
-    #[serde(default)]
-    pub obsidian_vault_paths: Option<Vec<String>>,
-}
-
 #[tauri::command]
 pub fn agent_create(
-    payload: CreateAgentPayload,
+    config: serde_json::Value,
     state: State<'_, AppState>,
 ) -> Result<AgentStatus, String> {
+    let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
+
     let agent = AgentStatus {
-        id: payload.id.clone(),
+        id: id.clone(),
         status: AgentState::Idle,
-        project_path: payload.project_path,
-        secondary_project_path: None,
+        project_path: config
+            .get("projectPath")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        secondary_project_path: config
+            .get("secondaryProjectPath")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         worktree_path: None,
         branch_name: None,
-        skills: payload.skills,
+        skills: config
+            .get("skills")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default(),
         current_task: None,
         output: Vec::new(),
         last_activity: now,
         error: None,
         pty_id: None,
-        character: payload.character,
-        name: payload.name,
-        skip_permissions: payload.skip_permissions,
-        provider: payload.provider,
+        character: config
+            .get("character")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        name: config
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        skip_permissions: config
+            .get("skipPermissions")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        provider: config
+            .get("provider")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         status_line: None,
         last_clean_output: None,
-        local_model: payload.local_model,
+        local_model: config
+            .get("localModel")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         kanban_task_id: None,
         current_session_id: None,
         path_missing: false,
-        obsidian_vault_paths: payload.obsidian_vault_paths,
+        obsidian_vault_paths: config
+            .get("obsidianVaultPaths")
+            .and_then(|v| serde_json::from_value(v.clone()).ok()),
     };
 
     {
         let mut agents = state.agents.lock().unwrap();
-        agents.insert(payload.id, agent.clone());
+        agents.insert(id, agent.clone());
     }
     state.save_agents();
 
@@ -93,34 +101,29 @@ pub fn agent_create(
 // agent_start — spawn a PTY, build CLI command, mark as running
 // ---------------------------------------------------------------------------
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StartAgentPayload {
-    pub id: AgentId,
-    #[serde(default)]
-    pub prompt: Option<String>,
-}
-
 #[tauri::command]
 pub fn agent_start(
-    payload: StartAgentPayload,
     state: State<'_, AppState>,
     pty_manager: State<'_, PtyManager>,
     app_handle: AppHandle,
+    id: String,
+    prompt: Option<String>,
+    options: Option<serde_json::Value>,
 ) -> Result<AgentStatus, String> {
+    let _ = &options; // reserved for future use (model, resume, etc.)
     let pty_id = uuid::Uuid::new_v4().to_string();
 
     // Get a snapshot of the agent (release lock quickly)
     let agent_snapshot = {
         let agents = state.agents.lock().unwrap();
         agents
-            .get(&payload.id)
+            .get(&id)
             .cloned()
-            .ok_or_else(|| format!("agent not found: {}", payload.id))?
+            .ok_or_else(|| format!("agent not found: {}", id))?
     };
 
     // Spawn PTY in the agent's project directory
-    pty_manager.spawn(&pty_id, &agent_snapshot.id, &agent_snapshot.project_path, &app_handle)?;
+    pty_manager.spawn(&pty_id, &agent_snapshot.id, &agent_snapshot.project_path, &app_handle, None, None)?;
 
     // Build CLI command based on provider
     let settings = state.settings.lock().unwrap();
@@ -151,10 +154,10 @@ pub fn agent_start(
     }
 
     // Add prompt if provided
-    if let Some(ref prompt) = payload.prompt {
+    if let Some(ref p) = prompt {
         cmd_parts.push("--print".into());
         // Shell-escape the prompt by wrapping in single quotes
-        let escaped = prompt.replace('\'', "'\\''");
+        let escaped = p.replace('\'', "'\\''");
         cmd_parts.push(format!("'{escaped}'"));
     }
 
@@ -167,17 +170,17 @@ pub fn agent_start(
     let now = chrono::Utc::now().to_rfc3339();
     let updated_agent = {
         let mut agents = state.agents.lock().unwrap();
-        if let Some(agent) = agents.get_mut(&payload.id) {
+        if let Some(agent) = agents.get_mut(&id) {
             agent.status = AgentState::Running;
             agent.pty_id = Some(pty_id);
             agent.last_activity = now;
             agent.error = None;
-            if payload.prompt.is_some() {
-                agent.current_task = payload.prompt;
+            if prompt.is_some() {
+                agent.current_task = prompt;
             }
             agent.clone()
         } else {
-            return Err(format!("agent disappeared: {}", payload.id));
+            return Err(format!("agent disappeared: {}", id));
         }
     };
 
@@ -259,65 +262,60 @@ pub fn agent_remove(
 // agent_update — update mutable agent fields
 // ---------------------------------------------------------------------------
 
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateAgentPayload {
-    pub id: AgentId,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub character: Option<String>,
-    #[serde(default)]
-    pub skills: Option<Vec<String>>,
-    #[serde(default)]
-    pub skip_permissions: Option<bool>,
-    #[serde(default)]
-    pub provider: Option<String>,
-    #[serde(default)]
-    pub local_model: Option<String>,
-    #[serde(default)]
-    pub project_path: Option<String>,
-    #[serde(default)]
-    pub obsidian_vault_paths: Option<Vec<String>>,
-}
-
 #[tauri::command]
 pub fn agent_update(
-    payload: UpdateAgentPayload,
+    params: serde_json::Value,
     state: State<'_, AppState>,
     app_handle: AppHandle,
-) -> Result<AgentStatus, String> {
+) -> Result<serde_json::Value, String> {
     let now = chrono::Utc::now().to_rfc3339();
+
+    let id = params
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "missing 'id' field".to_string())?
+        .to_string();
 
     let updated_agent = {
         let mut agents = state.agents.lock().unwrap();
         let agent = agents
-            .get_mut(&payload.id)
-            .ok_or_else(|| format!("agent not found: {}", payload.id))?;
+            .get_mut(&id)
+            .ok_or_else(|| format!("agent not found: {}", id))?;
 
-        if let Some(name) = payload.name {
-            agent.name = Some(name);
+        if let Some(name) = params.get("name").and_then(|v| v.as_str()) {
+            agent.name = Some(name.to_string());
         }
-        if let Some(character) = payload.character {
-            agent.character = Some(character);
+        if let Some(character) = params.get("character").and_then(|v| v.as_str()) {
+            agent.character = Some(character.to_string());
         }
-        if let Some(skills) = payload.skills {
-            agent.skills = skills;
+        if let Some(skills) = params.get("skills") {
+            if let Ok(s) = serde_json::from_value::<Vec<String>>(skills.clone()) {
+                agent.skills = s;
+            }
         }
-        if let Some(skip) = payload.skip_permissions {
+        if let Some(skip) = params.get("skipPermissions").and_then(|v| v.as_bool()) {
             agent.skip_permissions = skip;
         }
-        if let Some(provider) = payload.provider {
-            agent.provider = Some(provider);
+        if let Some(provider) = params.get("provider").and_then(|v| v.as_str()) {
+            agent.provider = Some(provider.to_string());
         }
-        if let Some(local_model) = payload.local_model {
-            agent.local_model = Some(local_model);
+        if let Some(local_model) = params.get("localModel").and_then(|v| v.as_str()) {
+            agent.local_model = Some(local_model.to_string());
         }
-        if let Some(project_path) = payload.project_path {
-            agent.project_path = project_path;
+        if let Some(project_path) = params.get("projectPath").and_then(|v| v.as_str()) {
+            agent.project_path = project_path.to_string();
         }
-        if let Some(vault_paths) = payload.obsidian_vault_paths {
-            agent.obsidian_vault_paths = Some(vault_paths);
+        if let Some(secondary) = params.get("secondaryProjectPath") {
+            if secondary.is_null() {
+                agent.secondary_project_path = None;
+            } else if let Some(s) = secondary.as_str() {
+                agent.secondary_project_path = Some(s.to_string());
+            }
+        }
+        if let Some(vault_paths) = params.get("obsidianVaultPaths") {
+            if let Ok(vp) = serde_json::from_value::<Vec<String>>(vault_paths.clone()) {
+                agent.obsidian_vault_paths = Some(vp);
+            }
         }
 
         agent.last_activity = now;
@@ -330,7 +328,11 @@ pub fn agent_update(
         .emit("agent:status", &updated_agent)
         .ok();
 
-    Ok(updated_agent)
+    // Return { success: true, agent: AgentStatus } as expected by the frontend
+    Ok(serde_json::json!({
+        "success": true,
+        "agent": updated_agent,
+    }))
 }
 
 // ---------------------------------------------------------------------------
