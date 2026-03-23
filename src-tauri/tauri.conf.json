@@ -4,6 +4,8 @@
   "version": "1.2.5",
   "identifier": "io.dorothy.app",
   "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
