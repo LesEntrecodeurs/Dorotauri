@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   LayoutGrid,
   TerminalSquare,
+  Columns,
 } from 'lucide-react';
 import { useClaude } from '@/hooks/useClaude';
 import { useElectronAgents } from '@/hooks/useElectron';
@@ -62,11 +63,12 @@ class WorldErrorBoundary extends Component<{ children: ReactNode }, { hasError: 
 
 const AgentWorld = lazy(() => import('@/components/AgentWorld'));
 const TerminalsView = lazy(() => import('@/components/TerminalsView'));
+const MosaicTerminalView = lazy(() => import('@/components/MosaicTerminalView'));
 
 export default function Dashboard() {
   const { data, loading, error } = useClaude();
   const { agents } = useElectronAgents();
-  const [viewMode, setViewMode] = useState<'world' | 'canvas' | 'terminals' | 'stats'>('terminals');
+  const [viewMode, setViewMode] = useState<'world' | 'canvas' | 'terminals' | 'mosaic' | 'stats'>('terminals');
 
   // Calculate stats
   const stats = data?.stats;
@@ -239,6 +241,22 @@ export default function Dashboard() {
             </button>
 
             <button
+              onClick={() => setViewMode('mosaic')}
+              className={`
+                flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 text-xs lg:text-sm font-medium transition-all
+                ${viewMode === 'mosaic'
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:text-foreground'
+                }
+              `}
+              style={{ borderRadius: 7 }}
+            >
+              <Columns className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+              <span className="hidden sm:inline">Mosaic</span>
+              <span className="sm:hidden">Mos</span>
+            </button>
+
+            <button
               onClick={() => setViewMode('canvas')}
               className={`
                 flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 text-xs lg:text-sm font-medium transition-all
@@ -324,6 +342,18 @@ export default function Dashboard() {
         >
           <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Terminals...</p></div></div>}>
             <TerminalsView />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Mosaic View */}
+      {viewMode === 'mosaic' && (
+        <div
+          className="border border-border bg-card overflow-hidden"
+          style={{ height: 'calc(100vh - 130px)', minHeight: '400px' }}
+        >
+          <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Mosaic...</p></div></div>}>
+            <MosaicTerminalView agents={agents} />
           </Suspense>
         </div>
       )}
