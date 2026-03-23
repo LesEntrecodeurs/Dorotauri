@@ -68,6 +68,9 @@ pub fn run() {
             commands::memory::memory_read_file,
             commands::memory::memory_write_file,
             commands::memory::memory_create_file,
+            // Layout commands
+            commands::layout::layout_get,
+            commands::layout::layout_save,
             // Shell/filesystem commands
             commands::shell::projects_list,
             // Window commands

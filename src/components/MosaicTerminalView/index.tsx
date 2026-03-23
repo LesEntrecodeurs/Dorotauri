@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Mosaic, MosaicWindow, MosaicNode, getLeaves, createRemoveUpdate, updateTree } from 'react-mosaic-component';
+import { useCallback, useEffect, useMemo } from 'react';
+import { Mosaic, MosaicWindow, MosaicNode, getLeaves } from 'react-mosaic-component';
 import 'react-mosaic-component/react-mosaic-component.css';
 import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/hooks/useTauri';
+import { useLayout } from '@/hooks/useLayout';
 import { ExternalLink } from 'lucide-react';
 import type { AgentStatus as AgentStatusType } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentWorld/constants';
@@ -51,7 +52,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) {
-  const [layout, setLayout] = useState<MosaicNode<ViewId> | null>(null);
+  const { layout, setLayout, removeTile } = useLayout();
   const prevAgentIdsRef = useMemo(() => ({ current: '' }), []);
 
   // Build agent lookup map
@@ -77,39 +78,32 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
       return;
     }
 
-    // If we have an existing layout, check if we just need to add/remove tiles
-    setLayout(prev => {
-      if (!prev) return buildGridLayout(agentIds);
+    if (!layout) {
+      setLayout(buildGridLayout(agentIds));
+      return;
+    }
 
-      const currentLeaves = new Set(getLeaves(prev));
-      const newIds = new Set(agentIds);
+    const currentLeaves = new Set(getLeaves(layout));
+    const newIds = new Set(agentIds);
 
-      // If sets are identical, keep current layout (user may have rearranged)
-      if (currentLeaves.size === newIds.size && agentIds.every(id => currentLeaves.has(id))) {
-        return prev;
-      }
+    // If sets are identical, keep current layout (user may have rearranged)
+    if (currentLeaves.size === newIds.size && agentIds.every(id => currentLeaves.has(id))) {
+      return;
+    }
 
-      // Rebuild from scratch when agents change
-      return buildGridLayout(agentIds);
-    });
-  }, [agents, prevAgentIdsRef]);
+    // Rebuild from scratch when agents change
+    setLayout(buildGridLayout(agentIds));
+  }, [agents, layout, prevAgentIdsRef, setLayout]);
 
   const handlePopout = useCallback(async (agentId: string) => {
     if (!isTauri()) return;
     try {
       await invoke('window_popout', { agentId });
-      // Remove this tile from the mosaic layout
-      setLayout(prev => {
-        if (!prev) return null;
-        const leaves = getLeaves(prev);
-        const remaining = leaves.filter(id => id !== agentId);
-        if (remaining.length === 0) return null;
-        return buildGridLayout(remaining);
-      });
+      removeTile(agentId);
     } catch (err) {
       console.error('Failed to pop out window:', err);
     }
-  }, []);
+  }, [removeTile]);
 
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
@@ -119,7 +113,7 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
 
   const handleChange = useCallback((newLayout: MosaicNode<ViewId> | null) => {
     setLayout(newLayout);
-  }, []);
+  }, [setLayout]);
 
   if (!layout) {
     return (

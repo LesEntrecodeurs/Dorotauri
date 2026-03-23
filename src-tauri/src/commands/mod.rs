@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod layout;
 pub mod memory;
 pub mod pty;
 pub mod settings;
