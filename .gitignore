@@ -63,3 +63,4 @@ electron/dist
 
 # Tauri / Rust
 src-tauri/target/
+src-tauri/gen/
