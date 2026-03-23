@@ -1,6 +1,7 @@
 use tauri::Manager;
 
 mod commands;
+mod notifications;
 mod pty;
 mod state;
 mod windows;

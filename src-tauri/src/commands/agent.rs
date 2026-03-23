@@ -1,7 +1,9 @@
 use tauri::{AppHandle, Emitter, State};
 
+use crate::notifications;
 use crate::pty::PtyManager;
 use crate::state::{AgentId, AgentState, AgentStatus, AppState};
+use crate::windows::WindowRegistry;
 
 // ---------------------------------------------------------------------------
 // agent_list — return all agents
@@ -203,15 +205,18 @@ pub fn agent_stop(
     id: AgentId,
     state: State<'_, AppState>,
     pty_manager: State<'_, PtyManager>,
+    registry: State<'_, WindowRegistry>,
     app_handle: AppHandle,
 ) -> Result<AgentStatus, String> {
     let now = chrono::Utc::now().to_rfc3339();
 
-    let updated_agent = {
+    let (updated_agent, was_running) = {
         let mut agents = state.agents.lock().unwrap();
         let agent = agents
             .get_mut(&id)
             .ok_or_else(|| format!("agent not found: {id}"))?;
+
+        let was_running = agent.status == AgentState::Running;
 
         // Kill PTY if one exists
         if let Some(ref pty_id) = agent.pty_id {
@@ -221,7 +226,7 @@ pub fn agent_stop(
         agent.status = AgentState::Idle;
         agent.pty_id = None;
         agent.last_activity = now;
-        agent.clone()
+        (agent.clone(), was_running)
     };
 
     state.save_agents();
@@ -229,6 +234,21 @@ pub fn agent_stop(
     app_handle
         .emit("agent:status", &updated_agent)
         .ok();
+
+    // Send notification if agent was previously running
+    if was_running {
+        let agent_name = updated_agent
+            .name
+            .as_deref()
+            .unwrap_or("Agent");
+        notifications::notify_agent_event(
+            &app_handle,
+            &registry,
+            &updated_agent.id,
+            agent_name,
+            "complete",
+        );
+    }
 
     Ok(updated_agent)
 }
