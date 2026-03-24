@@ -48,6 +48,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
+// macOS: add class for traffic light padding (titleBarStyle: Overlay)
+if (/Mac/.test(navigator.platform)) {
+  document.documentElement.classList.add('macos-titlebar');
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

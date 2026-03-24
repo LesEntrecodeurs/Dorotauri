@@ -1,12 +1,12 @@
-
-
-
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Terminal as TerminalIcon, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { TERMINAL_THEME, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 
 interface InstallTerminalModalProps {
   show: boolean;
@@ -32,33 +32,8 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
       const { FitAddon } = await import('xterm-addon-fit');
 
       const term = new Terminal({
-        theme: {
-          background: '#0D0B08',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#0D0B08',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
-        },
-        fontSize: 13,
-        fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-        cursorBlink: true,
-        cursorStyle: 'bar',
+        theme: TERMINAL_THEME,
+        ...TERMINAL_CONFIG,
         scrollback: 10000,
       });
 
@@ -174,27 +149,14 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
     onClose();
   };
 
-  if (!show) return null;
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={handleClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-4xl bg-[#0D0B08] border border-border rounded-none overflow-hidden"
-      >
+    <Dialog open={show} onOpenChange={(open) => { if (!open) handleClose(); }}>
+      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden bg-[#1A1726] border-border">
+        <DialogTitle className="sr-only">Installing Plugin</DialogTitle>
         {/* Terminal Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
           <div className="flex items-center gap-3">
-            <TerminalIcon className="w-5 h-5 text-cyan-400" />
+            <TerminalIcon className="w-5 h-5 text-primary" />
             <div>
               <h3 className="font-medium text-sm">Installing Plugin</h3>
               <p className="text-xs text-muted-foreground font-mono">{command}</p>
@@ -211,17 +173,11 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
               </span>
             )}
             {!installComplete && (
-              <span className="text-xs px-2 py-1 bg-cyan-500/20 text-cyan-400 flex items-center gap-1.5">
+              <span className="text-xs px-2 py-1 bg-primary/20 text-primary flex items-center gap-1.5">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 Running
               </span>
             )}
-            <button
-              onClick={handleClose}
-              className="p-1.5 hover:bg-secondary rounded-none transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
@@ -229,7 +185,7 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
         <div
           ref={terminalRef}
           className="h-[400px]"
-          style={{ backgroundColor: '#0D0B08' }}
+          style={{ backgroundColor: '#1A1726' }}
         />
 
         {/* Terminal Footer */}
@@ -239,14 +195,15 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
               ? 'Installation finished. You can close this window.'
               : 'Installation in progress... You can interact with the terminal if needed.'}
           </p>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleClose}
-            className="px-4 py-1.5 text-sm bg-secondary hover:bg-secondary/80 transition-colors"
           >
             Close
-          </button>
+          </Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 };

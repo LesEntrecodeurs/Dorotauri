@@ -24,6 +24,8 @@ import {
   ImagePlus,
   Paperclip,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { VaultDocumentElectron, VaultFolderElectron } from '@/types/electron';
 import { SimpleMarkdown } from './MarkdownRenderer';
 
@@ -248,20 +250,17 @@ export default function DocumentEditor({ document, folders, defaultFolderId, onS
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={onCancel}
-            className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
-          >
+          <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={handleSave}
             disabled={!title.trim()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-foreground text-background rounded hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Save className="w-3.5 h-3.5" />
             {isNew ? 'Create' : 'Save'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -269,12 +268,12 @@ export default function DocumentEditor({ document, folders, defaultFolderId, onS
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 lg:px-6 py-5 space-y-4">
           {/* Title */}
-          <input
+          <Input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Document title..."
-            className="w-full text-sm bg-secondary border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="text-sm h-9"
             autoFocus
           />
 
@@ -307,7 +306,7 @@ export default function DocumentEditor({ document, folders, defaultFolderId, onS
           </div>
 
           {/* Markdown editor */}
-          <div className="border border-border rounded-lg overflow-hidden">
+          <div className="border border-border rounded-md overflow-hidden">
             {/* Tab bar + Toolbar */}
             <div className="border-b border-border bg-secondary/30 !rounded-b-none">
               {/* Tabs */}

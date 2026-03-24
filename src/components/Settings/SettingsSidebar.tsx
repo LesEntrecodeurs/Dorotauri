@@ -1,4 +1,6 @@
 import { ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SECTIONS } from './constants';
 import type { SettingsSection } from './types';
 
@@ -17,10 +19,11 @@ export const SettingsSidebar = ({ activeSection, onSectionChange }: SettingsSide
             const Icon = section.icon;
             const isActive = activeSection === section.id;
             return (
-              <button
+              <Button
                 key={section.id}
+                variant="ghost"
                 onClick={() => onSectionChange(section.id)}
-                className={`w-full flex items-center gap-3 px-3 !rounded py-2.5 text-left text-sm transition-colors ${isActive
+                className={`w-full justify-start gap-3 px-3 py-2.5 text-sm ${isActive
                   ? 'bg-secondary text-foreground border-l-2 border-primary'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                   }`}
@@ -28,7 +31,7 @@ export const SettingsSidebar = ({ activeSection, onSectionChange }: SettingsSide
                 <Icon className="w-4 h-4" />
                 <span>{section.label}</span>
                 {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -36,17 +39,21 @@ export const SettingsSidebar = ({ activeSection, onSectionChange }: SettingsSide
 
       {/* Mobile Section Selector */}
       <div className="lg:hidden mb-4 shrink-0">
-        <select
+        <Select
           value={activeSection}
-          onChange={(e) => onSectionChange(e.target.value as SettingsSection)}
-          className="w-full px-3 py-2 bg-secondary border border-border text-sm"
+          onValueChange={(value) => onSectionChange(value as SettingsSection)}
         >
-          {SECTIONS.map((section) => (
-            <option key={section.id} value={section.id}>
-              {section.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SECTIONS.map((section) => (
+              <SelectItem key={section.id} value={section.id}>
+                {section.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </>
   );

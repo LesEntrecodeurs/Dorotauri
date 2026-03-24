@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Settings, RefreshCw, Download, ExternalLink, CheckCircle, AlertCircle, Loader2, RotateCw, BarChart3 } from 'lucide-react';
 import { Toggle } from './Toggle';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import type { ClaudeInfo, AppSettings } from './types';
 
 /** Strip HTML tags and collapse whitespace so release notes render as plain text. */
@@ -156,205 +160,217 @@ export const GeneralSection = ({ info, appSettings, onSaveAppSettings }: General
         <p className="text-sm text-muted-foreground">Configure general application preferences</p>
       </div>
 
-      <div className="border border-border bg-card p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-12 h-12 bg-secondary flex items-center justify-center">
-            <Settings className="w-6 h-6 text-muted-foreground" />
-          </div>
-          <div>
-            <h3 className="font-medium">Dorothy</h3>
-            <p className="text-sm text-muted-foreground">
-              Version {updateInfo?.currentVersion || '1.2.5'}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-4 pt-4 border-t border-border">
-          <div className="flex items-center justify-between">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-secondary flex items-center justify-center">
+              <Settings className="w-6 h-6 text-muted-foreground" />
+            </div>
             <div>
-              <p className="text-sm font-medium">Auto-check for updates</p>
-              <p className="text-xs text-muted-foreground">Check for new versions when Dorothy starts</p>
+              <h3 className="font-medium">Dorothy</h3>
+              <p className="text-sm text-muted-foreground">
+                Version {updateInfo?.currentVersion || '1.2.5'}
+              </p>
             </div>
-            <Toggle
-              enabled={appSettings.autoCheckUpdates !== false}
-              onChange={() => onSaveAppSettings({ autoCheckUpdates: !appSettings.autoCheckUpdates })}
-            />
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-border">
-            <div className="flex items-start gap-3">
-              <BarChart3 className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+          <Separator />
+
+          <div className="space-y-4 pt-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">Status Line</p>
-                <p className="text-xs text-muted-foreground">
-                  Show a real-time status bar in Claude Code with model, context usage, git branch, session time, and token stats
-                </p>
+                <p className="text-sm font-medium">Auto-check for updates</p>
+                <p className="text-xs text-muted-foreground">Check for new versions when Dorothy starts</p>
               </div>
+              <Toggle
+                enabled={appSettings.autoCheckUpdates !== false}
+                onChange={() => onSaveAppSettings({ autoCheckUpdates: !appSettings.autoCheckUpdates })}
+              />
             </div>
-            <Toggle
-              enabled={appSettings.statusLineEnabled === true}
-              onChange={() => onSaveAppSettings({ statusLineEnabled: !appSettings.statusLineEnabled })}
-            />
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <BarChart3 className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Status Line</p>
+                  <p className="text-xs text-muted-foreground">
+                    Show a real-time status bar in Claude Code with model, context usage, git branch, session time, and token stats
+                  </p>
+                </div>
+              </div>
+              <Toggle
+                enabled={appSettings.statusLineEnabled === true}
+                onChange={() => onSaveAppSettings({ statusLineEnabled: !appSettings.statusLineEnabled })}
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Update Checker */}
-      <div className="border border-border bg-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium">Software Updates</h3>
-          <button
-            onClick={handleCheckForUpdates}
-            disabled={updateState === 'checking'}
-            className="px-3 py-1.5 text-sm border border-border hover:border-foreground hover:text-foreground text-muted-foreground transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {updateState === 'checking' ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3.5 h-3.5" />
-            )}
-            {updateState === 'checking' ? 'Checking...' : 'Check for Updates'}
-          </button>
-        </div>
-
-        {updateState === 'up-to-date' && (
-          <div className="flex items-center rounded-md gap-3 p-3 bg-green-700/10 border border-green-700/20">
-            <CheckCircle className="w-5 h-5 text-green-700 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-green-700">You&apos;re up to date!</p>
-              <p className="text-xs text-muted-foreground">Dorothy {updateInfo?.currentVersion} is the latest version.</p>
-            </div>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium">Software Updates</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCheckForUpdates}
+              disabled={updateState === 'checking'}
+            >
+              {updateState === 'checking' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3.5 h-3.5" />
+              )}
+              {updateState === 'checking' ? 'Checking...' : 'Check for Updates'}
+            </Button>
           </div>
-        )}
 
-        {(updateState === 'update-available' || updateState === 'downloading' || updateState === 'downloaded') && updateInfo && (
-          <div className="space-y-3">
-            <div className="p-4 rounded-md bg-blue-500/10 border border-blue-500/20">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="text-sm font-medium text-blue-400">
-                    Dorothy {updateInfo.latestVersion} is available
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    You&apos;re currently on version {updateInfo.currentVersion}
-                  </p>
-                </div>
+          {updateState === 'up-to-date' && (
+            <div className="flex items-center gap-3 p-3 bg-green-700/10 border border-green-700/20">
+              <CheckCircle className="w-5 h-5 text-green-700 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-green-700">You&apos;re up to date!</p>
+                <p className="text-xs text-muted-foreground">Dorothy {updateInfo?.currentVersion} is the latest version.</p>
               </div>
+            </div>
+          )}
 
-              {updateInfo.releaseNotes && (
-                <div className="mt-3 pt-3 border-t border-blue-500/20">
-                  <p className="text-xs text-muted-foreground mb-1">Release notes:</p>
-                  <p className="text-xs text-foreground/80 whitespace-pre-wrap line-clamp-4">
-                    {stripHtml(updateInfo.releaseNotes).slice(0, 300)}
-                    {updateInfo.releaseNotes.length > 300 ? '...' : ''}
-                  </p>
-                </div>
-              )}
-
-              {/* Download progress bar */}
-              {updateState === 'downloading' && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>Downloading... {downloadPercent.toFixed(0)}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-400 rounded-full transition-all duration-300"
-                      style={{ width: `${downloadPercent}%` }}
-                    />
+          {(updateState === 'update-available' || updateState === 'downloading' || updateState === 'downloaded') && updateInfo && (
+            <div className="space-y-3">
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-medium text-blue-400">
+                      Dorothy {updateInfo.latestVersion} is available
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      You&apos;re currently on version {updateInfo.currentVersion}
+                    </p>
                   </div>
                 </div>
-              )}
 
-              <div className="flex gap-2 mt-3">
-                {updateState === 'update-available' && (
-                  <button
-                    onClick={handleDownloadUpdate}
-                    className="px-3 py-1.5 text-sm bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center gap-2"
-                  >
-                    {isFallbackUpdate ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
-                    Download
-                  </button>
+                {updateInfo.releaseNotes && (
+                  <div className="mt-3 pt-3 border-t border-blue-500/20">
+                    <p className="text-xs text-muted-foreground mb-1">Release notes:</p>
+                    <p className="text-xs text-foreground/80 whitespace-pre-wrap line-clamp-4">
+                      {stripHtml(updateInfo.releaseNotes).slice(0, 300)}
+                      {updateInfo.releaseNotes.length > 300 ? '...' : ''}
+                    </p>
+                  </div>
                 )}
 
+                {/* Download progress bar */}
                 {updateState === 'downloading' && (
-                  <button
-                    disabled
-                    className="px-3 py-1.5 text-sm bg-foreground/50 text-background cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Downloading...
-                  </button>
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>Downloading... {downloadPercent.toFixed(0)}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-secondary overflow-hidden">
+                      <div
+                        className="h-full bg-blue-400 transition-all duration-300"
+                        style={{ width: `${downloadPercent}%` }}
+                      />
+                    </div>
+                  </div>
                 )}
 
-                {updateState === 'downloaded' && (
-                  <button
-                    onClick={handleQuitAndInstall}
-                    className="px-3 py-1.5 text-sm bg-green-600 text-white hover:bg-green-700 transition-colors flex items-center gap-2"
-                  >
-                    <RotateCw className="w-3.5 h-3.5" />
-                    Restart to Apply
-                  </button>
-                )}
+                <div className="flex gap-2 mt-3">
+                  {updateState === 'update-available' && (
+                    <Button size="sm" onClick={handleDownloadUpdate}>
+                      {isFallbackUpdate ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                      Download
+                    </Button>
+                  )}
+
+                  {updateState === 'downloading' && (
+                    <Button size="sm" disabled>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Downloading...
+                    </Button>
+                  )}
+
+                  {updateState === 'downloaded' && (
+                    <Button
+                      size="sm"
+                      onClick={handleQuitAndInstall}
+                      className="bg-green-600 text-white hover:bg-green-700"
+                    >
+                      <RotateCw className="w-3.5 h-3.5" />
+                      Restart to Apply
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {updateState === 'error' && (
-          <div className="flex items-center rounded-lg gap-3 p-3 bg-red-500/10 border border-red-500/20">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-red-400">Failed to check for updates</p>
-              <p className="text-xs text-muted-foreground">{updateError}</p>
+          {updateState === 'error' && (
+            <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20">
+              <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-destructive">Failed to check for updates</p>
+                <p className="text-xs text-muted-foreground">{updateError}</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {updateState === 'idle' && (
-          <p className="text-xs text-muted-foreground">
-            Click &quot;Check for Updates&quot; to see if a newer version is available.
-          </p>
-        )}
-      </div>
+          {updateState === 'idle' && (
+            <p className="text-xs text-muted-foreground">
+              Click &quot;Check for Updates&quot; to see if a newer version is available.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Default Provider */}
-      <div className="border border-border bg-card p-6">
-        <h3 className="font-medium mb-4">Default Provider</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          CLI provider used for scheduled tasks, automations, and Telegram-spawned agents when no specific agent is selected.
-        </p>
-        <select
-          value={appSettings.defaultProvider || 'claude'}
-          onChange={(e) => onSaveAppSettings({ defaultProvider: e.target.value })}
-          className="w-full sm:w-64 px-3 py-2 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-foreground"
-        >
-          <option value="claude" disabled={!installedProviders.claude}>
-            Claude{!installedProviders.claude ? ' (not installed)' : ''}
-          </option>
-          <option value="codex" disabled={!installedProviders.codex}>
-            Codex{!installedProviders.codex ? ' (not installed)' : ''}
-          </option>
-          <option value="gemini" disabled={!installedProviders.gemini}>
-            Gemini{!installedProviders.gemini ? ' (not installed)' : ''}
-          </option>
-        </select>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="font-medium mb-4">Default Provider</h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            CLI provider used for scheduled tasks, automations, and Telegram-spawned agents when no specific agent is selected.
+          </p>
+          <Select
+            value={appSettings.defaultProvider || 'claude'}
+            onValueChange={(value) => onSaveAppSettings({ defaultProvider: value })}
+          >
+            <SelectTrigger className="w-full sm:w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="claude" disabled={!installedProviders.claude}>
+                Claude{!installedProviders.claude ? ' (not installed)' : ''}
+              </SelectItem>
+              <SelectItem value="codex" disabled={!installedProviders.codex}>
+                Codex{!installedProviders.codex ? ' (not installed)' : ''}
+              </SelectItem>
+              <SelectItem value="gemini" disabled={!installedProviders.gemini}>
+                Gemini{!installedProviders.gemini ? ' (not installed)' : ''}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {info && (
-        <div className="border border-border bg-card p-6">
-          <h3 className="font-medium mb-4">Quick Info</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Claude Version</p>
-              <p className="font-mono">{info.claudeVersion || 'Not found'}</p>
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="font-medium mb-4">Quick Info</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Claude Version</p>
+                <p className="font-mono">{info.claudeVersion || 'Not found'}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Platform</p>
+                <p className="font-mono">{info.platform} ({info.arch})</p>
+              </div>
             </div>
-            <div>
-              <p className="text-muted-foreground">Platform</p>
-              <p className="font-mono">{info.platform} ({info.arch})</p>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

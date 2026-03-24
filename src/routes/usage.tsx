@@ -375,8 +375,8 @@ export default function UsagePage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-accent-blue mx-auto mb-4" />
-          <p className="text-text-secondary">Loading usage data...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading usage data...</p>
         </div>
       </div>
     );
@@ -385,10 +385,10 @@ export default function UsagePage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center text-accent-red">
+        <div className="text-center text-destructive">
           <AlertCircle className="w-8 h-8 mx-auto mb-4" />
           <p className="mb-2">Failed to load usage data</p>
-          <p className="text-sm text-text-muted">{error}</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
         </div>
       </div>
     );
@@ -415,18 +415,18 @@ export default function UsagePage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-none bg-accent-green/20 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-accent-green" />
+            <div className="w-10 h-10 bg-success/20 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-success" />
             </div>
             <div>
-              <p className="text-xs text-text-muted">Total Cost (All Time)</p>
-              <p className="text-xl lg:text-2xl font-bold text-accent-green">${totalUsage.totalCost.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">Total Cost (All Time)</p>
+              <p className="text-xl lg:text-2xl font-bold text-success">${totalUsage.totalCost.toFixed(2)}</p>
             </div>
           </div>
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             Since {stats?.firstSessionDate ? new Date(stats.firstSessionDate).toLocaleDateString() : 'N/A'}
           </p>
         </motion.div>
@@ -435,18 +435,18 @@ export default function UsagePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-none bg-accent-amber/20 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-accent-amber" />
+            <div className="w-10 h-10 bg-warning/20 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-warning" />
             </div>
             <div>
-              <p className="text-xs text-text-muted">Latest Day Cost</p>
-              <p className="text-xl lg:text-2xl font-bold text-accent-amber">${todayCost.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">Latest Day Cost</p>
+              <p className="text-xl lg:text-2xl font-bold text-warning">${todayCost.toFixed(2)}</p>
             </div>
           </div>
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             {latestDataDate ?? 'No data'}
           </p>
         </motion.div>
@@ -455,18 +455,18 @@ export default function UsagePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-none bg-accent-purple/20 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-accent-purple" />
+            <div className="w-10 h-10 bg-primary/20 flex items-center justify-center">
+              <Zap className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-text-muted">Total Tokens</p>
+              <p className="text-xs text-muted-foreground">Total Tokens</p>
               <p className="text-xl lg:text-2xl font-bold">{(totalUsage.totalTokens / 1000000).toFixed(2)}M</p>
             </div>
           </div>
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             {(totalUsage.totalInput / 1000000).toFixed(2)}M in / {(totalUsage.totalOutput / 1000000).toFixed(2)}M out
           </p>
         </motion.div>
@@ -475,18 +475,18 @@ export default function UsagePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-none bg-accent-blue/20 flex items-center justify-center">
-              <Activity className="w-5 h-5 text-accent-blue" />
+            <div className="w-10 h-10 bg-primary/20 flex items-center justify-center">
+              <Activity className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-text-muted">Cache Savings</p>
-              <p className="text-xl lg:text-2xl font-bold text-accent-blue">{(totalUsage.totalCacheRead / 1000000).toFixed(2)}M</p>
+              <p className="text-xs text-muted-foreground">Cache Savings</p>
+              <p className="text-xl lg:text-2xl font-bold text-primary">{(totalUsage.totalCacheRead / 1000000).toFixed(2)}M</p>
             </div>
           </div>
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-muted-foreground">
             Tokens served from cache
           </p>
         </motion.div>
@@ -497,14 +497,14 @@ export default function UsagePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="rounded-none border border-border-primary bg-bg-secondary p-5"
+        className="border border-border bg-card p-5"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-accent-green" />
+            <DollarSign className="w-4 h-4 text-success" />
             Cost Over Time
           </h3>
-          <div className="flex items-center gap-1 p-1 bg-bg-tertiary rounded-none border border-border-primary">
+          <div className="flex items-center gap-1 p-1 bg-muted border border-border">
             {(['daily', 'weekly', 'monthly'] as TimeRange[]).map((range) => (
               <button
                 key={range}
@@ -512,8 +512,8 @@ export default function UsagePage() {
                 className={`
                   px-3 py-1 rounded text-xs font-medium transition-all capitalize
                   ${costTimeRange === range
-                    ? 'bg-accent-green/20 text-accent-green'
-                    : 'text-text-muted hover:text-text-primary'
+                    ? 'bg-success/20 text-success'
+                    : 'text-muted-foreground hover:text-foreground'
                   }
                 `}
               >
@@ -525,7 +525,7 @@ export default function UsagePage() {
 
         <div className="flex items-end gap-1 h-52 group">
           {costChartData.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-text-muted text-sm">
+            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
               No cost data available
             </div>
           ) : (
@@ -542,7 +542,7 @@ export default function UsagePage() {
                 <div key={item.date} className="flex-1 flex flex-col items-center gap-0.5 relative">
                   <div className="w-full flex flex-col items-center justify-end h-44">
                     {showCostLabel && (
-                      <span className={`${isDaily ? 'text-[9px]' : 'text-xs'} text-accent-green font-medium mb-0.5 whitespace-nowrap`}>
+                      <span className={`${isDaily ? 'text-[9px]' : 'text-xs'} text-success font-medium mb-0.5 whitespace-nowrap`}>
                         ${item.cost < 1 ? item.cost.toFixed(2) : item.cost.toFixed(0)}
                       </span>
                     )}
@@ -550,11 +550,11 @@ export default function UsagePage() {
                       initial={{ height: 0 }}
                       animate={{ height: `${Math.max(height, item.cost > 0 ? 3 : 0)}%` }}
                       transition={{ delay: 0.1 + i * 0.02, duration: 0.4 }}
-                      className={`w-full bg-gradient-to-t from-accent-green to-accent-cyan rounded-none ${item.cost === 0 ? 'opacity-20' : ''}`}
+                      className={`w-full bg-gradient-to-t from-success to-primary ${item.cost === 0 ? 'opacity-20' : ''}`}
                       title={`${item.label}: $${item.cost.toFixed(2)}`}
                     />
                   </div>
-                  <span className={`${isDaily ? 'text-[8px]' : 'text-[10px]'} text-text-muted text-center leading-tight ${!showDateLabel ? 'invisible' : ''}`}>
+                  <span className={`${isDaily ? 'text-[8px]' : 'text-[10px]'} text-muted-foreground text-center leading-tight ${!showDateLabel ? 'invisible' : ''}`}>
                     {item.label}
                   </span>
                 </div>
@@ -570,28 +570,29 @@ export default function UsagePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <Bot className="w-4 h-4 text-text-muted" />
+            <Bot className="w-4 h-4 text-muted-foreground" />
             Cost by Model
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {modelCostBreakdown.map((model) => {
               const isOpus = model.displayName.toLowerCase().includes('opus');
               const isSonnet = model.displayName.toLowerCase().includes('sonnet');
-              const colorClass = isOpus ? 'accent-purple' : isSonnet ? 'accent-cyan' : 'accent-amber';
+              const colorClass = isOpus ? 'text-purple-500 bg-purple-500' : isSonnet ? 'text-primary bg-primary' : 'text-warning bg-warning';
+              const [textColor, bgColor] = colorClass.split(' ');
 
               return (
-                <div key={model.modelId} className="p-4 rounded-none bg-bg-tertiary border border-border-primary">
+                <div key={model.modelId} className="p-4 bg-muted border border-border">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full bg-${colorClass}`} />
-                      <span className={`font-medium text-${colorClass}`}>
+                      <div className={`w-3 h-3 rounded-full ${bgColor}`} />
+                      <span className={`font-medium ${textColor}`}>
                         {model.displayName}
                       </span>
                     </div>
-                    <span className="text-lg font-bold text-accent-green">
+                    <span className="text-lg font-bold text-success">
                       ${model.cost.toFixed(2)}
                     </span>
                   </div>
@@ -599,27 +600,27 @@ export default function UsagePage() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="space-y-1">
                       <div className="flex justify-between">
-                        <span className="text-text-muted">Input</span>
+                        <span className="text-muted-foreground">Input</span>
                         <span>{(model.inputTokens / 1000).toFixed(0)}k</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-text-muted">Output</span>
+                        <span className="text-muted-foreground">Output</span>
                         <span>{(model.outputTokens / 1000).toFixed(0)}k</span>
                       </div>
                     </div>
                     <div className="space-y-1">
                       <div className="flex justify-between">
-                        <span className="text-text-muted">Cache Read</span>
+                        <span className="text-muted-foreground">Cache Read</span>
                         <span>{(model.cacheReadTokens / 1000000).toFixed(2)}M</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-text-muted">Cache Write</span>
+                        <span className="text-muted-foreground">Cache Write</span>
                         <span>{(model.cacheWriteTokens / 1000000).toFixed(2)}M</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-border-primary text-xs text-text-muted">
+                  <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
                     <div className="flex justify-between">
                       <span>Rate: ${model.pricing.inputPerMTok}/MTok in, ${model.pricing.outputPerMTok}/MTok out</span>
                     </div>
@@ -638,15 +639,15 @@ export default function UsagePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-text-muted" />
+            <Calendar className="w-4 h-4 text-muted-foreground" />
             Messages (Last 7 Days)
           </h3>
           <div className="flex items-end gap-2 h-32">
             {weeklyActivity.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center text-text-muted text-sm">
+              <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
                 No activity data
               </div>
             ) : (
@@ -658,15 +659,15 @@ export default function UsagePage() {
                 return (
                   <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                     <div className="w-full flex flex-col items-center justify-end h-24">
-                      <span className="text-xs text-text-muted mb-1">{day.messageCount}</span>
+                      <span className="text-xs text-muted-foreground mb-1">{day.messageCount}</span>
                       <motion.div
                         initial={{ height: 0 }}
                         animate={{ height: `${Math.max(height, 4)}%` }}
                         transition={{ delay: 0.3 + i * 0.05, duration: 0.5 }}
-                        className="w-full max-w-8 bg-gradient-to-t from-accent-cyan to-accent-purple rounded-none"
+                        className="w-full max-w-8 bg-gradient-to-t from-primary to-primary"
                       />
                     </div>
-                    <span className="text-[10px] text-text-muted">{dayLabel}</span>
+                    <span className="text-[10px] text-muted-foreground">{dayLabel}</span>
                   </div>
                 );
               })
@@ -679,27 +680,27 @@ export default function UsagePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-text-muted" />
+            <MessageSquare className="w-4 h-4 text-muted-foreground" />
             Session Statistics
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-none bg-bg-tertiary">
-              <p className="text-xs text-text-muted mb-1">Total Sessions</p>
+            <div className="p-4 bg-muted">
+              <p className="text-xs text-muted-foreground mb-1">Total Sessions</p>
               <p className="text-2xl font-bold">{stats?.totalSessions?.toLocaleString() || 0}</p>
             </div>
-            <div className="p-4 rounded-none bg-bg-tertiary">
-              <p className="text-xs text-text-muted mb-1">Total Messages</p>
+            <div className="p-4 bg-muted">
+              <p className="text-xs text-muted-foreground mb-1">Total Messages</p>
               <p className="text-2xl font-bold">{stats?.totalMessages?.toLocaleString() || 0}</p>
             </div>
-            <div className="p-4 rounded-none bg-bg-tertiary">
-              <p className="text-xs text-text-muted mb-1">Recent Sessions</p>
+            <div className="p-4 bg-muted">
+              <p className="text-xs text-muted-foreground mb-1">Recent Sessions</p>
               <p className="text-2xl font-bold">{todayActivity?.sessionCount || 0}</p>
             </div>
-            <div className="p-4 rounded-none bg-bg-tertiary">
-              <p className="text-xs text-text-muted mb-1">Recent Tool Calls</p>
+            <div className="p-4 bg-muted">
+              <p className="text-xs text-muted-foreground mb-1">Recent Tool Calls</p>
               <p className="text-2xl font-bold">{todayActivity?.toolCallCount || 0}</p>
             </div>
           </div>
@@ -712,10 +713,10 @@ export default function UsagePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="rounded-none border border-border-primary bg-bg-secondary p-5"
+          className="border border-border bg-card p-5"
         >
           <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-text-muted" />
+            <Clock className="w-4 h-4 text-muted-foreground" />
             Activity by Hour of Day
           </h3>
           <div className="flex items-end gap-1 h-24">
@@ -730,17 +731,17 @@ export default function UsagePage() {
                     initial={{ height: 0 }}
                     animate={{ height: `${Math.max(height, 4)}%` }}
                     transition={{ delay: 0.4 + hour * 0.02, duration: 0.3 }}
-                    className={`w-full rounded-none transition-all ${count > 0 ? 'bg-accent-blue' : 'bg-bg-tertiary'}`}
+                    className={`w-full transition-all ${count > 0 ? 'bg-primary' : 'bg-muted'}`}
                     title={`${hour}:00 - ${count} sessions`}
                   />
                   {hour % 4 === 0 && (
-                    <span className="text-[10px] text-text-muted">{hour}</span>
+                    <span className="text-[10px] text-muted-foreground">{hour}</span>
                   )}
                 </div>
               );
             })}
           </div>
-          <div className="flex justify-between mt-2 text-xs text-text-muted">
+          <div className="flex justify-between mt-2 text-xs text-muted-foreground">
             <span>12 AM</span>
             <span>6 AM</span>
             <span>12 PM</span>
@@ -755,29 +756,29 @@ export default function UsagePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.45 }}
-        className="rounded-none border border-border-primary bg-bg-secondary p-5"
+        className="border border-border bg-card p-5"
       >
         <button
           onClick={() => setShowPricingTable(!showPricingTable)}
           className="w-full flex items-center justify-between text-sm font-medium"
         >
           <span className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-text-muted" />
+            <DollarSign className="w-4 h-4 text-muted-foreground" />
             Pricing Reference
           </span>
-          <ChevronDown className={`w-4 h-4 text-text-muted transition-transform ${showPricingTable ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showPricingTable ? 'rotate-180' : ''}`} />
         </button>
 
         {showPricingTable && (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-border-primary">
-                  <th className="text-left py-2 px-2 text-text-muted font-medium">Model</th>
-                  <th className="text-right py-2 px-2 text-text-muted font-medium">Input</th>
-                  <th className="text-right py-2 px-2 text-text-muted font-medium">Output</th>
-                  <th className="text-right py-2 px-2 text-text-muted font-medium">Cache Hits</th>
-                  <th className="text-right py-2 px-2 text-text-muted font-medium">5m Cache Write</th>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 px-2 text-muted-foreground font-medium">Model</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground font-medium">Input</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground font-medium">Output</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground font-medium">Cache Hits</th>
+                  <th className="text-right py-2 px-2 text-muted-foreground font-medium">5m Cache Write</th>
                 </tr>
               </thead>
               <tbody>
@@ -795,7 +796,7 @@ export default function UsagePage() {
                 ].map((model) => {
                   const pricing = MODEL_PRICING[model.key];
                   return (
-                    <tr key={model.key} className="border-b border-border-primary/50 hover:bg-bg-tertiary/50">
+                    <tr key={model.key} className="border-b border-border/50 hover:bg-muted/50">
                       <td className="py-2 px-2 font-medium">{model.name}</td>
                       <td className="text-right py-2 px-2">${pricing.inputPerMTok}/MTok</td>
                       <td className="text-right py-2 px-2">${pricing.outputPerMTok}/MTok</td>

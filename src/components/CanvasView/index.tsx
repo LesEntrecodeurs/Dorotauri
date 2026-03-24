@@ -147,7 +147,7 @@ export default function CanvasView() {
   return (
     <div
       ref={canvasRef}
-      className={`relative w-full h-full bg-[#0D0B08] overflow-hidden touch-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`relative w-full h-full bg-background overflow-hidden touch-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
       {...gestureHandlers}
     >
       <DotGrid />
@@ -237,7 +237,7 @@ export default function CanvasView() {
 
       {/* Title */}
       <div className="absolute bottom-20 left-4 z-40 pointer-events-none">
-        <h2 className="text-xl font-mono text-zinc-700 italic">Agent Board</h2>
+        <h2 className="text-xl font-mono text-muted-foreground italic">Agent Board</h2>
       </div>
 
       {/* Agent Terminal Dialog */}

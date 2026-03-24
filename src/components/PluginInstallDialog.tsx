@@ -2,7 +2,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { isElectron } from '@/hooks/useElectron';
+import { TERMINAL_THEME, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 import 'xterm/css/xterm.css';
 
 interface PluginInstallDialogProps {
@@ -38,34 +40,8 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
       const { FitAddon } = await import('xterm-addon-fit');
 
       const term = new Terminal({
-        theme: {
-          background: '#0D0B08',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#0D0B08',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
-        },
-        fontSize: 13,
-        fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-        cursorBlink: true,
-        cursorStyle: 'bar',
-        scrollback: 10000,
+        theme: TERMINAL_THEME,
+        ...TERMINAL_CONFIG,
       });
 
       const fitAddon = new FitAddon();
@@ -186,11 +162,11 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl bg-card border border-border rounded-none overflow-hidden"
+            className="w-full max-w-4xl bg-card border border-border overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-none flex items-center justify-center ${
+                <div className={`w-8 h-8 flex items-center justify-center ${
                   installComplete
                     ? installExitCode === 0
                       ? 'bg-green-500/20'
@@ -220,7 +196,7 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
               </div>
               <button
                 onClick={handleClose}
-                className="p-2 hover:bg-secondary rounded-none"
+                className="p-2 hover:bg-secondary"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -232,7 +208,7 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
               </p>
               <div
                 ref={terminalRef}
-                className="bg-[#0D0B08] rounded-none overflow-hidden"
+                className="bg-[#1A1726] overflow-hidden"
                 style={{ height: '400px' }}
               />
             </div>
@@ -243,16 +219,13 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
                   ? `Exited with code ${installExitCode}`
                   : 'Waiting for installation to complete...'}
               </p>
-              <button
+              <Button
                 onClick={handleClose}
-                className={`px-4 py-2 rounded-none font-medium ${
-                  installComplete
-                    ? 'bg-foreground text-background hover:bg-foreground/90'
-                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                }`}
+                variant={installComplete ? 'default' : 'destructive'}
+                className={!installComplete ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : ''}
               >
                 {installComplete ? 'Close' : 'Cancel'}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>

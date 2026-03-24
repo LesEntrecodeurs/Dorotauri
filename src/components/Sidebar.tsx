@@ -1,47 +1,60 @@
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
-  FolderKanban,
-  Sparkles,
-  Puzzle,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
   Bot,
-  BarChart2,
-  CalendarClock,
+  Columns3,
+  Brain,
+  Archive,
+  Sparkles,
   Zap,
-  Columns,
+  Puzzle,
+  FolderGit2,
+  Clock,
+  BarChart3,
+  Megaphone,
+  Settings,
   Moon,
   Sun,
-  Archive,
-  Brain,
-  Gift,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { LATEST_RELEASE, WHATS_NEW_STORAGE_KEY } from '@/data/changelog';
-
-import { useStore } from '@/store';
-import { useNotifications } from '@/hooks/useNotifications';
 import { Link, useLocation } from 'react-router';
 
-const navItems = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard', shortcut: '1' },
-  { href: '/agents', icon: Bot, label: 'Agents', shortcut: '2' },
-  { href: '/kanban', icon: Columns, label: 'Kanban', shortcut: '3' },
-  { href: '/vault', icon: Archive, label: 'Vault', shortcut: '4' },
-  { href: '/projects', icon: FolderKanban, label: 'Projects', shortcut: '5' },
-  { href: '/skills', icon: Sparkles, label: 'Skills', shortcut: '6' },
-  { href: '/plugins', icon: Puzzle, label: 'Plugins', shortcut: '7' },
-  { href: '/recurring-tasks', icon: CalendarClock, label: 'Scheduled Tasks', shortcut: '8' },
-  { href: '/automations', icon: Zap, label: 'Automations', shortcut: '9' },
-  { href: '/usage', icon: BarChart2, label: 'Usage', shortcut: '0' },
-  { href: '/memory', icon: Brain, label: 'Memory', shortcut: 'M' },
-];
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuBadge,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarRail,
+  useSidebar,
+} from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-interface SidebarProps {
-  isMobile?: boolean;
-}
+import { LATEST_RELEASE, WHATS_NEW_STORAGE_KEY } from '@/data/changelog';
+import { useStore } from '@/store';
+import { useNotifications } from '@/hooks/useNotifications';
+
+const navItems = [
+  { href: '/', icon: LayoutDashboard, label: 'Hub' },
+  { href: '/agents', icon: Bot, label: 'Agents' },
+  { href: '/kanban', icon: Columns3, label: 'Kanban' },
+  { href: '/memory', icon: Brain, label: 'Memory' },
+  { href: '/vault', icon: Archive, label: 'Vault' },
+  { href: '/skills', icon: Sparkles, label: 'Skills' },
+  { href: '/automations', icon: Zap, label: 'Automations' },
+  { href: '/plugins', icon: Puzzle, label: 'Plugins' },
+  { href: '/projects', icon: FolderGit2, label: 'Projects' },
+  { href: '/recurring-tasks', icon: Clock, label: 'Recurring Tasks' },
+  { href: '/usage', icon: BarChart3, label: 'Usage' },
+  { href: '/whats-new', icon: Megaphone, label: "What's New" },
+];
 
 function useWhatsNewBadge() {
   const [hasNew, setHasNew] = useState(false);
@@ -59,318 +72,135 @@ function useWhatsNewBadge() {
   return hasNew;
 }
 
-export default function Sidebar({ isMobile = false }: SidebarProps) {
+function isActive(href: string, pathname: string) {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function CollapseToggle() {
+  const { toggleSidebar, state } = useSidebar();
+  const collapsed = state === 'collapsed';
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton onClick={toggleSidebar} tooltip={collapsed ? 'Expand' : 'Collapse'}>
+        {collapsed ? <PanelLeft /> : <PanelLeftClose />}
+        <span>Collapse</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+export default function AppSidebar() {
   const pathname = useLocation().pathname;
-  const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen, darkMode, toggleDarkMode, vaultUnreadCount } = useStore();
+  const { darkMode, toggleDarkMode, vaultUnreadCount } = useStore();
   const whatsNewHasNew = useWhatsNewBadge();
   const { undismissed: undismissedNotifications } = useNotifications();
   const notificationCount = undismissedNotifications.length;
 
-  // For mobile, sidebar is always expanded (240px) when open
-  const sidebarWidth = isMobile ? 240 : (sidebarCollapsed ? 72 : 240);
-  const showLabels = isMobile || !sidebarCollapsed;
-
-  // Close mobile menu when navigating
-  const handleNavClick = () => {
-    if (isMobile) {
-      setMobileMenuOpen(false);
-    }
-  };
-
-  // Desktop sidebar
-  if (!isMobile) {
-    return (
-      <motion.aside
-        initial={false}
-        animate={{ width: sidebarWidth }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="fixed left-0 top-0 h-screen bg-card border-r-2 border-r-primary/30 flex-col z-50 hidden lg:flex"
-      >
-        {/* Drag region - covers macOS traffic light area */}
-        <div className="window-drag h-7 shrink-0" />
-        {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0">
-              <img src="/dorothy-without-text.png" alt="Dorothy" className="w-full h-full object-cover scale-150" />
-            </div>
-            {showLabels && (
-              <div>
-                <img src="/text.png" alt="Dorothy" className="h-6 w-auto object-contain" />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = item.href === '/'
-              ? pathname === '/'
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={`
-                  group flex items-center gap-3 px-3 py-2.5 transition-all duration-150
-                  ${isActive
-                    ? 'bg-primary/20 text-primary font-medium border-l-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                  }
-                `}
-              >
-                <div className="relative">
-                  <item.icon className="w-5 h-5" />
-                  {item.href === '/vault' && vaultUnreadCount > 0 && !showLabels && (
-                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center text-[8px] font-bold bg-primary text-primary-foreground rounded-full px-0.5">
-                      {vaultUnreadCount}
-                    </span>
-                  )}
-                  {item.href === '/agents' && notificationCount > 0 && !showLabels && (
-                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center text-[8px] font-bold bg-orange-500 text-white rounded-full px-0.5">
-                      {notificationCount}
-                    </span>
-                  )}
-                </div>
-                {showLabels && (
-                  <span className="text-sm flex-1">
-                    {item.label}
-                  </span>
-                )}
-                {item.href === '/vault' && vaultUnreadCount > 0 && showLabels && (
-                  <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full px-1">
-                    {vaultUnreadCount}
-                  </span>
-                )}
-                {item.href === '/agents' && notificationCount > 0 && showLabels && (
-                  <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-orange-500 text-white rounded-full px-1">
-                    {notificationCount}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* What's New + Status indicator */}
-        <div className="border-t border-border">
-          {showLabels && (
-            <>
-              <Link
-                to="/whats-new"
-                className={`flex items-center gap-3 px-5 py-3 transition-colors ${
-                  pathname === '/whats-new'
-                    ? 'bg-primary/20 text-primary border-l-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                }`}
-              >
-                <div className="relative">
-                  <Gift className="w-5 h-5" />
-                  {whatsNewHasNew && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-                  )}
-                </div>
-                <span className="text-sm flex-1">What&apos;s New</span>
-                {whatsNewHasNew && (
-                  <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full px-1">
-                    1
-                  </span>
-                )}
-              </Link>
-              <div className="px-4 py-3 border-t border-border">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
-                  <span>Connected</span>
-                </div>
-              </div>
-            </>
-          )}
-          {!showLabels && (
-            <Link
-              to="/whats-new"
-              className={`flex items-center justify-center py-3 transition-colors ${
-                pathname === '/whats-new'
-                  ? 'bg-primary/20 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-              }`}
-            >
-              <div className="relative">
-                <Gift className="w-5 h-5" />
-                {whatsNewHasNew && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-                )}
-              </div>
-            </Link>
-          )}
-        </div>
-
-        {/* Settings & Collapse */}
-        <div className="border-t border-border">
-          <Link
-            to="/settings"
-            className={`
-              flex items-center gap-3 px-5 py-3 transition-colors
-              ${pathname === '/settings' || pathname.startsWith('/settings/')
-                ? 'bg-primary/20 text-primary border-l-2 border-primary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-              }
-            `}
-          >
-            <Settings className="w-5 h-5" />
-            {showLabels && <span className="text-sm">Settings</span>}
-          </Link>
-          <button
-            onClick={toggleDarkMode}
-            className="w-full flex items-center gap-3 px-5 py-3 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            {showLabels && <span className="text-sm">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>}
-          </button>
-          <button
-            onClick={toggleSidebar}
-            className="w-full flex items-center gap-3 px-5 py-3 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="w-5 h-5" />
-            ) : (
-              <>
-                <ChevronLeft className="w-5 h-5" />
-                <span className="text-sm">Collapse</span>
-              </>
-            )}
-          </button>
-        </div>
-      </motion.aside>
-    );
-  }
-
-  // Mobile sidebar (drawer)
   return (
-    <AnimatePresence>
-      {mobileMenuOpen && (
-        <motion.aside
-          initial={{ x: -sidebarWidth }}
-          animate={{ x: 0 }}
-          exit={{ x: -sidebarWidth }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
-          className="fixed left-0 top-0 h-screen bg-card border-r border-border flex flex-col z-50 lg:hidden"
-          style={{ width: sidebarWidth }}
-        >
-          {/* Logo */}
-          <div className="h-14 flex items-center px-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0">
-                <img src="/dorothy-without-text.png" alt="Dorothy" className="w-full h-full object-cover scale-150" />
-              </div>
-              <img src="/text.png" alt="Dorothy" className="h-6 w-auto object-contain" />
-            </div>
+    <Sidebar collapsible="icon">
+      {/* macOS traffic light spacer */}
+      <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} />
+      <SidebarHeader className="group-data-[collapsible=icon]:p-0">
+        <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="w-8 h-8 overflow-hidden shrink-0 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
+            <img
+              src="/dorothy-without-text.png"
+              alt="Dorothy"
+              className="w-full h-full object-cover scale-150"
+            />
           </div>
+          <img
+            src="/text.png"
+            alt="Dorothy"
+            className="h-4 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden"
+          />
+        </div>
+        <CollapseToggle />
+      </SidebarHeader>
 
-          {/* Navigation */}
-          <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarMenu>
             {navItems.map((item) => {
-              const isActive = item.href === '/'
-                ? pathname === '/'
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = isActive(item.href, pathname);
+              const showVaultBadge = item.href === '/vault' && vaultUnreadCount > 0;
+              const showNotifBadge = item.href === '/agents' && notificationCount > 0;
+              const showWhatsNewBadge = item.href === '/whats-new' && whatsNewHasNew;
+
               return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={handleNavClick}
-                  className={`
-                    group flex items-center gap-3 px-3 py-2.5 transition-all duration-150
-                    ${isActive
-                      ? 'bg-primary/20 text-primary font-medium border-l-2 border-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                    }
-                  `}
-                >
-                  <div className="relative">
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <span className="text-sm flex-1">
-                    {item.label}
-                  </span>
-                  {item.href === '/vault' && vaultUnreadCount > 0 && (
-                    <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full px-1">
-                      {vaultUnreadCount}
-                    </span>
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                    <Link to={item.href}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                  {showVaultBadge && (
+                    <SidebarMenuBadge>
+                      <Badge variant="default" className="h-5 min-w-5 px-1 text-[10px]">
+                        {vaultUnreadCount}
+                      </Badge>
+                    </SidebarMenuBadge>
                   )}
-                  {item.href === '/agents' && notificationCount > 0 && (
-                    <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-orange-500 text-white rounded-full px-1">
-                      {notificationCount}
-                    </span>
+                  {showNotifBadge && (
+                    <SidebarMenuBadge>
+                      <Badge
+                        variant="destructive"
+                        className="h-5 min-w-5 px-1 text-[10px] bg-orange-500"
+                      >
+                        {notificationCount}
+                      </Badge>
+                    </SidebarMenuBadge>
                   )}
-                </Link>
+                  {showWhatsNewBadge && (
+                    <SidebarMenuBadge>
+                      <Badge variant="destructive" className="h-5 min-w-5 px-1 text-[10px]">
+                        1
+                      </Badge>
+                    </SidebarMenuBadge>
+                  )}
+                </SidebarMenuItem>
               );
             })}
-          </nav>
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
 
-          {/* What's New + Status indicator */}
-          <div className="border-t border-border">
-            <Link
-              to="/whats-new"
-              onClick={handleNavClick}
-              className={`flex items-center gap-3 px-5 py-3 transition-colors ${
-                pathname === '/whats-new'
-                  ? 'bg-primary/20 text-primary border-l-2 border-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-              }`}
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive('/settings', pathname)}
+              tooltip="Settings"
             >
-              <div className="relative">
-                <Gift className="w-5 h-5" />
-                {whatsNewHasNew && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-                )}
-              </div>
-              <span className="text-sm flex-1">What&apos;s New</span>
-              {whatsNewHasNew && (
-                <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full px-1">
-                  1
-                </span>
-              )}
-            </Link>
-            <div className="px-4 py-3 border-t border-border">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span>Connected</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Settings & Theme Toggle */}
-          <div className="border-t border-border">
-            <Link
-              to="/settings"
-              onClick={handleNavClick}
-              className={`
-                flex items-center gap-3 px-5 py-3 transition-colors
-                ${pathname === '/settings' || pathname.startsWith('/settings/')
-                  ? 'bg-primary/20 text-primary border-l-2 border-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                }
-              `}
-            >
-              <Settings className="w-5 h-5" />
-              <span className="text-sm">Settings</span>
-            </Link>
-            <button
-              onClick={toggleDarkMode}
-              className="w-full flex items-center gap-3 px-5 py-3 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              <span className="text-sm">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-            </button>
-          </div>
-        </motion.aside>
-      )}
-    </AnimatePresence>
+              <Link to="/settings">
+                <Settings />
+                <span>Settings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip={darkMode ? 'Light Mode' : 'Dark Mode'}>
+              <Button variant="ghost" className="w-full justify-start" onClick={toggleDarkMode}>
+                {darkMode ? <Sun /> : <Moon />}
+                <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+              </Button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          </span>
+          <span>Connected</span>
+        </div>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }

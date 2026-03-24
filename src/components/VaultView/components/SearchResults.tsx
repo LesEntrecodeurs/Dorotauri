@@ -8,6 +8,7 @@ import {
   Tag,
   Search,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import type { VaultDocumentElectron } from '@/types/electron';
 
 interface SearchResultsProps {
@@ -71,7 +72,7 @@ export default function SearchResults({ results, query, onSelectDocument }: Sear
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.03 }}
             onClick={() => onSelectDocument(doc.id)}
-            className="w-full text-left p-3 rounded-lg border border-border bg-card hover:bg-secondary/50 hover:border-border/80 transition-all"
+            className="w-full text-left p-3 rounded-md border border-border bg-card hover:bg-secondary/50 hover:border-border/80 transition-all"
           >
             <h3 className="font-medium text-sm text-foreground">{doc.title}</h3>
 
@@ -98,9 +99,9 @@ export default function SearchResults({ results, query, onSelectDocument }: Sear
               <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                 <Tag className="w-3 h-3 text-muted-foreground shrink-0" />
                 {tags.slice(0, 3).map(tag => (
-                  <span key={tag} className="px-1.5 py-0.5 text-[10px] rounded bg-secondary text-muted-foreground">
+                  <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
                     {tag}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             )}

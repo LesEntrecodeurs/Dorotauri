@@ -9,6 +9,7 @@ import {
   Crown,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { Button } from '@/components/ui/button';
 import { isElectron } from '@/hooks/useElectron';
 
 // Module-level cache: avoids re-running the slow IPC call every time Step 3 mounts
@@ -31,7 +32,7 @@ export default function OrchestratorModeToggle({
   const [isSettingUp, setIsSettingUp] = useState(false);
 
   useEffect(() => {
-    // Use cached result if available — instant, no IPC call
+    // Use cached result if available -- instant, no IPC call
     if (cachedStatus) {
       setStatus(cachedStatus);
       setErrorMessage(cachedError);
@@ -57,7 +58,7 @@ export default function OrchestratorModeToggle({
           setStatus('not-configured');
         }
       } catch (err) {
-        // Command not implemented yet in Tauri — treat as not-configured
+        // Command not implemented yet in Tauri -- treat as not-configured
         cachedStatus = 'not-configured';
         cachedError = null;
         setStatus('not-configured');
@@ -114,7 +115,7 @@ export default function OrchestratorModeToggle({
   }
 
   return (
-    <div className="p-4 rounded-lg border border-accent-purple/30 bg-accent-purple/5">
+    <div className="p-4 rounded-md border border-primary/30 bg-primary/5">
       <div className="flex items-start gap-3">
         <button
           onClick={() => {
@@ -126,8 +127,8 @@ export default function OrchestratorModeToggle({
           className={`
             mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-all shrink-0
             ${isOrchestrator && status === 'configured'
-              ? 'bg-accent-purple border-accent-purple'
-              : 'border-accent-purple/50 hover:border-accent-purple'
+              ? 'bg-primary border-primary'
+              : 'border-primary/50 hover:border-primary'
             }
             ${status !== 'configured' ? 'opacity-50 cursor-not-allowed' : ''}
           `}
@@ -136,30 +137,32 @@ export default function OrchestratorModeToggle({
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <Crown className="w-4 h-4 text-accent-purple" />
+            <Crown className="w-4 h-4 text-primary" />
             <span className="font-medium text-sm">Orchestrator Mode (Super Agent)</span>
             {status === 'loading' && (
-              <Loader2 className="w-3.5 h-3.5 text-accent-purple animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
             )}
             {status === 'configured' && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-accent-green/20 text-accent-green">
+              <span className="text-xs px-1.5 py-0.5 rounded-sm bg-green-500/20 text-green-500">
                 Ready
               </span>
             )}
           </div>
-          <p className="text-xs text-text-muted mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             This agent can create, manage, and coordinate other agents. It has full control over the agent fleet.
           </p>
 
           {status === 'not-configured' && (
-            <div className="mt-3 pt-3 border-t border-border-primary">
-              <p className="text-xs text-text-muted mb-2">
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-2">
                 Enable orchestrator capabilities by adding the MCP server to Claude&apos;s configuration.
               </p>
-              <button
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={handleSetup}
                 disabled={isSettingUp}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent-purple/20 text-accent-purple text-sm font-medium hover:bg-accent-purple/30 transition-colors disabled:opacity-50"
+                className="bg-primary/20 text-primary hover:bg-primary/30"
               >
                 {isSettingUp ? (
                   <>
@@ -172,20 +175,20 @@ export default function OrchestratorModeToggle({
                     Enable Orchestrator
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           )}
 
           {status === 'configured' && (
-            <div className="mt-3 pt-3 border-t border-border-primary">
+            <div className="mt-3 pt-3 border-t border-border">
               <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-3.5 h-3.5 text-accent-green" />
-                <span className="text-xs text-accent-green">MCP orchestrator is configured</span>
+                <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                <span className="text-xs text-green-500">MCP orchestrator is configured</span>
               </div>
               <button
                 onClick={handleRemove}
                 disabled={isSettingUp}
-                className="text-xs text-text-muted hover:text-accent-red transition-colors flex items-center gap-1"
+                className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
               >
                 {isSettingUp ? (
                   <>
@@ -203,8 +206,8 @@ export default function OrchestratorModeToggle({
           )}
 
           {status === 'error' && (
-            <div className="mt-3 pt-3 border-t border-border-primary">
-              <div className="flex items-center gap-2 text-accent-red">
+            <div className="mt-3 pt-3 border-t border-border">
+              <div className="flex items-center gap-2 text-destructive">
                 <XCircle className="w-3.5 h-3.5" />
                 <span className="text-xs">{errorMessage || 'An error occurred'}</span>
               </div>
@@ -212,7 +215,7 @@ export default function OrchestratorModeToggle({
           )}
 
           {errorMessage && status !== 'error' && (
-            <div className="mt-2 text-xs text-accent-red flex items-center gap-1">
+            <div className="mt-2 text-xs text-destructive flex items-center gap-1">
               <XCircle className="w-3 h-3" />
               {errorMessage}
             </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Badge } from '@/components/ui/badge';
 
 function GeminiLogo({ className }: { className?: string }) {
   return (
@@ -28,10 +29,10 @@ export default function ProviderBadge({ provider, className = '' }: ProviderBadg
   const { label, icon } = config;
 
   return (
-    <span
+    <Badge
+      variant="secondary"
       title={label}
-      className={`relative inline-flex items-center justify-center w-6 h-6 bg-secondary ${className}`}
-      style={{ borderRadius: 6 }}
+      className={`relative inline-flex items-center justify-center w-6 h-6 p-0 rounded-md ${className}`}
     >
       {typeof icon === 'string' ? (
         <img src={icon} alt={label} className="w-3.5 h-3.5 object-contain" />
@@ -46,7 +47,7 @@ export default function ProviderBadge({ provider, className = '' }: ProviderBadg
         <circle cx="8" cy="8" r="8" fill="currentColor" />
         <path d="M4.5 8.5L7 11L11.5 5.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-    </span>
+    </Badge>
   );
 }
 

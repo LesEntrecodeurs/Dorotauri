@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import { useClaude } from '@/hooks/useClaude';
 import { useElectronAgents } from '@/hooks/useElectron';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import StatsCard from './StatsCard';
 
 const CanvasView = lazy(() => import('@/components/CanvasView'));
@@ -151,7 +154,7 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center text-danger">
+        <div className="text-center text-destructive">
           <p className="mb-2">Failed to load Claude Code data</p>
           <p className="text-sm text-muted-foreground">{error}</p>
         </div>
@@ -160,15 +163,15 @@ export default function Dashboard() {
   }
 
   const characterEmojis: Record<string, string> = {
-    robot: '🤖',
-    ninja: '🥷',
-    wizard: '🧙',
-    astronaut: '👨‍🚀',
-    knight: '⚔️',
-    pirate: '🏴‍☠️',
-    alien: '👽',
-    viking: '🛡️',
-    frog: '🐸',
+    robot: '\u{1F916}',
+    ninja: '\u{1F977}',
+    wizard: '\u{1F9D9}',
+    astronaut: '\u{1F468}\u200D\u{1F680}',
+    knight: '\u2694\uFE0F',
+    pirate: '\u{1F3F4}\u200D\u2620\uFE0F',
+    alien: '\u{1F47D}',
+    viking: '\u{1F6E1}\uFE0F',
+    frog: '\u{1F438}',
   };
 
   return (
@@ -183,44 +186,25 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 p-1 bg-secondary border border-border" style={{ borderRadius: 10 }}>
-            <button
-              onClick={() => setViewMode('terminals')}
-              className={`
-                flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 text-xs lg:text-sm font-medium transition-all
-                ${viewMode === 'terminals'
-                  ? 'bg-foreground text-background'
-                  : 'text-muted-foreground hover:text-foreground'
-                }
-              `}
-              style={{ borderRadius: 7 }}
-            >
-              <TerminalSquare className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline">Terminals</span>
-              <span className="sm:hidden">Term</span>
-            </button>
-
-            <button
-              onClick={() => setViewMode('canvas')}
-              className={`
-                flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 text-xs lg:text-sm font-medium transition-all
-                ${viewMode === 'canvas'
-                  ? 'bg-foreground text-background'
-                  : 'text-muted-foreground hover:text-foreground'
-                }
-              `}
-              style={{ borderRadius: 7 }}
-            >
-              <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-              Board
-            </button>
-          </div>
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as typeof viewMode)}>
+            <TabsList>
+              <TabsTrigger value="terminals" className="gap-1.5 lg:gap-2 text-xs lg:text-sm">
+                <TerminalSquare className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="hidden sm:inline">Terminals</span>
+                <span className="sm:hidden">Term</span>
+              </TabsTrigger>
+              <TabsTrigger value="canvas" className="gap-1.5 lg:gap-2 text-xs lg:text-sm">
+                <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                Board
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <div className="text-right text-xs text-muted-foreground hidden sm:block">
             <div className="flex items-center gap-2 justify-end">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
               </span>
               <span>{activeSessions.length} active session{activeSessions.length !== 1 ? 's' : ''}</span>
             </div>
@@ -238,26 +222,26 @@ export default function Dashboard() {
 
       {/* Canvas View */}
       {viewMode === 'canvas' && (
-        <div
-          className="border border-border bg-card overflow-hidden"
+        <Card
+          className="overflow-hidden"
           style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}
         >
           <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Board...</p></div></div>}>
             <CanvasView />
           </Suspense>
-        </div>
+        </Card>
       )}
 
       {/* Terminals View (Mosaic) */}
       {viewMode === 'terminals' && (
-        <div
-          className="border border-border bg-card overflow-hidden"
+        <Card
+          className="overflow-hidden"
           style={{ height: 'calc(100vh - 130px)', minHeight: '400px' }}
         >
           <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Terminals...</p></div></div>}>
             <MosaicTerminalView agents={agents} />
           </Suspense>
-        </div>
+        </Card>
       )}
 
       {/* Statistics View */}
@@ -329,213 +313,224 @@ export default function Dashboard() {
 
           {/* Model Usage */}
           {stats?.modelUsage && Object.keys(stats.modelUsage).length > 0 && (
-            <div className="border border-border bg-card p-6">
-              <h3 className="text-sm font-medium mb-4 flex items-center gap-2 text-foreground">
-                <Bot className="w-4 h-4 text-muted-foreground" />
-                Model Usage
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(stats.modelUsage).map(([model, usage]) => {
-                  const modelName = model.includes('opus') ? 'Opus 4.5' : model.includes('sonnet') ? 'Sonnet 4.5' : model;
-                  const totalTokens = usage.inputTokens + usage.outputTokens;
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-muted-foreground" />
+                  Model Usage
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(stats.modelUsage).map(([model, usage]) => {
+                    const modelName = model.includes('opus') ? 'Opus 4.5' : model.includes('sonnet') ? 'Sonnet 4.5' : model;
+                    const totalTokens = usage.inputTokens + usage.outputTokens;
 
-                  return (
-                    <div key={model} className="p-4 bg-secondary border border-border hover:border-white/30 transition-all">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-foreground">
-                          {modelName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ${usage.costUSD?.toFixed(2) || '0.00'}
-                        </span>
+                    return (
+                      <div key={model} className="p-4 bg-secondary border border-border hover:border-primary/30 transition-all">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-foreground">
+                            {modelName}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ${usage.costUSD?.toFixed(2) || '0.00'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">Input:</span>
+                            <span className="ml-1 text-foreground">{(usage.inputTokens / 1000).toFixed(0)}k</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Output:</span>
+                            <span className="ml-1 text-foreground">{(usage.outputTokens / 1000).toFixed(0)}k</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Cache Read:</span>
+                            <span className="ml-1 text-foreground">{(usage.cacheReadInputTokens / 1000000).toFixed(1)}M</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Cache Create:</span>
+                            <span className="ml-1 text-foreground">{(usage.cacheCreationInputTokens / 1000000).toFixed(1)}M</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
+                          Total: {(totalTokens / 1000000).toFixed(2)}M tokens
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-muted-foreground">Input:</span>
-                          <span className="ml-1 text-foreground">{(usage.inputTokens / 1000).toFixed(0)}k</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Output:</span>
-                          <span className="ml-1 text-foreground">{(usage.outputTokens / 1000).toFixed(0)}k</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Cache Read:</span>
-                          <span className="ml-1 text-foreground">{(usage.cacheReadInputTokens / 1000000).toFixed(1)}M</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Cache Create:</span>
-                          <span className="ml-1 text-foreground">{(usage.cacheCreationInputTokens / 1000000).toFixed(1)}M</span>
-                        </div>
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
-                        Total: {(totalTokens / 1000000).toFixed(2)}M tokens
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Activity by Hour */}
-          <div className="border border-border bg-card p-4">
-            <h3 className="text-sm font-medium mb-3 flex items-center gap-2 text-foreground">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              Activity by Hour
-              <span className="text-xs text-muted-foreground font-normal ml-2">
-                (Total: {hourData.hours.reduce((a, b) => a + b, 0)} sessions)
-              </span>
-            </h3>
-            <div className="flex items-end gap-1 h-24">
-              {hourData.hours.map((count, hour) => {
-                const height = (count / hourData.maxCount) * 100;
-
-                return (
-                  <div key={hour} className="flex-1 flex flex-col items-center gap-1 group">
-                    <div className="relative w-full flex justify-center">
-                      {/* Tooltip on hover */}
-                      <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border px-1.5 py-0.5 text-[10px] whitespace-nowrap z-10 text-foreground">
-                        {hour}:00 - {count} sessions
-                      </div>
-                      <div
-                        className={`w-full transition-all ${count > 0 ? 'bg-white' : 'bg-secondary'}`}
-                        style={{ height: `${Math.max(height, 4)}%`, minHeight: count > 0 ? '8px' : '4px' }}
-                      />
-                    </div>
-                    {hour % 6 === 0 && (
-                      <span className="text-[10px] text-muted-foreground">{hour}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-              <span>12 AM</span>
-              <span>6 AM</span>
-              <span>12 PM</span>
-              <span>6 PM</span>
-              <span>12 AM</span>
-            </div>
-          </div>
-
-          {/* Recent Messages */}
-          {recentHistory.length > 0 && (
-            <div className="border border-border bg-card p-6">
-              <h3 className="text-sm font-medium mb-4 flex items-center gap-2 text-foreground">
-                <History className="w-4 h-4 text-muted-foreground" />
-                Recent Messages
-              </h3>
-              <div className="space-y-3">
-                {recentHistory.map((entry, index) => {
-                  const projectName = entry.project?.split('/').pop() || 'Unknown';
-                  const agent = entry.project ? findAgentForProject(entry.project) : null;
-                  const time = new Date(entry.timestamp).toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-                  const date = new Date(entry.timestamp).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  });
+          <Card>
+            <CardHeader className="pb-3 px-4 pt-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                Activity by Hour
+                <span className="text-xs text-muted-foreground font-normal ml-2">
+                  (Total: {hourData.hours.reduce((a, b) => a + b, 0)} sessions)
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="flex items-end gap-1 h-24">
+                {hourData.hours.map((count, hour) => {
+                  const height = (count / hourData.maxCount) * 100;
 
                   return (
-                    <div
-                      key={`${entry.timestamp}-${index}`}
-                      className="p-3 bg-secondary border border-border hover:border-white/30 transition-all"
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* Agent avatar or default */}
-                        <div className={`w-8 h-8 ${agent?.name?.toLowerCase() === 'bitwonka' ? 'bg-green-500/20' : 'bg-card'} flex items-center justify-center text-sm shrink-0`}>
-                          {agent ? (agent.name?.toLowerCase() === 'bitwonka' ? '🐸' : (characterEmojis[agent.character || 'robot'] || '🤖')) : '💬'}
+                    <div key={hour} className="flex-1 flex flex-col items-center gap-1 group">
+                      <div className="relative w-full flex justify-center">
+                        {/* Tooltip on hover */}
+                        <div className="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-popover border border-border px-1.5 py-0.5 text-[10px] whitespace-nowrap z-10 text-popover-foreground">
+                          {hour}:00 - {count} sessions
                         </div>
-
-                        <div className="flex-1 min-w-0">
-                          {/* Header row */}
-                          <div className="flex items-center gap-2 mb-1">
-                            {agent && (
-                              <span className="text-xs font-medium text-foreground">
-                                {agent.name || `Agent ${agent.id.slice(0, 6)}`}
-                              </span>
-                            )}
-                            <span className="text-xs px-1.5 py-0.5 bg-white/10 text-muted-foreground">
-                              {projectName}
-                            </span>
-                            <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                              {date} {time}
-                            </span>
-                          </div>
-
-                          {/* Message */}
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {entry.display}
-                          </p>
-                        </div>
+                        <div
+                          className={`w-full transition-all ${count > 0 ? 'bg-primary' : 'bg-secondary'}`}
+                          style={{ height: `${Math.max(height, 4)}%`, minHeight: count > 0 ? '8px' : '4px' }}
+                        />
                       </div>
+                      {hour % 6 === 0 && (
+                        <span className="text-[10px] text-muted-foreground">{hour}</span>
+                      )}
                     </div>
                   );
                 })}
               </div>
-            </div>
+              <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                <span>12 AM</span>
+                <span>6 AM</span>
+                <span>12 PM</span>
+                <span>6 PM</span>
+                <span>12 AM</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Messages */}
+          {recentHistory.length > 0 && (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <History className="w-4 h-4 text-muted-foreground" />
+                  Recent Messages
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentHistory.map((entry, index) => {
+                    const projectName = entry.project?.split('/').pop() || 'Unknown';
+                    const agent = entry.project ? findAgentForProject(entry.project) : null;
+                    const time = new Date(entry.timestamp).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    });
+                    const date = new Date(entry.timestamp).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    });
+
+                    return (
+                      <div
+                        key={`${entry.timestamp}-${index}`}
+                        className="p-3 bg-secondary border border-border hover:border-primary/30 transition-all"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Agent avatar or default */}
+                          <div className={`w-8 h-8 ${agent?.name?.toLowerCase() === 'bitwonka' ? 'bg-success/20' : 'bg-card'} flex items-center justify-center text-sm shrink-0`}>
+                            {agent ? (agent.name?.toLowerCase() === 'bitwonka' ? '\u{1F438}' : (characterEmojis[agent.character || 'robot'] || '\u{1F916}')) : '\u{1F4AC}'}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            {/* Header row */}
+                            <div className="flex items-center gap-2 mb-1">
+                              {agent && (
+                                <span className="text-xs font-medium text-foreground">
+                                  {agent.name || `Agent ${agent.id.slice(0, 6)}`}
+                                </span>
+                              )}
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                                {projectName}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                                {date} {time}
+                              </span>
+                            </div>
+
+                            {/* Message */}
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {entry.display}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Agents Overview */}
           {agents.length > 0 && (
-            <div className="border border-border bg-card p-6">
-              <h3 className="text-sm font-medium mb-4 flex items-center gap-2 text-foreground">
-                <Bot className="w-4 h-4 text-muted-foreground" />
-                Agents Overview
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {agents.slice(0, 6).map((agent) => {
-                  const projectName = agent.projectPath.split('/').pop() || 'Unknown';
-                  const statusColors: Record<string, string> = {
-                    running: 'bg-green-500',
-                    waiting: 'bg-yellow-500',
-                    idle: 'bg-gray-400',
-                    error: 'bg-red-500',
-                    completed: 'bg-white',
-                  };
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-muted-foreground" />
+                  Agents Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {agents.slice(0, 6).map((agent) => {
+                    const projectName = agent.projectPath.split('/').pop() || 'Unknown';
+                    const statusColors: Record<string, string> = {
+                      running: 'bg-success',
+                      waiting: 'bg-warning',
+                      idle: 'bg-muted-foreground',
+                      error: 'bg-destructive',
+                      completed: 'bg-foreground',
+                    };
 
-                  return (
-                    <div
-                      key={agent.id}
-                      className="p-3 bg-secondary border border-border flex items-center gap-3 hover:border-white/30 transition-all"
-                    >
-                      <div className="relative">
-                        <div className={`w-10 h-10 ${agent.name?.toLowerCase() === 'bitwonka' ? 'bg-green-500/20' : 'bg-card'} flex items-center justify-center text-xl`}>
-                          {agent.name?.toLowerCase() === 'bitwonka' ? '🐸' : (characterEmojis[agent.character || 'robot'] || '🤖')}
-                        </div>
-                        <div
-                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-secondary ${statusColors[agent.status]}`}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate text-foreground">
-                          {agent.name || `Agent ${agent.id.slice(0, 6)}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">{projectName}</p>
-                      </div>
-                      <span
-                        className={`
-                          text-[10px] px-2 py-0.5 font-medium
-                          ${agent.status === 'running' ? 'bg-green-500/20 text-green-400' : ''}
-                          ${agent.status === 'waiting' ? 'bg-yellow-500/20 text-yellow-400' : ''}
-                          ${agent.status === 'idle' ? 'bg-gray-500/20 text-gray-400' : ''}
-                          ${agent.status === 'error' ? 'bg-red-500/20 text-red-400' : ''}
-                        `}
+                    return (
+                      <div
+                        key={agent.id}
+                        className="p-3 bg-secondary border border-border flex items-center gap-3 hover:border-primary/30 transition-all"
                       >
-                        {agent.status}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              {agents.length > 6 && (
-                <p className="text-xs text-muted-foreground mt-3 text-center">
-                  +{agents.length - 6} more agents
-                </p>
-              )}
-            </div>
+                        <div className="relative">
+                          <div className={`w-10 h-10 ${agent.name?.toLowerCase() === 'bitwonka' ? 'bg-success/20' : 'bg-card'} flex items-center justify-center text-xl`}>
+                            {agent.name?.toLowerCase() === 'bitwonka' ? '\u{1F438}' : (characterEmojis[agent.character || 'robot'] || '\u{1F916}')}
+                          </div>
+                          <div
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-secondary ${statusColors[agent.status]}`}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate text-foreground">
+                            {agent.name || `Agent ${agent.id.slice(0, 6)}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">{projectName}</p>
+                        </div>
+                        <Badge
+                          variant={agent.status === 'running' ? 'default' : agent.status === 'error' ? 'destructive' : 'secondary'}
+                          className="text-[10px] px-2 py-0.5"
+                        >
+                          {agent.status}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+                {agents.length > 6 && (
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    +{agents.length - 6} more agents
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           )}
         </>
       )}

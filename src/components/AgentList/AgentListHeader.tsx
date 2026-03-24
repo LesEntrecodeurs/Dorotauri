@@ -1,6 +1,5 @@
-
-
 import { Plus, Crown, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { AgentStatus } from '@/types/electron';
 
 interface AgentListHeaderProps {
@@ -26,18 +25,19 @@ export function AgentListHeader({
       </div>
       <div className="flex items-center gap-2">
         {/* Super Agent Button */}
-        <button
+        <Button
           onClick={onSuperAgentClick}
           disabled={isCreatingSuperAgent}
+          variant="outline"
+          size="sm"
           className={`
-            flex items-center justify-center gap-1.5 px-3 py-1.5 font-medium rounded-none transition-all text-sm
+            gap-1.5 font-medium transition-all
             ${superAgent
               ? superAgent.status === 'running' || superAgent.status === 'waiting'
-                ? 'bg-green-500/20 border border-green-500/50 text-green-700 hover:bg-green-500/30 shadow-lg shadow-green-500/20'
-                : 'bg-bg-tertiary border border-green-500/30 text-green-600 hover:bg-green-500/10 hover:border-green-500/50'
-              : 'bg-bg-tertiary border border-border-primary text-text-secondary hover:bg-bg-secondary hover:border-green-500/50 hover:text-green-600'
+                ? 'bg-green-500/20 border-green-500/50 text-green-700 hover:bg-green-500/30 shadow-lg shadow-green-500/20'
+                : 'bg-secondary border-green-500/30 text-green-600 hover:bg-green-500/10 hover:border-green-500/50'
+              : 'bg-secondary border-border text-muted-foreground hover:bg-secondary/80 hover:border-green-500/50 hover:text-green-600'
             }
-            disabled:opacity-50 disabled:cursor-not-allowed
           `}
           title={superAgent ? `Super Agent (${superAgent.status})` : 'Create Super Agent'}
         >
@@ -47,7 +47,7 @@ export function AgentListHeader({
             <div className="relative">
               <Crown className={`w-3.5 h-3.5 ${superAgent ? 'text-amber-400' : ''}`} />
               {superAgent && (
-                <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-bg-tertiary ${superAgent.status === 'running' ? 'bg-green-400 animate-pulse' :
+                <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-secondary ${superAgent.status === 'running' ? 'bg-green-400 animate-pulse' :
                   superAgent.status === 'waiting' ? 'bg-amber-400 animate-pulse' :
                     superAgent.status === 'error' ? 'bg-red-400' :
                       superAgent.status === 'completed' ? 'bg-cyan-400' :
@@ -59,17 +59,18 @@ export function AgentListHeader({
           <span className="hidden sm:inline">
             {isCreatingSuperAgent ? 'Creating...' : 'Super Agent'}
           </span>
-        </button>
+        </Button>
 
         {/* New Agent Button */}
-        <button
+        <Button
           onClick={onNewAgentClick}
-          className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors text-sm"
+          size="sm"
+          className="gap-1.5 font-medium"
         >
           <Plus className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">New Agent</span>
           <span className="sm:hidden">New</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

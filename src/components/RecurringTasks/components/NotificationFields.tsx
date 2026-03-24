@@ -25,7 +25,7 @@ export function NotificationFields({
             onChange={(e) => onTelegramChange(e.target.checked)}
             className="w-4 h-4 rounded border-border"
           />
-          <Send className="w-4 h-4 text-blue-400" />
+          <Send className="w-4 h-4 text-info" />
           <span className="text-sm">Telegram</span>
         </label>
 
@@ -36,7 +36,7 @@ export function NotificationFields({
             onChange={(e) => onSlackChange(e.target.checked)}
             className="w-4 h-4 rounded border-border"
           />
-          <SlackIcon className="w-4 h-4 text-purple-400" />
+          <SlackIcon className="w-4 h-4 text-chart-2" />
           <span className="text-sm">Slack</span>
         </label>
       </div>

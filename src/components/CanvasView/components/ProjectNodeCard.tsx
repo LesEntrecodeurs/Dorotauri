@@ -9,6 +9,10 @@ import {
   MoreVertical,
   Plus,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useDraggable } from '../hooks/useDraggable';
 import type { ProjectNode } from '../types';
 
@@ -48,7 +52,10 @@ export function ProjectNodeCard({
 
   return (
     <motion.div
-      className={`node-card absolute select-none touch-none ${isDragging ? 'z-50 cursor-grabbing' : 'z-10 cursor-pointer'}`}
+      className={cn(
+        'node-card absolute select-none touch-none',
+        isDragging ? 'z-50 cursor-grabbing' : 'z-10 cursor-pointer'
+      )}
       style={{ left: node.position.x, top: node.position.y }}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
@@ -58,35 +65,39 @@ export function ProjectNodeCard({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <div
-        className={`w-56 rounded-none border backdrop-blur-sm transition-all duration-200 ${isSelected
-          ? 'bg-zinc-900/95 border-purple-500/50 shadow-lg shadow-purple-500/20'
-          : 'bg-zinc-900/80 border-zinc-700/50 hover:border-zinc-600'
-          }`}
+      <Card
+        className={cn(
+          'w-56 backdrop-blur-sm transition-all duration-200',
+          isSelected
+            ? 'bg-card/95 border-chart-2/50 shadow-lg shadow-chart-2/20'
+            : 'bg-card/80 border-border hover:border-muted-foreground/30'
+        )}
       >
         {/* Connection point */}
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-zinc-800 border border-purple-500/50" />
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-card border border-chart-2/50" />
 
         {/* Header */}
-        <div className="flex items-center gap-2 p-3 border-b border-zinc-700/50">
-          <GripVertical className="w-4 h-4 text-zinc-600 cursor-grab" />
-          <FolderGit2 className="w-4 h-4 text-purple-400" />
-          <span className="font-medium text-zinc-200 truncate text-sm flex-1">{node.name}</span>
+        <div className="flex items-center gap-2 p-3 border-b border-border">
+          <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+          <FolderGit2 className="w-4 h-4 text-chart-2" />
+          <span className="font-medium text-foreground truncate text-sm flex-1">{node.name}</span>
           {agentCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs rounded bg-cyan-500/20 text-cyan-400">
+            <Badge variant="outline" className="text-xs px-1.5 py-0.5 bg-primary/20 text-primary">
               {agentCount} agent{agentCount > 1 ? 's' : ''}
-            </span>
+            </Badge>
           )}
           <div className="relative" ref={menuRef}>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowMenu(!showMenu);
               }}
-              className="p-1 hover:bg-zinc-700/50 rounded transition-colors"
             >
-              <MoreVertical className="w-4 h-4 text-zinc-400" />
-            </button>
+              <MoreVertical className="w-4 h-4 text-muted-foreground" />
+            </Button>
             <AnimatePresence>
               {showMenu && (
                 <motion.div
@@ -94,7 +105,7 @@ export function ProjectNodeCard({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -5 }}
                   transition={{ duration: 0.1 }}
-                  className="absolute right-0 top-full mt-1 w-40 bg-zinc-800 border border-zinc-700 rounded-none shadow-xl z-50 overflow-hidden"
+                  className="absolute right-0 top-full mt-1 w-40 bg-card border border-border shadow-xl z-50 overflow-hidden"
                 >
                   <button
                     onClick={(e) => {
@@ -102,9 +113,9 @@ export function ProjectNodeCard({
                       setShowMenu(false);
                       onAddAgent();
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
                   >
-                    <Plus className="w-4 h-4 text-cyan-400" />
+                    <Plus className="w-4 h-4 text-primary" />
                     Add agent
                   </button>
                 </motion.div>
@@ -115,15 +126,15 @@ export function ProjectNodeCard({
 
         {/* Content */}
         <div className="p-3 space-y-2">
-          <div className="text-xs text-zinc-500 truncate">{node.path}</div>
+          <div className="text-xs text-muted-foreground truncate">{node.path}</div>
           {node.branch && (
-            <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <GitBranch className="w-3 h-3" />
               <span className="truncate">{node.branch}</span>
             </div>
           )}
         </div>
-      </div>
+      </Card>
     </motion.div>
   );
 }

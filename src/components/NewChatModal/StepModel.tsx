@@ -7,6 +7,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AgentPersonaValues } from './types';
 import type { AgentProvider } from '@/types/electron';
 import AgentPersonaEditor from './AgentPersonaEditor';
@@ -134,10 +135,10 @@ const StepModel = React.memo(function StepModel({
       {/* Section header */}
       <div>
         <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-accent-blue" />
+          <Sparkles className="w-5 h-5 text-primary" />
           Choose Model
         </h3>
-        <p className="text-text-secondary text-sm">
+        <p className="text-muted-foreground text-sm">
           Choose the AI provider and model for your agent
         </p>
       </div>
@@ -147,11 +148,11 @@ const StepModel = React.memo(function StepModel({
         <label className="block text-sm font-medium mb-2">Provider</label>
         <div className={`grid gap-3 ${tasmaniaEnabled ? 'grid-cols-5' : 'grid-cols-4'}`}>
           {([
-            { id: 'claude' as const, label: 'Claude', icon: '/claude-ai-icon.webp', accent: 'accent-blue' },
-            { id: 'codex' as const, label: 'Codex', icon: '/chatgpt-icon.webp', accent: 'accent-green' },
-            { id: 'gemini' as const, label: 'Gemini', icon: 'gemini-svg', accent: 'accent-purple' },
-            { id: 'opencode' as const, label: 'OpenCode', icon: 'opencode-text', accent: 'accent-cyan' },
-            { id: 'pi' as const, label: 'Pi', icon: 'pi-icon', accent: 'accent-cyan' },
+            { id: 'claude' as const, label: 'Claude', icon: '/claude-ai-icon.webp', accent: 'primary' },
+            { id: 'codex' as const, label: 'Codex', icon: '/chatgpt-icon.webp', accent: 'green-500' },
+            { id: 'gemini' as const, label: 'Gemini', icon: 'gemini-svg', accent: 'purple-500' },
+            { id: 'opencode' as const, label: 'OpenCode', icon: 'opencode-text', accent: 'cyan-500' },
+            { id: 'pi' as const, label: 'Pi', icon: 'pi-icon', accent: 'cyan-500' },
           ] as const).map(({ id, label, icon, accent }) => {
             const installed = installedProviders?.[id] !== false;
             return (
@@ -164,12 +165,12 @@ const StepModel = React.memo(function StepModel({
                   onModelChange(PROVIDER_DEFAULT_MODEL[id]);
                 }}
                 className={`
-                  p-3 rounded-lg border transition-all text-center flex flex-col items-center justify-center gap-1
+                  p-3 border transition-all text-center flex flex-col items-center justify-center gap-1 rounded-md
                   ${!installed
-                    ? 'opacity-40 cursor-not-allowed border-border-primary'
+                    ? 'opacity-40 cursor-not-allowed border-border'
                     : provider === id
                       ? `border-${accent} bg-${accent}/10`
-                      : 'border-border-primary hover:border-border-accent'
+                      : 'border-border hover:border-primary'
                   }
                 `}
               >
@@ -188,7 +189,7 @@ const StepModel = React.memo(function StepModel({
                   <span className="font-medium text-sm">{label}</span>
                 </div>
                 {!installed && (
-                  <span className="text-[10px] text-text-muted">Not installed</span>
+                  <span className="text-[10px] text-muted-foreground">Not installed</span>
                 )}
               </button>
             );
@@ -197,42 +198,42 @@ const StepModel = React.memo(function StepModel({
             <button
               onClick={() => onProviderChange('local')}
               className={`
-                p-3 rounded-lg border transition-all text-center flex items-center justify-center gap-2
+                p-3 border transition-all text-center flex items-center justify-center gap-2 rounded-md
                 ${provider === 'local'
                   ? 'border-amber-500 bg-amber-500/10'
-                  : 'border-border-primary hover:border-border-accent'
+                  : 'border-border hover:border-primary'
                 }
               `}
             >
-              <Cpu className={`w-4 h-4 ${provider === 'local' ? 'text-amber-500' : 'text-text-muted'}`} />
+              <Cpu className={`w-4 h-4 ${provider === 'local' ? 'text-amber-500' : 'text-muted-foreground'}`} />
               <span className="font-medium text-sm">Local</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Model Selection — dynamic based on provider */}
+      {/* Model Selection -- dynamic based on provider */}
       {provider !== 'local' ? (
         <div>
           <label className="block text-sm font-medium mb-2">Model</label>
           <div className={`grid gap-3 ${(PROVIDER_MODELS[provider] || PROVIDER_MODELS.claude).length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {(PROVIDER_MODELS[provider] || PROVIDER_MODELS.claude).map((m) => {
-              const accentColor = provider === 'codex' ? 'accent-green' : provider === 'gemini' ? 'accent-purple' : provider === 'pi' ? 'cyan-500' : 'accent-blue';
+              const accentColor = provider === 'codex' ? 'green-500' : provider === 'gemini' ? 'purple-500' : provider === 'pi' ? 'cyan-500' : 'primary';
               return (
                 <button
                   key={m.id}
                   onClick={() => onModelChange(m.id)}
                   className={`
-                    p-3 rounded-lg border transition-all text-center
+                    p-3 border transition-all text-center rounded-md
                     ${model === m.id
                       ? `border-${accentColor} bg-${accentColor}/10`
-                      : 'border-border-primary hover:border-border-accent'
+                      : 'border-border hover:border-primary'
                     }
                   `}
                 >
-                  <Zap className={`w-5 h-5 mx-auto mb-1 ${model === m.id ? `text-${accentColor}` : 'text-text-muted'}`} />
+                  <Zap className={`w-5 h-5 mx-auto mb-1 ${model === m.id ? `text-${accentColor}` : 'text-muted-foreground'}`} />
                   <span className="font-medium">{m.name}</span>
-                  <p className="text-xs text-text-muted mt-0.5">{m.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
                 </button>
               );
             })}
@@ -242,17 +243,17 @@ const StepModel = React.memo(function StepModel({
         <div>
           <label className="block text-sm font-medium mb-2">Local Model</label>
           {loadingTasmania ? (
-            <div className="p-4 border border-border-primary rounded-lg flex items-center gap-2 text-text-muted">
+            <div className="p-4 border border-border rounded-md flex items-center gap-2 text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">Connecting to Tasmania...</span>
             </div>
           ) : tasmaniaStatus?.status !== 'running' ? (
-            <div className="p-4 border border-amber-500/30 bg-amber-500/5 rounded-lg">
+            <div className="p-4 border border-amber-500/30 bg-amber-500/5 rounded-md">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-amber-500">Tasmania not running</p>
-                  <p className="text-xs text-text-muted mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Start Tasmania and load a model first. Go to Settings &gt; Tasmania to configure.
                   </p>
                 </div>
@@ -261,28 +262,29 @@ const StepModel = React.memo(function StepModel({
           ) : (
             <div className="space-y-3">
               {tasmaniaStatus.modelName && (
-                <div className="p-3 border border-accent-green/30 bg-accent-green/5 rounded-lg">
+                <div className="p-3 border border-green-500/30 bg-green-500/5 rounded-md">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     <span className="text-sm font-medium">{tasmaniaStatus.modelName}</span>
-                    <span className="text-xs text-text-muted ml-auto">loaded</span>
+                    <span className="text-xs text-muted-foreground ml-auto">loaded</span>
                   </div>
                 </div>
               )}
               {tasmaniaModels.length > 0 && (
                 <div>
-                  <select
-                    value={localModel}
-                    onChange={(e) => onLocalModelChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm bg-bg-primary border border-border-primary focus:border-accent-green focus:outline-none"
-                  >
-                    {tasmaniaModels.map((m) => (
-                      <option key={m.path} value={m.name}>
-                        {m.name}{m.quantization ? ` (${m.quantization})` : ''}{m.parameters ? ` - ${m.parameters}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-text-muted mt-1.5">
+                  <Select value={localModel} onValueChange={onLocalModelChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tasmaniaModels.map((m) => (
+                        <SelectItem key={m.path} value={m.name}>
+                          {m.name}{m.quantization ? ` (${m.quantization})` : ''}{m.parameters ? ` - ${m.parameters}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Select the model to use. The currently loaded model will be used if available.
                   </p>
                 </div>

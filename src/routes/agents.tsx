@@ -157,8 +157,8 @@ export default function AgentsPage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-accent-blue mx-auto mb-4" />
-          <p className="text-text-secondary">Loading agents...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading agents...</p>
         </div>
       </div>
     );

@@ -1,6 +1,6 @@
-
-
 import { Loader2, AlertTriangle, GitBranch, Pencil, Crown, Cpu } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { AgentStatus } from '@/types/electron';
 import { STATUS_COLORS, STATUS_LABELS, CHARACTER_FACES, getProjectColor, isSuperAgentCheck } from '@/components/AgentList/constants';
 
@@ -31,8 +31,8 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
         p-4 cursor-pointer transition-all relative
         ${isSuper
           ? 'bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border-l-2 border-l-amber-500/50 border-b border-amber-500/20'
-          : 'border-b border-border-primary/50'}
-        ${isSelected ? 'bg-accent-blue/10' : isSuper ? '' : 'hover:bg-bg-tertiary/50'}
+          : 'border-b border-border/50'}
+        ${isSelected ? 'bg-primary/10' : isSuper ? '' : 'hover:bg-muted/50'}
       `}
     >
       {/* Subtle gold shimmer for Super Agent */}
@@ -40,11 +40,11 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
         <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-transparent pointer-events-none" />
       )}
       <div className="flex items-start gap-3 relative">
-        <div className={`w-10 h-10 rounded-none flex items-center justify-center shrink-0 relative ${
+        <div className={`w-10 h-10 flex items-center justify-center shrink-0 relative ${
           isSuper
             ? 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20 ring-1 ring-amber-500/30'
             : agent.name?.toLowerCase() === 'bitwonka'
-              ? 'bg-accent-green/20'
+              ? 'bg-success/20'
               : statusConfig.bg
         }`}>
           {isSuper ? (
@@ -59,7 +59,7 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
             <StatusIcon className={`w-5 h-5 ${statusConfig.text}`} />
           )}
           {agent.status === 'running' && (agent.character || agent.name?.toLowerCase() === 'bitwonka' || isSuper) && (
-            <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full animate-pulse ${isSuper ? 'bg-amber-400' : 'bg-accent-blue'}`} />
+            <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full animate-pulse ${isSuper ? 'bg-amber-400' : 'bg-primary'}`} />
           )}
         </div>
         <div className="flex-1 min-w-0">
@@ -90,28 +90,33 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
               })()}
             </h4>
             <div className="flex items-center gap-1.5 shrink-0">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit();
                 }}
-                className="p-1 hover:bg-bg-tertiary rounded transition-colors"
+                className="h-6 w-6"
                 title="Edit agent"
               >
-                <Pencil className="w-3.5 h-3.5 text-text-muted hover:text-accent-blue" />
-              </button>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                isSuper && agent.status === 'running'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : `${statusConfig.bg} ${statusConfig.text}`
-              }`}>
+                <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-primary" />
+              </Button>
+              <Badge
+                variant="secondary"
+                className={`text-[10px] px-2 py-0.5 ${
+                  isSuper && agent.status === 'running'
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : `${statusConfig.bg} ${statusConfig.text}`
+                }`}
+              >
                 {STATUS_LABELS[agent.status]}
-              </span>
+              </Badge>
             </div>
           </div>
-          <p className="text-xs text-text-muted mt-1 truncate">
+          <p className="text-xs text-muted-foreground mt-1 truncate">
             {agent.pathMissing ? (
-              <span className="text-accent-amber flex items-center gap-1">
+              <span className="text-warning flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
                 Path not found
               </span>
@@ -121,19 +126,20 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
           </p>
           {/* Project badge and branch */}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <span
-              className={`text-[10px] px-1.5 py-0.5 rounded font-medium truncate max-w-[100px] ${projectColor.bg} ${projectColor.text}`}
+            <Badge
+              variant="secondary"
+              className={`text-[10px] px-1.5 py-0.5 font-medium truncate max-w-[100px] ${projectColor.bg} ${projectColor.text}`}
               title={agent.projectPath}
             >
               {projectName}
-            </span>
+            </Badge>
             {agent.provider === 'local' && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-accent-green/20 text-accent-green">
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 font-medium bg-success/20 text-success">
                 {agent.localModel || 'Local'}
-              </span>
+              </Badge>
             )}
             {agent.branchName && (
-              <span className="flex items-center gap-1 text-[10px] text-accent-purple">
+              <span className="flex items-center gap-1 text-[10px] text-purple-600 dark:text-purple-400">
                 <GitBranch className="w-3 h-3" />
                 <span className="font-mono truncate max-w-[80px]">{agent.branchName}</span>
               </span>
@@ -142,18 +148,19 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
           {agent.skills.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {agent.skills.slice(0, 2).map((skill) => (
-                <span
+                <Badge
                   key={skill}
-                  className="px-1.5 py-0.5 rounded bg-accent-purple/20 text-accent-purple text-[10px] truncate max-w-[70px]"
+                  variant="secondary"
+                  className="px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] truncate max-w-[70px]"
                   title={skill}
                 >
                   {skill}
-                </span>
+                </Badge>
               ))}
               {agent.skills.length > 2 && (
-                <span className="px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted text-[10px]">
+                <Badge variant="secondary" className="px-1.5 py-0.5 bg-muted text-muted-foreground text-[10px]">
                   +{agent.skills.length - 2}
-                </span>
+                </Badge>
               )}
             </div>
           )}

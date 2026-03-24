@@ -91,7 +91,7 @@ const sampleProjects: Project[] = [
     tasks: ['task-1', 'task-2'],
     createdAt: new Date('2025-01-15'),
     updatedAt: new Date(),
-    color: '#3D9B94'
+    color: '#7C3AED'
   },
   {
     id: 'proj-2',
