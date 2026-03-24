@@ -5,7 +5,8 @@ import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import { ExternalLink, Maximize2, Minimize2, Plus, X } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import type { AgentStatus as AgentStatusType } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import TerminalTile from './TerminalTile';
@@ -223,6 +224,47 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
     setMaximizedAgent(prev => prev === agentId ? null : agentId);
   }, []);
 
+  const navigate = useNavigate();
+
+  // Quick terminal: create a temporary unconfig'd agent and add to current tab
+  const addQuickTerminal = useCallback(async () => {
+    if (!isTauri()) return;
+    try {
+      const home = await invoke<{ path: string }[]>('projects_list').then(
+        projects => projects[0]?.path || '/home'
+      ).catch(() => '/home');
+
+      const agent = await invoke<AgentStatusType>('agent_create', {
+        config: {
+          projectPath: typeof home === 'string' ? home : '/home',
+          skills: [],
+          name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+          character: 'robot',
+        }
+      });
+      addAgentToTab(agent.id);
+    } catch (err) {
+      console.error('Failed to create quick terminal:', err);
+    }
+  }, [addAgentToTab]);
+
+  // Keyboard shortcut: Ctrl/Cmd+T for quick terminal
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+        e.preventDefault();
+        addQuickTerminal();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [addQuickTerminal]);
+
+  const handleOpenAgentSettings = useCallback((agentId: string) => {
+    // Navigate to agents page — the agent's edit modal can be opened from there
+    navigate('/agents');
+  }, [navigate]);
+
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
     if (!agent) return `Agent ${id.slice(0, 6)}`;
@@ -297,6 +339,16 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
         </button>
 
         <div className="flex-1" />
+
+        {/* Quick Terminal button */}
+        <button
+          onClick={addQuickTerminal}
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-foreground bg-card border border-border rounded hover:bg-card/80 mr-1"
+          title="New Terminal (Ctrl+T)"
+        >
+          <Terminal className="w-3.5 h-3.5" />
+          Terminal
+        </button>
 
         {/* Add agent to tab button */}
         <div className="relative">
@@ -395,6 +447,9 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
                         <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{getAgentTitle(id)}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.status || 'unknown'}</span>
                         <div className="flex-1" />
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Agent settings">
+                          <Settings className="w-3 h-3" />
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); handleMaximize(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Maximize">
                           <Maximize2 className="w-3 h-3" />
                         </button>
