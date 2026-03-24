@@ -102,9 +102,9 @@ export default function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-3 px-2 py-1">
-          <div className="w-8 h-8 overflow-hidden shrink-0">
+      <SidebarHeader className="group-data-[collapsible=icon]:p-0">
+        <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="w-6 h-6 overflow-hidden shrink-0 group-data-[collapsible=icon]:w-5 group-data-[collapsible=icon]:h-5">
             <img
               src="/dorothy-without-text.png"
               alt="Dorothy"
@@ -114,10 +114,9 @@ export default function AppSidebar() {
           <img
             src="/text.png"
             alt="Dorothy"
-            className="h-5 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden"
+            className="h-4 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden"
           />
         </div>
-        <CollapseToggle />
       </SidebarHeader>
 
       <SidebarContent>
