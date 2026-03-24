@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { Mosaic, MosaicWindow, MosaicNode, getLeaves } from 'react-mosaic-component';
 import 'react-mosaic-component/react-mosaic-component.css';
 import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/hooks/useTauri';
-import { useLayout } from '@/hooks/useLayout';
-import { ExternalLink, Maximize2, Minimize2, Plus, X } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, Plus, X, Edit3, Check } from 'lucide-react';
 import type { AgentStatus as AgentStatusType } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentWorld/constants';
 import TerminalTile from './TerminalTile';
@@ -16,7 +15,34 @@ interface MosaicTerminalViewProps {
   agents: AgentStatusType[];
 }
 
-/** Alternate row/column direction at each level for a grid feel. */
+// --- Tab types (workspace system) ---
+
+interface WorkspaceTab {
+  id: string;
+  name: string;
+  agentIds: string[];
+  layout: MosaicNode<string> | null;
+}
+
+const STORAGE_KEY = 'dorothy-workspace-tabs';
+const MAX_TABS = 10;
+
+function loadTabs(): WorkspaceTab[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return [{ id: crypto.randomUUID(), name: 'Main', agentIds: [], layout: null }];
+}
+
+function saveTabs(tabs: WorkspaceTab[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs));
+  } catch {}
+}
+
+// --- Layout builder ---
+
 function buildGridLayout(agentIds: string[], direction: 'row' | 'column' = 'row'): MosaicNode<string> | null {
   if (agentIds.length === 0) return null;
   if (agentIds.length === 1) return agentIds[0];
@@ -29,6 +55,8 @@ function buildGridLayout(agentIds: string[], direction: 'row' | 'column' = 'row'
     splitPercentage: 50,
   };
 }
+
+// --- Status colors ---
 
 const STATUS_DOTS: Record<string, string> = {
   running: 'bg-green-500',
@@ -47,96 +75,123 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) {
-  const { layout, setLayout, removeTile, addTile } = useLayout();
-  const [focusedAgent, setFocusedAgent] = useState<string | null>(null);
+  const [tabs, setTabs] = useState<WorkspaceTab[]>(loadTabs);
+  const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
   const [maximizedAgent, setMaximizedAgent] = useState<string | null>(null);
-  const prevAgentIdsRef = useMemo(() => ({ current: '' }), []);
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
 
-  // Build agent lookup map
+  // Persist tabs
+  useEffect(() => { saveTabs(tabs); }, [tabs]);
+
+  // Current active tab
+  const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) || tabs[0], [tabs, activeTabId]);
+
+  // Agent lookup
   const agentMap = useMemo(() => {
     const map = new Map<string, AgentStatusType>();
-    for (const agent of agents) {
-      map.set(agent.id, agent);
-    }
+    for (const agent of agents) map.set(agent.id, agent);
     return map;
   }, [agents]);
 
-  // Get which agents are currently visible in mosaic
-  const visibleAgentIds = useMemo(() => {
-    if (!layout) return new Set<string>();
-    return new Set(getLeaves(layout));
-  }, [layout]);
-
-  // Rebuild layout when agent list changes
+  // Clean stale agents from tabs
   useEffect(() => {
-    const agentIds = agents.map(a => a.id);
-    const key = agentIds.join(',');
+    const validIds = new Set(agents.map(a => a.id));
+    if (validIds.size === 0) return;
+    setTabs(prev => {
+      let changed = false;
+      const updated = prev.map(tab => {
+        const filtered = tab.agentIds.filter(id => validIds.has(id));
+        if (filtered.length !== tab.agentIds.length) {
+          changed = true;
+          return { ...tab, agentIds: filtered, layout: buildGridLayout(filtered) };
+        }
+        return tab;
+      });
+      return changed ? updated : prev;
+    });
+  }, [agents]);
 
-    if (key === prevAgentIdsRef.current) return;
-    prevAgentIdsRef.current = key;
+  // --- Tab CRUD ---
 
-    if (agentIds.length === 0) {
-      setLayout(null);
-      return;
-    }
+  const createTab = useCallback(() => {
+    if (tabs.length >= MAX_TABS) return;
+    const newTab: WorkspaceTab = {
+      id: crypto.randomUUID(),
+      name: `Tab ${tabs.length + 1}`,
+      agentIds: [],
+      layout: null,
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  }, [tabs.length]);
 
-    if (!layout) {
-      setLayout(buildGridLayout(agentIds));
-      return;
-    }
-
-    const currentLeaves = new Set(getLeaves(layout));
-    const newIds = new Set(agentIds);
-
-    if (currentLeaves.size === newIds.size && agentIds.every(id => currentLeaves.has(id))) {
-      return;
-    }
-
-    // Add new agents to existing layout instead of rebuilding
-    const addedIds = agentIds.filter(id => !currentLeaves.has(id));
-    if (addedIds.length > 0 && currentLeaves.size > 0) {
-      // Add each new agent to the layout
-      let newLayout = layout;
-      for (const id of addedIds) {
-        newLayout = {
-          direction: 'row',
-          first: newLayout,
-          second: id,
-          splitPercentage: 70,
-        };
+  const deleteTab = useCallback((tabId: string) => {
+    setTabs(prev => {
+      if (prev.length <= 1) return prev; // keep at least one
+      const idx = prev.findIndex(t => t.id === tabId);
+      const remaining = prev.filter(t => t.id !== tabId);
+      if (activeTabId === tabId) {
+        const nextIdx = Math.min(idx, remaining.length - 1);
+        setActiveTabId(remaining[nextIdx].id);
       }
-      setLayout(newLayout);
-    } else {
-      setLayout(buildGridLayout(agentIds));
-    }
-  }, [agents, layout, prevAgentIdsRef, setLayout]);
+      return remaining;
+    });
+  }, [activeTabId]);
+
+  const renameTab = useCallback((tabId: string, name: string) => {
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, name: name || t.name } : t));
+    setEditingTabId(null);
+  }, []);
+
+  // --- Agent membership ---
+
+  const addAgentToTab = useCallback((agentId: string) => {
+    setTabs(prev => prev.map(tab => {
+      if (tab.id !== activeTabId || tab.agentIds.includes(agentId)) return tab;
+      const newIds = [...tab.agentIds, agentId];
+      // Add to existing layout
+      const newLayout = tab.layout
+        ? { direction: 'row' as const, first: tab.layout, second: agentId, splitPercentage: 70 }
+        : agentId;
+      return { ...tab, agentIds: newIds, layout: newLayout };
+    }));
+    setShowAgentPicker(false);
+  }, [activeTabId]);
+
+  const removeAgentFromTab = useCallback((agentId: string) => {
+    setTabs(prev => prev.map(tab => {
+      if (tab.id !== activeTabId) return tab;
+      const newIds = tab.agentIds.filter(id => id !== agentId);
+      return { ...tab, agentIds: newIds, layout: buildGridLayout(newIds) };
+    }));
+    if (maximizedAgent === agentId) setMaximizedAgent(null);
+  }, [activeTabId, maximizedAgent]);
+
+  // --- Layout ---
+
+  const handleLayoutChange = useCallback((newLayout: MosaicNode<ViewId> | null) => {
+    setTabs(prev => prev.map(tab =>
+      tab.id === activeTabId ? { ...tab, layout: newLayout } : tab
+    ));
+  }, [activeTabId]);
+
+  // --- Actions ---
 
   const handlePopout = useCallback(async (agentId: string) => {
     if (!isTauri()) return;
     try {
       await invoke('window_popout', { agentId });
-      removeTile(agentId);
+      removeAgentFromTab(agentId);
     } catch (err) {
-      console.error('Failed to pop out window:', err);
+      console.error('Failed to pop out:', err);
     }
-  }, [removeTile]);
-
-  const handleDock = useCallback((agentId: string) => {
-    // Re-add agent to mosaic if it's not already visible
-    if (!visibleAgentIds.has(agentId)) {
-      addTile(agentId);
-    }
-    setFocusedAgent(agentId);
-  }, [addTile, visibleAgentIds]);
+  }, [removeAgentFromTab]);
 
   const handleMaximize = useCallback((agentId: string) => {
     setMaximizedAgent(prev => prev === agentId ? null : agentId);
   }, []);
-
-  const handleRemoveFromMosaic = useCallback((agentId: string) => {
-    removeTile(agentId);
-    if (maximizedAgent === agentId) setMaximizedAgent(null);
-  }, [removeTile, maximizedAgent]);
 
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
@@ -146,93 +201,135 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
 
   const getAgentEmoji = useCallback((id: string): string => {
     const agent = agentMap.get(id);
-    if (agent?.name?.toLowerCase() === 'bitwonka') return '\uD83D\uDC38';
     return CHARACTER_FACES[agent?.character || 'robot'] || '\uD83E\uDD16';
   }, [agentMap]);
 
-  const handleChange = useCallback((newLayout: MosaicNode<ViewId> | null) => {
-    setLayout(newLayout);
-  }, [setLayout]);
+  // Agents not in the current tab (for the picker)
+  const availableAgents = useMemo(() => {
+    const inTab = new Set(activeTab?.agentIds || []);
+    return agents.filter(a => !inTab.has(a.id));
+  }, [agents, activeTab]);
 
-  // Group agents by project for tabs
-  const agentsByProject = useMemo(() => {
-    const groups = new Map<string, AgentStatusType[]>();
-    for (const agent of agents) {
-      const project = agent.projectPath?.split('/').pop() || 'Unknown';
-      if (!groups.has(project)) groups.set(project, []);
-      groups.get(project)!.push(agent);
-    }
-    return groups;
-  }, [agents]);
+  const layout = activeTab?.layout || null;
 
   return (
     <div className="flex flex-col w-full h-full">
-      {/* Tab bar — shows all agents grouped by project */}
-      <div className="flex items-center gap-1 px-2 py-1 bg-secondary/80 border-b border-border overflow-x-auto shrink-0">
-        {agents.map(agent => {
-          const isVisible = visibleAgentIds.has(agent.id);
-          const isFocused = focusedAgent === agent.id;
-          const dotColor = STATUS_DOTS[agent.status] || STATUS_DOTS.idle;
-          const emoji = getAgentEmoji(agent.id);
-          const projectName = agent.projectPath?.split('/').pop() || '';
-
-          return (
-            <button
-              key={agent.id}
-              onClick={() => {
-                if (!isVisible) {
-                  addTile(agent.id);
-                }
-                setFocusedAgent(agent.id);
-                if (maximizedAgent && maximizedAgent !== agent.id) {
-                  setMaximizedAgent(agent.id);
-                }
-              }}
-              className={`
-                flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md whitespace-nowrap transition-all
-                ${isVisible
-                  ? 'bg-card border border-border text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
-                }
-              `}
-              title={`${agent.name || agent.id.slice(0,8)} — ${projectName} (${agent.status})`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-              <span>{emoji}</span>
-              <span className="max-w-[100px] truncate">
-                {agent.name || agent.id.slice(0, 6)}
+      {/* Tab bar */}
+      <div className="flex items-center gap-0.5 px-2 py-1 bg-secondary/80 border-b border-border shrink-0">
+        {tabs.map(tab => (
+          <div
+            key={tab.id}
+            className={`
+              group flex items-center gap-1 px-2.5 py-1 text-xs rounded-t-md cursor-pointer transition-all relative
+              ${tab.id === activeTabId
+                ? 'bg-card border border-b-0 border-border text-foreground -mb-px z-10'
+                : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+              }
+            `}
+            onClick={() => { setActiveTabId(tab.id); setMaximizedAgent(null); }}
+          >
+            {editingTabId === tab.id ? (
+              <input
+                autoFocus
+                className="w-20 bg-transparent border-b border-foreground text-xs outline-none"
+                value={editingName}
+                onChange={e => setEditingName(e.target.value)}
+                onBlur={() => renameTab(tab.id, editingName)}
+                onKeyDown={e => { if (e.key === 'Enter') renameTab(tab.id, editingName); }}
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <span
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditingTabId(tab.id);
+                  setEditingName(tab.name);
+                }}
+              >
+                {tab.name}
               </span>
-              <span className="text-[10px] text-muted-foreground">{projectName}</span>
-            </button>
-          );
-        })}
+            )}
+            <span className="text-[10px] text-muted-foreground">({tab.agentIds.length})</span>
+            {tabs.length > 1 && tab.id === activeTabId && (
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteTab(tab.id); }}
+                className="ml-1 p-0.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-muted-foreground hover:text-red-400 rounded"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          onClick={createTab}
+          className="p-1 text-muted-foreground hover:text-foreground hover:bg-card/50 rounded"
+          title="New tab"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+
+        <div className="flex-1" />
+
+        {/* Add agent to tab button */}
+        <div className="relative">
+          <button
+            onClick={() => setShowAgentPicker(!showAgentPicker)}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded"
+          >
+            <Plus className="w-3 h-3" />
+            Add Agent
+          </button>
+          {showAgentPicker && (
+            <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-md shadow-lg z-50 min-w-[200px] max-h-[300px] overflow-y-auto">
+              {availableAgents.length === 0 ? (
+                <div className="p-3 text-xs text-muted-foreground">No agents available</div>
+              ) : (
+                availableAgents.map(agent => (
+                  <button
+                    key={agent.id}
+                    onClick={() => addAgentToTab(agent.id)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary transition-colors"
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOTS[agent.status] || STATUS_DOTS.idle}`} />
+                    <span>{getAgentEmoji(agent.id)}</span>
+                    <span className="truncate">{agent.name || agent.id.slice(0, 8)}</span>
+                    <span className="text-muted-foreground ml-auto">{agent.projectPath?.split('/').pop()}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Mosaic terminal area */}
+      {/* Close picker on outside click */}
+      {showAgentPicker && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowAgentPicker(false)} />
+      )}
+
+      {/* Terminal area */}
       <div className="flex-1 min-h-0">
-        {!layout ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            No agents to display — create one from the Agents page
+        {!layout || (activeTab?.agentIds.length === 0) ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
+            <p className="text-sm">No agents in this tab</p>
+            <button
+              onClick={() => setShowAgentPicker(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-foreground text-background rounded hover:bg-foreground/90"
+            >
+              <Plus className="w-3 h-3" />
+              Add an agent
+            </button>
           </div>
-        ) : maximizedAgent ? (
-          /* Maximized single agent view */
+        ) : maximizedAgent && activeTab?.agentIds.includes(maximizedAgent) ? (
           <div className="w-full h-full flex flex-col">
             <div className="flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0">
               <span className="text-sm">{getAgentEmoji(maximizedAgent)}</span>
               <span className="text-xs font-medium text-foreground">{getAgentTitle(maximizedAgent)}</span>
               <div className="flex-1" />
-              <button
-                onClick={() => handlePopout(maximizedAgent)}
-                className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground"
-                title="Pop out"
-              >
+              <button onClick={() => handlePopout(maximizedAgent)} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                 <ExternalLink className="w-3 h-3" />
               </button>
-              <button
-                onClick={() => setMaximizedAgent(null)}
-                className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground"
-                title="Restore"
-              >
+              <button onClick={() => setMaximizedAgent(null)} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Restore">
                 <Minimize2 className="w-3 h-3" />
               </button>
             </div>
@@ -241,13 +338,11 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
             </div>
           </div>
         ) : (
-          /* Mosaic tiling view */
           <div className="mosaic-terminal-view w-full h-full">
             <Mosaic<ViewId>
               renderTile={(id, path) => {
                 const agent = agentMap.get(id);
                 const statusClass = agent ? (STATUS_COLORS[agent.status] || STATUS_COLORS.idle) : STATUS_COLORS.idle;
-
                 return (
                   <MosaicWindow<ViewId>
                     path={path}
@@ -255,32 +350,16 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
                     renderToolbar={() => (
                       <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar">
                         <span className="text-sm">{getAgentEmoji(id)}</span>
-                        <span className="text-xs font-medium text-foreground truncate max-w-[120px]">
-                          {getAgentTitle(id)}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>
-                          {agent?.status || 'unknown'}
-                        </span>
+                        <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{getAgentTitle(id)}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.status || 'unknown'}</span>
                         <div className="flex-1" />
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleMaximize(id); }}
-                          className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground"
-                          title="Maximize"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleMaximize(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Maximize">
                           <Maximize2 className="w-3 h-3" />
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handlePopout(id); }}
-                          className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground"
-                          title="Pop out to separate window"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handlePopout(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                           <ExternalLink className="w-3 h-3" />
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRemoveFromMosaic(id); }}
-                          className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground"
-                          title="Close tile"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); removeAgentFromTab(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Remove from tab">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -291,7 +370,7 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
                 );
               }}
               value={layout}
-              onChange={handleChange}
+              onChange={handleLayoutChange}
               className=""
             />
           </div>
