@@ -257,6 +257,11 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
               }
             `}
             onClick={() => { setActiveTabId(tab.id); setMaximizedAgent(null); }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditingTabId(tab.id);
+              setEditingName(tab.name);
+            }}
           >
             {editingTabId === tab.id ? (
               <input
@@ -265,19 +270,11 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
                 value={editingName}
                 onChange={e => setEditingName(e.target.value)}
                 onBlur={() => renameTab(tab.id, editingName)}
-                onKeyDown={e => { if (e.key === 'Enter') renameTab(tab.id, editingName); }}
+                onKeyDown={e => { if (e.key === 'Enter') renameTab(tab.id, editingName); if (e.key === 'Escape') setEditingTabId(null); }}
                 onClick={e => e.stopPropagation()}
               />
             ) : (
-              <span
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  setEditingTabId(tab.id);
-                  setEditingName(tab.name);
-                }}
-              >
-                {tab.name}
-              </span>
+              <span>{tab.name}</span>
             )}
             <span className="text-[10px] text-muted-foreground">({tab.agentIds.length})</span>
             {tabs.length > 1 && tab.id === activeTabId && (
