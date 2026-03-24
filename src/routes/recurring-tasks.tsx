@@ -36,8 +36,8 @@ export default function RecurringTasksPage() {
   if (!isElectron()) {
     return (
       <div className="pt-4 lg:pt-6">
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-          <p className="text-yellow-500">This feature is only available in the desktop app.</p>
+        <div className="bg-warning/10 border border-warning/20 p-4">
+          <p className="text-warning">This feature is only available in the desktop app.</p>
         </div>
       </div>
     );
@@ -65,7 +65,7 @@ export default function RecurringTasksPage() {
       <Toast toast={toast} />
 
       {scheduled.isLoading ? (
-        <div className="bg-card border border-border rounded-lg p-6">
+        <div className="bg-card border border-border p-6">
           <div className="flex items-center gap-3">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             <span className="text-muted-foreground">Loading scheduled tasks...</span>

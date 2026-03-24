@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { SCHEDULE_PRESETS, DAY_OPTIONS, type ScheduleFormFields } from '../types';
 
 interface ScheduleFieldPickerProps {
@@ -14,7 +15,7 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
           <select
             value={value.schedulePreset}
             onChange={(e) => onChange({ schedulePreset: e.target.value })}
-            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg"
+            className="w-full px-3 py-2 bg-secondary border border-border"
           >
             {SCHEDULE_PRESETS.map(preset => (
               <option key={preset.value} value={preset.value}>{preset.label}</option>
@@ -28,7 +29,7 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
               type="time"
               value={value.time}
               onChange={(e) => onChange({ time: e.target.value })}
-              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg"
+              className="w-full px-3 py-2 bg-secondary border border-border"
             />
           </div>
         )}
@@ -43,7 +44,7 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
             max={30}
             value={value.intervalDays}
             onChange={(e) => onChange({ intervalDays: parseInt(e.target.value) || 2 })}
-            className="w-16 px-2 py-1.5 bg-secondary border border-border rounded text-sm text-center"
+            className="w-16 px-2 py-1.5 bg-secondary border border-border text-sm text-center"
           />
           <span className="text-sm text-muted-foreground">days</span>
           <div className="flex items-center gap-1 ml-1">
@@ -52,11 +53,12 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
                 key={n}
                 type="button"
                 onClick={() => onChange({ intervalDays: n })}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
+                className={cn(
+                  'px-2 py-1 text-xs transition-colors',
                   value.intervalDays === n
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary hover:bg-secondary/80 border border-border'
-                }`}
+                )}
               >
                 {n}d
               </button>
@@ -80,11 +82,12 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
                       : [...value.selectedDays, day.value];
                     if (next.length > 0) onChange({ selectedDays: next });
                   }}
-                  className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium transition-colors',
                     isSelected
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-secondary hover:bg-secondary/80 border border-border'
-                  }`}
+                  )}
                 >
                   {day.label}
                 </button>
@@ -101,7 +104,7 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
             value={value.customCron}
             onChange={(e) => onChange({ customCron: e.target.value })}
             placeholder="0 9 * * 1-5"
-            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg font-mono text-sm"
+            className="w-full px-3 py-2 bg-secondary border border-border font-mono text-sm"
           />
           <p className="text-xs text-muted-foreground mt-1">
             Format: minute hour day month weekday (e.g., &apos;0 9 * * 1-5&apos; for weekdays at 9am)

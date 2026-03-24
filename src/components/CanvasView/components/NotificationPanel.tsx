@@ -13,6 +13,9 @@ import {
   Loader2,
   MessageSquare,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { CHARACTER_EMOJIS } from '../constants';
 import type { AgentNode } from '../types';
 
@@ -38,59 +41,63 @@ function AgentItem({
       initial={false}
       animate={{ opacity: 1, x: 0 }}
       transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-      className={`p-3 rounded-none border transition-colors cursor-pointer hover:bg-zinc-800/50 ${agent.status === 'waiting'
-        ? 'bg-amber-500/5 border-amber-500/30'
-        : agent.status === 'running'
-          ? 'bg-cyan-500/5 border-cyan-500/20'
-          : agent.status === 'completed'
-            ? 'bg-green-500/5 border-green-500/20'
-            : agent.status === 'error'
-              ? 'bg-red-500/5 border-red-500/20'
-              : 'bg-zinc-800/30 border-zinc-700/50'
-        }`}
+      className={cn(
+        'p-3 border transition-colors cursor-pointer hover:bg-secondary/50',
+        agent.status === 'waiting'
+          ? 'bg-warning/5 border-warning/30'
+          : agent.status === 'running'
+            ? 'bg-primary/5 border-primary/20'
+            : agent.status === 'completed'
+              ? 'bg-success/5 border-success/20'
+              : agent.status === 'error'
+                ? 'bg-destructive/5 border-destructive/20'
+                : 'bg-secondary/30 border-border'
+      )}
       onClick={() => onOpenTerminal(agent.id)}
     >
       <div className="flex items-start gap-2">
-        <span className="text-lg">{CHARACTER_EMOJIS[agent.character] || '🤖'}</span>
+        <span className="text-lg">{CHARACTER_EMOJIS[agent.character] || '\u{1F916}'}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm text-zinc-200 truncate">{agent.name}</span>
+            <span className="font-medium text-sm text-foreground truncate">{agent.name}</span>
             {agent.status === 'waiting' && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500/20 text-amber-400">
-                <AlertCircle className="w-3 h-3" />
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-warning/20 text-warning border-warning/30">
+                <AlertCircle className="w-3 h-3 mr-1" />
                 Input needed
-              </span>
+              </Badge>
             )}
             {agent.status === 'running' && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-cyan-500/20 text-cyan-400">
-                <Loader2 className="w-3 h-3 animate-spin" />
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-primary/20 text-primary border-primary/30">
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                 Working
-              </span>
+              </Badge>
             )}
             {agent.status === 'completed' && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-green-500/20 text-green-400">
-                <CheckCircle2 className="w-3 h-3" />
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-success/20 text-success border-success/30">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
                 Done
-              </span>
+              </Badge>
             )}
             {agent.status === 'error' && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full bg-red-500/20 text-red-400">
-                <XCircle className="w-3 h-3" />
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-destructive/20 text-destructive border-destructive/30">
+                <XCircle className="w-3 h-3 mr-1" />
                 Error
-              </span>
+              </Badge>
             )}
           </div>
-          <p className="text-xs text-zinc-500 truncate mt-0.5">
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
             {agent.projectPath.split('/').pop()}
           </p>
           {showAction && agent.status === 'waiting' && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 bg-warning/20 text-warning hover:bg-warning/30"
               onClick={(e) => { e.stopPropagation(); onOpenTerminal(agent.id); }}
-              className="mt-2 flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
             >
               <MessageSquare className="w-3 h-3" />
               Respond
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -119,19 +126,19 @@ export function NotificationPanel({
       {/* Toggle button */}
       <button
         onClick={onToggle}
-        className="flex items-center justify-center w-8 h-12 my-auto -mr-1 rounded-none bg-zinc-900/95 border border-r-0 border-zinc-700 hover:bg-zinc-800 transition-colors z-10"
+        className="flex items-center justify-center w-8 h-12 my-auto -mr-1 bg-card/95 border border-r-0 border-border hover:bg-secondary transition-colors z-10"
       >
         {isCollapsed ? (
           <div className="relative">
-            <ChevronLeft className="w-4 h-4 text-zinc-400" />
+            <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             {waitingAgents.length > 0 && (
-              <span className="absolute -top-2 -right-2 w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded-full bg-amber-500 text-white">
+              <span className="absolute -top-2 -right-2 w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded-full bg-warning text-white">
                 {waitingAgents.length}
               </span>
             )}
           </div>
         ) : (
-          <ChevronRight className="w-4 h-4 text-zinc-400" />
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
         )}
       </button>
 
@@ -142,15 +149,15 @@ export function NotificationPanel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-1 bg-zinc-900/95 border border-zinc-700 rounded-none overflow-hidden flex flex-col"
+            className="flex-1 bg-card/95 border border-border overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="px-4 py-3 border-b border-zinc-700/50 bg-zinc-800/30">
+            <div className="px-4 py-3 border-b border-border bg-secondary/30">
               <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-cyan-400" />
-                <span className="font-medium text-sm text-zinc-200">Activity</span>
+                <Bell className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm text-foreground">Activity</span>
                 {waitingAgents.length > 0 && (
-                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-500 text-white font-bold">
+                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-warning text-white font-bold">
                     {waitingAgents.length}
                   </span>
                 )}
@@ -164,8 +171,8 @@ export function NotificationPanel({
                 {waitingAgents.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="text-xs font-medium text-amber-400 uppercase tracking-wide">
+                      <AlertCircle className="w-3.5 h-3.5 text-warning" />
+                      <span className="text-xs font-medium text-warning uppercase tracking-wide">
                         Needs Attention
                       </span>
                     </div>
@@ -181,8 +188,8 @@ export function NotificationPanel({
                 {runningAgents.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-                      <span className="text-xs font-medium text-cyan-400 uppercase tracking-wide">
+                      <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                      <span className="text-xs font-medium text-primary uppercase tracking-wide">
                         Working
                       </span>
                     </div>
@@ -198,8 +205,8 @@ export function NotificationPanel({
                 {completedAgents.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-                      <span className="text-xs font-medium text-green-400 uppercase tracking-wide">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                      <span className="text-xs font-medium text-success uppercase tracking-wide">
                         Completed
                       </span>
                     </div>
@@ -215,8 +222,8 @@ export function NotificationPanel({
                 {errorAgents.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <XCircle className="w-3.5 h-3.5 text-red-400" />
-                      <span className="text-xs font-medium text-red-400 uppercase tracking-wide">
+                      <XCircle className="w-3.5 h-3.5 text-destructive" />
+                      <span className="text-xs font-medium text-destructive uppercase tracking-wide">
                         Errors
                       </span>
                     </div>
@@ -232,20 +239,20 @@ export function NotificationPanel({
               {/* Empty state */}
               {agents.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Bot className="w-10 h-10 text-zinc-600 mb-3" />
-                  <p className="text-sm text-zinc-500">No agents yet</p>
-                  <p className="text-xs text-zinc-600 mt-1">Create an agent to see activity</p>
+                  <Bot className="w-10 h-10 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">No agents yet</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Create an agent to see activity</p>
                 </div>
               )}
 
               {/* All idle state */}
               {agents.length > 0 && waitingAgents.length === 0 && runningAgents.length === 0 && completedAgents.length === 0 && errorAgents.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center mb-3">
-                    <Bot className="w-5 h-5 text-zinc-500" />
+                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mb-3">
+                    <Bot className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-zinc-500">All agents idle</p>
-                  <p className="text-xs text-zinc-600 mt-1">Start an agent to see activity</p>
+                  <p className="text-sm text-muted-foreground">All agents idle</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Start an agent to see activity</p>
                 </div>
               )}
             </div>
