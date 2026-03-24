@@ -117,6 +117,7 @@ export default function AppSidebar() {
             className="h-4 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden"
           />
         </div>
+        <CollapseToggle />
       </SidebarHeader>
 
       <SidebarContent>
