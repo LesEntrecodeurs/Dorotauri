@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, memo } from 'react';
 import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import { isTauri } from '@/hooks/useTauri';
@@ -16,7 +16,7 @@ interface TerminalTileProps {
  * Spawns a real PTY shell so the user can type immediately.
  * Output streams via Tauri events, input goes via pty_write.
  */
-export default function TerminalTile({ agentId }: TerminalTileProps) {
+function TerminalTileInner({ agentId }: TerminalTileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const initRef = useRef(false);
 
@@ -94,27 +94,50 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
       try {
         const { cols, rows } = term;
         ptyId = await invoke<string>('pty_create', { cwd, cols, rows });
+        term.write(`\x1b[90m[DEBUG] PTY created: ${ptyId.slice(0,8)}... in ${cwd}\x1b[0m\r\n`);
       } catch (err) {
         term.write(`\x1b[31mFailed to create PTY: ${err}\x1b[0m\r\n`);
         cleanup = () => term.dispose();
         return;
       }
 
-      // Subscribe to PTY output — filter by pty_id (pty_create uses ptyId as agent_id)
+      // Subscribe to PTY output FIRST (before any output can arrive)
       let unsubOutput: (() => void) | undefined;
       let disposed = false;
+      let eventCount = 0;
 
-      listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      // Register listener synchronously-ish
+      const unlistenPromise = listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+        eventCount++;
         if ((event.payload.agent_id === ptyId || event.payload.pty_id === ptyId) && !disposed) {
           term.write(new Uint8Array(event.payload.data));
         }
-      }).then(fn => { unsubOutput = fn; });
+      });
+      unlistenPromise.then(fn => { unsubOutput = fn; });
+
+      // Also listen to ALL events for debug
+      const unsubDebug = await listen('agent:output', (event: any) => {
+        if (eventCount === 0) {
+          // First event received — log it for debugging
+          console.log('[TerminalTile] First agent:output event received:', {
+            agent_id: event.payload?.agent_id?.slice(0, 8),
+            pty_id: event.payload?.pty_id?.slice(0, 8),
+            dataLen: event.payload?.data?.length,
+            ourPtyId: ptyId.slice(0, 8),
+            match: event.payload?.agent_id === ptyId || event.payload?.pty_id === ptyId,
+          });
+        }
+      });
 
       // Forward keyboard input to PTY
       term.onData((data) => {
         // Filter terminal query responses
         if (/^(\x1b\[\?[\d;]*c|\d+;\d+c)+$/.test(data)) return;
-        invoke('pty_write', { ptyId, data }).catch(() => {});
+        invoke('pty_write', { ptyId, data }).then(() => {
+          // Write succeeded silently
+        }).catch((err) => {
+          term.write(`\x1b[31m[DEBUG] pty_write error: ${err}\x1b[0m\r\n`);
+        });
       });
 
       // ResizeObserver
@@ -132,6 +155,7 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
         disposed = true;
         resizeObserver.disconnect();
         unsubOutput?.();
+        unsubDebug();
         invoke('pty_kill', { ptyId }).catch(() => {});
         term.dispose();
       };
@@ -152,3 +176,6 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
     />
   );
 }
+
+const TerminalTile = memo(TerminalTileInner);
+export default TerminalTile;

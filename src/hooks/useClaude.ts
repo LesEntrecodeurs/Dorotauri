@@ -124,9 +124,10 @@ export function useClaude() {
 
   useEffect(() => {
     fetchData();
-    // Poll every 10 seconds to reduce CPU usage
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    // No polling — claude_get_data is not yet implemented in Rust.
+    // Re-enable polling when the Rust command exists.
+    // const interval = setInterval(fetchData, 10000);
+    // return () => clearInterval(interval);
   }, [fetchData]);
 
   return { data, loading, error, refresh: fetchData };
