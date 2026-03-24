@@ -75,8 +75,9 @@ export default function ClientLayout() {
 
   return (
     <div className="min-h-screen bg-bg-primary relative">
-      {/* Full-width window drag bar at the very top (desktop only) */}
-      <div className="window-drag hidden lg:block fixed top-0 left-0 right-0 h-7 z-[60]" />
+      {/* Window drag bar — only needed on macOS with overlay titlebar.
+          On Linux with native decorations, this is not needed and would block clicks. */}
+      {/* <div className="window-drag hidden lg:block fixed top-0 left-0 right-0 h-7 z-[60]" /> */}
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-bg-secondary border-b border-border-primary z-40 flex items-center px-4">
