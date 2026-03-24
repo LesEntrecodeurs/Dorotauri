@@ -317,12 +317,12 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
               <span>{tab.name}</span>
             )}
             <span className="text-[10px] text-muted-foreground">({tab.agentIds.length})</span>
-            {tabs.length > 1 && tab.id === activeTabId && (
+            {tabs.length > 1 && (
               <button
                 onClick={(e) => { e.stopPropagation(); deleteTab(tab.id); }}
-                className="ml-1 p-0.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-muted-foreground hover:text-red-400 rounded"
+                className="ml-0.5 p-0.5 hover:bg-red-500/20 text-muted-foreground hover:text-red-400 rounded"
               >
-                <X className="w-2.5 h-2.5" />
+                <X className="w-3 h-3" />
               </button>
             )}
           </div>
