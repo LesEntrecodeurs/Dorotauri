@@ -520,6 +520,10 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       )}
 
       {/* Tab bar — compact in zen mode */}
+      {/* macOS traffic light spacer + drag region */}
+      <div className="shrink-0 bg-secondary/80 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} />
+
+      {/* Tab bar — compact in zen mode */}
       <div className={`flex items-center gap-0.5 px-2 bg-secondary/80 border-b border-border shrink-0 ${zenMode ? 'py-0 h-6 text-[10px]' : 'py-1'}`}>
         {tabs.map(tab => (
           <div

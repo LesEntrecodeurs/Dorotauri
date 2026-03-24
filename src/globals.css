@@ -227,6 +227,14 @@
   cursor: grabbing;
 }
 
+/* macOS traffic light padding (titleBarStyle: Overlay) */
+:root {
+  --titlebar-inset: 0px;
+}
+html.macos-titlebar {
+  --titlebar-inset: 2rem;
+}
+
 /* Window drag region for Tauri */
 .window-drag-region {
   -webkit-app-region: drag;

@@ -121,7 +121,7 @@ export default function ClientLayout() {
 
           {/* Route content — shown when NOT on dashboard */}
           {!isOnDashboard && (
-            <div className="p-4 lg:p-6 pb-6">
+            <div className="p-4 lg:p-6 pb-6" style={{ paddingTop: 'calc(var(--titlebar-inset) + 1rem)' }}>
               <Outlet />
             </div>
           )}
