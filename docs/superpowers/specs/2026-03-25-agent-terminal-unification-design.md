@@ -41,6 +41,8 @@ interface Agent {
   // States
   processState: ProcessState;
   businessState?: string;        // Inferred by AI — free-text semantic state
+  businessStateUpdatedBy?: 'inference' | 'super_agent'; // Who last set the businessState
+  businessStateUpdatedAt?: string; // ISO timestamp of last businessState update
   statusLine?: string;           // ANSI-stripped last output line for state inference
 
   // Coordination
@@ -70,17 +72,19 @@ These fields exist in the current model and are preserved as-is in the new `Agen
 - `error?: string` — Error message string when `processState` is `error`
 - `obsidianVaultPaths?: string[]` — Obsidian vault paths mounted via `--add-dir`
 - `pathMissing?: boolean` — Warning flag if `cwd` directory was deleted
-- `lastCleanOutput?: string` — Last clean output for Super Agent consumption
+- `kanbanTaskId?: string` — Links agent to a Kanban board task (used by Kanban integration for task assignment)
+- `currentSessionId?: string` — Tracks the current AI session ID
 
 ### Key design decisions
 
 - **`cwd` replaces `projectPath`** — dynamic, updates when the PTY changes directory. No project picker needed. See "cwd tracking" section below.
 - **`processState` is semi-automatic** — some transitions are automatic (PTY exit → `completed`/`error`), others are command-driven (`agent_start` → `running`). See "processState inference" section below.
 - **`businessState` is inferred** — the AI deduces semantic state from its own context. The Super Agent can enrich/correct it.
-- **No `currentTask` or `prompt` field** — the context is the terminal history.
+- **`currentTask` is dropped** — the context is the terminal history. The `AgentTickItem` type used for the periodic tick system is updated to derive its display text from `businessState` + `statusLine` instead of `currentTask`.
 - **`ptyId` is nullable** — null means the agent is dormant (terminal closed, agent persisted).
-- **`secondaryPaths` is an array** — migrated from the current singular `secondaryProjectPath`. The config wheel allows adding/removing multiple paths. Existing single values are migrated into a one-element array.
+- **`secondaryPaths` is an array** — migrated from the current singular `secondaryProjectPath`. The config wheel allows adding/removing multiple paths. Existing single values are migrated into a one-element array. Note: `obsidianVaultPaths` remains a separate field because Obsidian vaults are mounted read-only with specific semantics, whereas `secondaryPaths` are general-purpose `--add-dir` paths.
 - **`createdAt` is new** — existing agents use their `lastActivity` value as the migration default.
+- **`lastCleanOutput` is replaced by `statusLine`** — both serve the same purpose (ANSI-stripped last output for Super Agent consumption). `lastCleanOutput` is migrated to `statusLine` during data migration. Only `statusLine` exists in the new model.
 
 ## cwd Tracking
 
@@ -182,7 +186,7 @@ A "New Agent" button opens a simplified form (name + role + skills + prompt + pr
 No predefined list. Free-text string inferred from two sources:
 
 - **statusLine → businessState inference**: The backend parses the `statusLine` on each update. A lightweight classifier (keyword/pattern matching, not LLM-based) maps common patterns to business states: "running tests" → "testing", "reviewing" → "in review", "waiting for" → "awaiting input", etc. This runs in the Rust backend on each `statusLine` update — no polling needed, it piggybacks on the existing `agent:output` event stream.
-- **Super Agent enrichment**: The Super Agent periodically polls its agents' `businessState` via MCP `get_agent` tool and can override/enrich via a new MCP tool `update_agent_business_state(agentId, state)`. Example: knows an agent is blocked because it's waiting for another agent's result → sets "blocked by Agent X". When both sources disagree, the Super Agent's value takes precedence (it has more context). The statusLine-based inference resumes if the Super Agent hasn't updated the value in the last 60 seconds.
+- **Super Agent enrichment**: The Super Agent periodically polls its agents' `businessState` via MCP `get_agent` tool and can override/enrich via a new MCP tool `update_agent_business_state(agentId, state)`. Example: knows an agent is blocked because it's waiting for another agent's result → sets "blocked by Agent X". When both sources disagree, the Super Agent's value takes precedence (it has more context). The statusLine-based inference resumes if the Super Agent hasn't updated the value in the last 60 seconds (tracked via `businessStateUpdatedBy` and `businessStateUpdatedAt` on the Agent model).
 
 ### Display
 
@@ -208,6 +212,23 @@ Currently tabs are frontend-only (localStorage via `useTabManager`). With the ne
 - **Agent membership** is derived from `Agent.tabId` — no duplicate `agentIds[]` array on the tab
 - **Frontend `useTabManager`** becomes a thin wrapper over Tauri IPC calls instead of localStorage
 - **Migration**: existing localStorage tabs are read once, written to `tabs.json`, then localStorage is cleared
+
+### `tabs.json` schema
+
+```typescript
+interface TabsFile {
+  schemaVersion: number;       // starts at 1
+  tabs: Tab[];                 // ordered array — position = display order
+}
+
+interface Tab {
+  id: string;                  // UUID
+  name: string;                // "General", "Backend team", etc.
+  layout: MosaicLayout;        // React Mosaic layout tree (same format as current)
+}
+```
+
+Agent membership is NOT stored on the Tab — it is derived from `Agent.tabId`. The `Tab` object only holds presentation concerns (name, layout, ordering).
 
 ### Tab behavior
 
@@ -331,13 +352,13 @@ Capabilities: receive state notifications, receive Super Agent team summaries, s
 
 A version field (`schemaVersion: number`) is added to `agents.json`. Current (unversioned) data is treated as version 0. Migration to version 1:
 
-**Before migration**: a backup of `agents.json` is written to `agents.json.v0.backup`. If migration fails, the app falls back to the backup and logs the error.
+**Before migration**: a backup of `agents.json` is written to `agents.json.v0.backup`. If migration fails midway, the app loads the backup using the old `AgentStatus` deserializer, presents all agents as dormant with their original metadata intact, and logs the error. The user can retry migration on next restart or report the issue.
 
 | Old field | New field | Mapping |
 |---|---|---|
 | `projectPath` | `cwd` | Direct copy |
 | `secondaryProjectPath` | `secondaryPaths` | Wrapped in single-element array, or `[]` if null |
-| `status` (`idle`) | `processState` | `idle` → `inactive` |
+| `status` (`idle`) | `processState` | `idle` → `dormant` (no PTY survives app restart) |
 | `status` (`running`) | `processState` | `running` → `dormant` (no PTY survives app restart) |
 | `status` (`completed`) | `processState` | `completed` → `dormant` |
 | `status` (`error`) | `processState` | `error` → `dormant` |
@@ -351,14 +372,33 @@ A version field (`schemaVersion: number`) is added to `agents.json`. Current (un
 | (absent) | `scheduledTaskIds` | Defaults to `[]` |
 | (absent) | `automationIds` | Defaults to `[]` |
 
-All carried-forward fields (`worktreePath`, `branchName`, `error`, `obsidianVaultPaths`, `pathMissing`, `lastCleanOutput`, `character`) are copied as-is.
+All carried-forward fields (`worktreePath`, `branchName`, `error`, `obsidianVaultPaths`, `pathMissing`, `kanbanTaskId`, `currentSessionId`, `character`) are copied as-is. `lastCleanOutput` is migrated to `statusLine`. `currentTask` is dropped (replaced by `businessState` + `statusLine`).
+
+### DisplayStatus migration
+
+The current frontend `DisplayStatus` type (`'working' | 'waiting' | 'done' | 'ready' | 'stopped' | 'error'`) is replaced by a new mapping from `processState`:
+
+| `processState` | Display | Icon color |
+|---|---|---|
+| `inactive` | "Ready" | Emerald |
+| `running` | "Working" | Blue |
+| `waiting` | "Waiting" | Amber |
+| `completed` | "Done" | Blue |
+| `error` | "Error" | Red |
+| `dormant` | "Sleeping" | Gray |
+
+The `DisplayStatus` type is updated to include `'sleeping'` and remove `'stopped'`. The `AgentTickItem` type is updated to use `businessState` and `statusLine` instead of `currentTask` for its display text.
 
 ### Tab migration
 
-- Existing localStorage tab data (`terminals-tab-manager`) is read once
-- Written to `~/.dorothy/tabs.json`
-- localStorage key is cleared after successful write
-- If no localStorage data exists, a default "General" tab is created
+Tab migration joins the existing localStorage tabs with agent `tabId` assignment:
+
+1. Read localStorage key `terminals-tab-manager` → get list of `CustomTab` objects (each with `id`, `name`, `agentIds[]`, `layout`)
+2. For each `CustomTab`, create a `Tab` entry in `tabs.json` (copying `id`, `name`, `layout` — dropping `agentIds`)
+3. For each agent found in a `CustomTab.agentIds`, set that agent's `tabId` to the tab's `id` in `agents.json`
+4. Any agents NOT found in any tab's `agentIds` are assigned to a default "General" tab
+5. Write `tabs.json`, clear localStorage key
+6. If no localStorage data exists, a single default "General" tab is created and all agents are assigned to it
 
 ### Output buffer migration
 
