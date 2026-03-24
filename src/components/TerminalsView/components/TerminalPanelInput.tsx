@@ -66,7 +66,7 @@ export default function TerminalPanelInput({
 
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 bg-secondary border-t border-border ${isBroadcasting ? 'ring-1 ring-primary/50' : ''}`}>
-      <span className={`text-xs font-mono ${isBroadcasting ? 'text-cyan-400' : 'text-muted-foreground'}`}>
+      <span className={`text-xs font-mono ${isBroadcasting ? 'text-primary' : 'text-muted-foreground'}`}>
         {isBroadcasting ? '>' : '>'}
       </span>
       <input

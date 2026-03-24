@@ -49,27 +49,27 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
 
       const term = new Terminal({
         theme: {
-          background: '#0D0B08',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#0D0B08',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
+          background: '#1A1714',
+          foreground: '#E8DEC8',
+          cursor: '#4DB8B0',
+          cursorAccent: '#1A1714',
+          selectionBackground: '#4DB8B033',
+          black: '#1A1714',
+          red: '#D4634D',
+          green: '#5AAF62',
+          yellow: '#CD7F4A',
+          blue: '#4DB8B0',
+          magenta: '#A080B2',
+          cyan: '#4DB8B0',
+          white: '#E8DEC8',
+          brightBlack: '#7A6E58',
+          brightRed: '#D4634D',
+          brightGreen: '#5AAF62',
+          brightYellow: '#CD7F4A',
+          brightBlue: '#4DB8B0',
+          brightMagenta: '#A080B2',
+          brightCyan: '#4DB8B0',
+          brightWhite: '#FAF4EA',
         },
         fontSize: 13,
         fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
@@ -372,7 +372,7 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
               </p>
               <div
                 ref={terminalRef}
-                className="bg-[#0D0B08] rounded-none overflow-hidden"
+                className="bg-background rounded-none overflow-hidden"
                 style={{ height: '400px' }}
               />
             </div>
