@@ -7,7 +7,7 @@ import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import { ExternalLink, Maximize2, Minimize2, Plus, X } from 'lucide-react';
 import type { AgentStatus as AgentStatusType } from '@/types/electron';
-import { CHARACTER_FACES } from '@/components/AgentWorld/constants';
+import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import TerminalTile from './TerminalTile';
 
 type ViewId = string;

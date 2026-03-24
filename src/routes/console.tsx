@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import type { AgentStatus } from '@/types/agent'
-import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentWorld/constants'
+import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants'
 import '../globals.css'
 
 const STATUS_COLORS: Record<string, string> = {

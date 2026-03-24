@@ -5,7 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
 import { useClaude } from '@/hooks/useClaude';
-import AgentTerminalDialog from '@/components/AgentWorld/AgentTerminalDialog';
+import AgentTerminalDialog from '@/components/AgentTerminalDialog';
 import NewChatModal from '@/components/NewChatModal';
 
 import {

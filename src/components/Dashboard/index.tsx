@@ -1,9 +1,8 @@
 
 
-import { useState, useMemo, Component, ReactNode, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import {
   Loader2,
-  Globe,
   BarChart3,
   Bot,
   FolderKanban,
@@ -15,7 +14,6 @@ import {
   TrendingUp,
   Clock,
   History,
-  AlertTriangle,
   LayoutGrid,
   TerminalSquare,
 } from 'lucide-react';
@@ -25,48 +23,12 @@ import StatsCard from './StatsCard';
 
 const CanvasView = lazy(() => import('@/components/CanvasView'));
 
-// Error boundary for 3D world
-class WorldErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border">
-          <div className="text-center p-8">
-            <AlertTriangle className="w-12 h-12 text-warning mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2 text-foreground">3D World Failed to Load</h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              {this.state.error?.message || 'An error occurred loading the 3D view'}
-            </p>
-            <button
-              onClick={() => this.setState({ hasError: false })}
-              className="px-4 py-2 bg-foreground text-background hover:bg-foreground/80"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-const AgentWorld = lazy(() => import('@/components/AgentWorld'));
 const MosaicTerminalView = lazy(() => import('@/components/MosaicTerminalView'));
 
 export default function Dashboard() {
   const { data, loading, error } = useClaude();
   const { agents } = useElectronAgents();
-  const [viewMode, setViewMode] = useState<'world' | 'canvas' | 'terminals' | 'stats'>('terminals');
+  const [viewMode, setViewMode] = useState<'canvas' | 'terminals' | 'stats'>('terminals');
 
   // Calculate stats
   const stats = data?.stats;
@@ -252,22 +214,6 @@ export default function Dashboard() {
               <LayoutGrid className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
               Board
             </button>
-            <button
-              onClick={() => setViewMode('world')}
-              className={`
-                flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-1.5 text-xs lg:text-sm font-medium transition-all
-                ${viewMode === 'world'
-                  ? 'bg-foreground text-background'
-                  : 'text-muted-foreground hover:text-foreground'
-                }
-              `}
-              style={{ borderRadius: 7 }}
-            >
-              <Globe className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-              <span className="hidden sm:inline">3D View</span>
-              <span className="sm:hidden">3D</span>
-            </button>
-
           </div>
 
           <div className="text-right text-xs text-muted-foreground hidden sm:block">
@@ -289,20 +235,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* 3D World View */}
-      {viewMode === 'world' && (
-        <div
-          className="border border-border bg-card overflow-hidden"
-          style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}
-        >
-          <WorldErrorBoundary>
-            <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading 3D World...</p></div></div>}>
-              <AgentWorld />
-            </Suspense>
-          </WorldErrorBoundary>
-        </div>
-      )}
 
       {/* Canvas View */}
       {viewMode === 'canvas' && (

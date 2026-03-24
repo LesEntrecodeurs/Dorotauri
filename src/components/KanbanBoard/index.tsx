@@ -29,7 +29,7 @@ import { COLUMN_ORDER } from './constants';
 
 // Lazy load the terminal dialog
 const AgentTerminalDialog = lazy(
-  () => import('@/components/AgentWorld/AgentTerminalDialog')
+  () => import('@/components/AgentTerminalDialog')
 );
 
 export default function KanbanBoard() {

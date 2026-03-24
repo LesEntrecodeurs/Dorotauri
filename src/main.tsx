@@ -21,7 +21,6 @@ const ProjectsPage = lazy(() => import('./routes/projects'))
 const RecurringTasksPage = lazy(() => import('./routes/recurring-tasks'))
 const UsagePage = lazy(() => import('./routes/usage'))
 const WhatsNewPage = lazy(() => import('./routes/whats-new'))
-const PalletTownPage = lazy(() => import('./routes/pallet-town'))
 const TrayPanel = lazy(() => import('./routes/tray-panel'))
 
 function PageLoader() {
@@ -69,7 +68,6 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/recurring-tasks" element={<RecurringTasksPage />} />
               <Route path="/usage" element={<UsagePage />} />
               <Route path="/whats-new" element={<WhatsNewPage />} />
-              <Route path="/pallet-town" element={<PalletTownPage />} />
             </Route>
             <Route path="/console/:agentId" element={<Console />} />
             <Route path="/tray-panel" element={<TrayPanel />} />

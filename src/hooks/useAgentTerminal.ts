@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import type { AgentProvider, AgentStatus, AgentEvent } from '@/types/electron';
-import { getTerminalTheme } from '@/components/AgentWorld/constants';
+import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
 import { attachShiftEnterHandler } from '@/lib/terminal';
 
 interface UseAgentTerminalProps {

@@ -9,7 +9,7 @@ import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { TERMINAL_CONFIG } from '../constants';
-import { getTerminalTheme } from '@/components/AgentWorld/constants';
+import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
 import { attachShiftEnterHandler } from '@/lib/terminal';
 
 interface TerminalEntry {
