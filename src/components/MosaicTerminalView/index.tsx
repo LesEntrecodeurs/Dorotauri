@@ -5,7 +5,7 @@ import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import { ExternalLink, Maximize2, Minimize2, Plus, X, Edit3, Check } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, Plus, X, Play, Square } from 'lucide-react';
 import type { AgentStatus as AgentStatusType } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentWorld/constants';
 import TerminalTile from './TerminalTile';
@@ -219,6 +219,46 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
     }
   }, [removeAgentFromTab, activeTabId, popoutSourceRef]);
 
+  // Start all agents in the current tab
+  const handleStartAll = useCallback(async () => {
+    if (!isTauri() || !activeTab) return;
+    for (const agentId of activeTab.agentIds) {
+      const agent = agentMap.get(agentId);
+      if (agent && (agent.status === 'idle' || agent.status === 'completed' || agent.status === 'error')) {
+        try {
+          await invoke('agent_start', { id: agentId, prompt: null, options: null });
+        } catch {}
+      }
+    }
+  }, [activeTab, agentMap]);
+
+  // Stop all agents in the current tab
+  const handleStopAll = useCallback(async () => {
+    if (!isTauri() || !activeTab) return;
+    for (const agentId of activeTab.agentIds) {
+      const agent = agentMap.get(agentId);
+      if (agent && (agent.status === 'running' || agent.status === 'waiting')) {
+        try {
+          await invoke('agent_stop', { id: agentId });
+        } catch {}
+      }
+    }
+  }, [activeTab, agentMap]);
+
+  // Count running/stoppable agents in current tab
+  const tabAgentStats = useMemo(() => {
+    if (!activeTab) return { running: 0, startable: 0, total: 0 };
+    let running = 0;
+    let startable = 0;
+    for (const id of activeTab.agentIds) {
+      const a = agentMap.get(id);
+      if (!a) continue;
+      if (a.status === 'running' || a.status === 'waiting') running++;
+      if (a.status === 'idle' || a.status === 'completed' || a.status === 'error') startable++;
+    }
+    return { running, startable, total: activeTab.agentIds.length };
+  }, [activeTab, agentMap]);
+
   const handleMaximize = useCallback((agentId: string) => {
     setMaximizedAgent(prev => prev === agentId ? null : agentId);
   }, []);
@@ -297,6 +337,35 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
         </button>
 
         <div className="flex-1" />
+
+        {/* Start All / Stop All for current tab */}
+        {activeTab && activeTab.agentIds.length > 0 && (
+          <div className="flex items-center gap-1 mr-2">
+            {tabAgentStats.startable > 0 && (
+              <button
+                onClick={handleStartAll}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-500/10 rounded transition-colors"
+                title={`Start ${tabAgentStats.startable} idle agent(s)`}
+              >
+                <Play className="w-3 h-3" />
+                Start All
+              </button>
+            )}
+            {tabAgentStats.running > 0 && (
+              <button
+                onClick={handleStopAll}
+                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                title={`Stop ${tabAgentStats.running} running agent(s)`}
+              >
+                <Square className="w-3 h-3" />
+                Stop All
+              </button>
+            )}
+            <span className="text-[10px] text-muted-foreground">
+              {tabAgentStats.running}/{tabAgentStats.total} running
+            </span>
+          </div>
+        )}
 
         {/* Add agent to tab button */}
         <div className="relative">
