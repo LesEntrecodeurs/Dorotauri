@@ -584,6 +584,19 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
           </div>
         )}
       </div>
+
+      {/* Edit Agent Modal — same as the pen icon on the Agents page */}
+      <NewChatModal
+        open={!!editAgentId}
+        onClose={() => setEditAgentId(null)}
+        onSubmit={() => {}}
+        onUpdate={handleUpdateAgent}
+        editAgent={editAgentData}
+        projects={projects.map(p => ({ path: p.path, name: p.name }))}
+        onBrowseFolder={isTauri() ? openFolderDialog : undefined}
+        installedSkills={installedSkills}
+        initialStep={1}
+      />
     </div>
   );
 }
