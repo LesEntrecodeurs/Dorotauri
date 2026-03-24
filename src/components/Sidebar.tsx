@@ -102,7 +102,7 @@ export default function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="group-data-[collapsible=icon]:p-0">
         <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <div className="w-6 h-6 overflow-hidden shrink-0 group-data-[collapsible=icon]:w-5 group-data-[collapsible=icon]:h-5">
+          <div className="w-8 h-8 overflow-hidden shrink-0 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
             <img
               src="/dorothy-without-text.png"
               alt="Dorothy"
