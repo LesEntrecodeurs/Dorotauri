@@ -61,13 +61,63 @@ interface Agent {
 type ProcessState = 'inactive' | 'running' | 'waiting' | 'error' | 'completed' | 'dormant';
 ```
 
+### Carried-forward fields (unchanged from current `AgentStatus`)
+
+These fields exist in the current model and are preserved as-is in the new `Agent` model:
+
+- `worktreePath?: string` — Git worktree path if enabled
+- `branchName?: string` — Git branch name for worktree
+- `error?: string` — Error message string when `processState` is `error`
+- `obsidianVaultPaths?: string[]` — Obsidian vault paths mounted via `--add-dir`
+- `pathMissing?: boolean` — Warning flag if `cwd` directory was deleted
+- `lastCleanOutput?: string` — Last clean output for Super Agent consumption
+
 ### Key design decisions
 
-- **`cwd` replaces `projectPath`** — dynamic, updates when the PTY changes directory. No project picker needed.
-- **`processState` is automatic** — derived from PTY process status. No manual state management.
+- **`cwd` replaces `projectPath`** — dynamic, updates when the PTY changes directory. No project picker needed. See "cwd tracking" section below.
+- **`processState` is semi-automatic** — some transitions are automatic (PTY exit → `completed`/`error`), others are command-driven (`agent_start` → `running`). See "processState inference" section below.
 - **`businessState` is inferred** — the AI deduces semantic state from its own context. The Super Agent can enrich/correct it.
 - **No `currentTask` or `prompt` field** — the context is the terminal history.
 - **`ptyId` is nullable** — null means the agent is dormant (terminal closed, agent persisted).
+- **`secondaryPaths` is an array** — migrated from the current singular `secondaryProjectPath`. The config wheel allows adding/removing multiple paths. Existing single values are migrated into a one-element array.
+- **`createdAt` is new** — existing agents use their `lastActivity` value as the migration default.
+
+## cwd Tracking
+
+The `cwd` field replaces the static `projectPath`. It is updated dynamically based on the shell process running in the PTY.
+
+### Mechanism
+
+- **Linux**: Poll `/proc/<pid>/cwd` symlink for the shell process PID (not the foreground process group — we want the shell's cwd, not a subprocess's).
+- **macOS**: Use `libproc::proc_pidinfo` or `lsof -p <pid>` to read the shell process's cwd.
+- **Polling interval**: Every 2 seconds while the PTY is active. No polling when dormant.
+- **PID acquisition**: `portable_pty::Child` provides the child PID. Store it in `PtyManager` alongside the PTY handle.
+
+### Edge cases
+
+- **Directory deleted**: If `cwd` points to a deleted directory, set `pathMissing: true` on the agent. The UI shows a warning. The agent continues to function (the shell handles missing cwd natively).
+- **Rapid directory changes**: The 2-second polling means brief intermediate directories may be missed. This is acceptable — we want the "resting" directory, not a full history.
+- **Dormant agents**: `cwd` is frozen at the last known value when the terminal was closed. On reanimation, the new PTY is spawned with this `cwd` (if it still exists) or the user's home directory (if not).
+
+## processState Inference
+
+The `processState` is updated through a mix of command-driven and automatic transitions:
+
+| Transition | Trigger |
+|---|---|
+| `→ inactive` | Terminal opened, no AI process launched yet |
+| `→ running` | `agent_start` command called (launches AI CLI in PTY) |
+| `→ waiting` | Output-based detection: pattern matching on known prompt patterns (e.g., `? `, `(y/n)`, Claude's permission prompts). Same heuristic as current `waiting` detection. |
+| `→ completed` | PTY reader thread detects AI process exit with code 0 (shell stays alive). Detected by monitoring output for shell prompt return after AI CLI execution. |
+| `→ error` | AI process exits with non-zero code, or PTY reader detects error patterns in output |
+| `→ dormant` | Terminal closed by user (PTY destroyed) |
+| `→ inactive` (from completed/error) | User interacts with the shell again after AI process has finished |
+
+### Detection approach
+
+The current system already sets states via commands (`agent_start` → running) and events (`agent:complete` → completed). The new model keeps this approach and adds:
+- **Shell prompt detection**: When the AI CLI exits and the shell prompt reappears, transition from `running`/`completed` back to `inactive` if the user starts typing.
+- **Waiting detection**: Existing output-based heuristic (pattern matching on prompt lines) is preserved and extended.
 
 ## Agent Lifecycle
 
@@ -83,9 +133,20 @@ type ProcessState = 'inactive' | 'running' | 'waiting' | 'error' | 'completed' |
 
 When a terminal is closed, the Agent enters `dormant` state:
 - Keeps all metadata (name, role, skills, character, team assignment)
-- Keeps output buffer for history review
+- Keeps output buffer for history review (capped at 10,000 lines — older lines are discarded)
 - Can be "reanimated" at any time — creates a new PTY, agent resumes in its team/tab
 - Recurring tasks and automations can reanimate a dormant agent to execute, then it returns to dormant
+
+### Reanimation
+
+When a dormant agent is reopened:
+
+1. A new PTY is spawned with `cwd` set to the agent's last known directory (falls back to `$HOME` if the directory no longer exists)
+2. The agent's saved output buffer is replayed into the new xterm instance so the user sees the previous session's context
+3. The AI CLI is **not** auto-relaunched — the user gets a shell and can decide to launch an AI session or not
+4. If reanimated by a recurring task or automation, the scheduled prompt triggers `agent_start` which launches the CLI automatically
+5. `processState` transitions from `dormant` → `inactive` (or `running` if auto-launched by a schedule)
+6. The agent reappears in its original tab (`tabId` preserved)
 
 ### Typical user journey
 
@@ -120,8 +181,8 @@ A "New Agent" button opens a simplified form (name + role + skills + prompt + pr
 
 No predefined list. Free-text string inferred from two sources:
 
-- **statusLine**: last output line from the AI, parsed continuously. "Running tests..." → `businessState: "testing"`. "Waiting for PR review" → `businessState: "awaiting review"`.
-- **Super Agent**: periodically observes agents' businessStates and enriches/corrects with global coordination context. Example: knows an agent is blocked because it's waiting for another agent's result → sets "blocked by Agent X".
+- **statusLine → businessState inference**: The backend parses the `statusLine` on each update. A lightweight classifier (keyword/pattern matching, not LLM-based) maps common patterns to business states: "running tests" → "testing", "reviewing" → "in review", "waiting for" → "awaiting input", etc. This runs in the Rust backend on each `statusLine` update — no polling needed, it piggybacks on the existing `agent:output` event stream.
+- **Super Agent enrichment**: The Super Agent periodically polls its agents' `businessState` via MCP `get_agent` tool and can override/enrich via a new MCP tool `update_agent_business_state(agentId, state)`. Example: knows an agent is blocked because it's waiting for another agent's result → sets "blocked by Agent X". When both sources disagree, the Super Agent's value takes precedence (it has more context). The statusLine-based inference resumes if the Super Agent hasn't updated the value in the last 60 seconds.
 
 ### Display
 
@@ -139,11 +200,20 @@ The Super Agent uses businessStates to make decisions:
 
 No new `Team` abstraction. Tabs are the existing grouping mechanism, enriched with Super Agent coordination.
 
+### Tab persistence
+
+Currently tabs are frontend-only (localStorage via `useTabManager`). With the new model, `tabId` is on the Agent model (backend-persisted in `agents.json`). To keep data co-located and avoid split-brain:
+
+- **Tab metadata** (name, layout, ordering) moves to backend persistence: `~/.dorothy/tabs.json`
+- **Agent membership** is derived from `Agent.tabId` — no duplicate `agentIds[]` array on the tab
+- **Frontend `useTabManager`** becomes a thin wrapper over Tauri IPC calls instead of localStorage
+- **Migration**: existing localStorage tabs are read once, written to `tabs.json`, then localStorage is cleared
+
 ### Tab behavior
 
 - Creating a tab creates an empty workspace
 - Opening a terminal in a tab assigns the new Agent to that tab
-- Agents can be dragged between tabs
+- Agents can be dragged between tabs (updates `Agent.tabId` via backend)
 - An agent belongs to one tab at a time
 - Dormant agents keep their `tabId` — reanimation restores them in their team
 
@@ -159,6 +229,15 @@ No new `Team` abstraction. Tabs are the existing grouping mechanism, enriched wi
 - `superAgentScope: 'tab'` — controls only agents in its tab
 - `superAgentScope: 'all'` — controls agents across all tabs (inter-tab orchestrator)
 - Validation: only one Super Agent with scope `all` at a time
+
+### Super Agent state transitions
+
+- **Promotion**: Agent gains `isSuperAgent: true` + `superAgentScope` via config wheel. MCP orchestrator tools become available to the AI process.
+- **Demotion**: User toggles off Super Agent in config wheel. Agent becomes a normal agent. Any running orchestration stops.
+- **Tab move**: Dragging a Super Agent to another tab — it keeps `isSuperAgent: true` but the previous tab loses its Super Agent. If the target tab already has a Super Agent, the user is prompted to confirm (the existing one is demoted).
+- **Tab deletion**: All agents in the tab become dormant. A tab-scoped Super Agent keeps `isSuperAgent: true` in dormancy — on reanimation in a new tab, it resumes as Super Agent of that tab.
+- **Dormancy**: A dormant Super Agent keeps its flag. When reanimated, it resumes its orchestrator role.
+- **Scope `tab` and `all` are mutually exclusive** — an agent is either a tab-scoped or global-scoped Super Agent, not both.
 
 ## Config Wheel
 
@@ -229,7 +308,11 @@ Capabilities: receive state notifications, receive Super Agent team summaries, s
 
 - Existing MCP tools (`list_agents`, `create_agent`, `start_agent`, etc.) updated to work with the new Agent model
 - Super Agent still uses MCP for agent control
-- New MCP tools added for `businessState` updates
+- New MCP tools:
+  - `update_agent_business_state(agentId, state)` — Super Agent sets/overrides an agent's businessState
+  - `get_team_status(tabId?)` — returns all agents in a tab with their processState and businessState (if no tabId, returns all agents across all tabs)
+  - `promote_super_agent(agentId, scope)` — programmatically promote an agent to Super Agent
+  - `demote_super_agent(agentId)` — programmatically demote a Super Agent
 
 ### Preserved features
 
@@ -246,11 +329,41 @@ Capabilities: receive state notifications, receive Super Agent team summaries, s
 
 ### Data migration
 
-- Existing `AgentStatus` records converted to `Agent`:
-  - `projectPath` → `cwd`
-  - `status` → `processState` (mapped: `idle` → `inactive`)
-  - New fields default: `isSuperAgent: false`, `businessState: null`, `tabId` assigned to a default tab
-- Migration runs once on first launch with new version
+A version field (`schemaVersion: number`) is added to `agents.json`. Current (unversioned) data is treated as version 0. Migration to version 1:
+
+**Before migration**: a backup of `agents.json` is written to `agents.json.v0.backup`. If migration fails, the app falls back to the backup and logs the error.
+
+| Old field | New field | Mapping |
+|---|---|---|
+| `projectPath` | `cwd` | Direct copy |
+| `secondaryProjectPath` | `secondaryPaths` | Wrapped in single-element array, or `[]` if null |
+| `status` (`idle`) | `processState` | `idle` → `inactive` |
+| `status` (`running`) | `processState` | `running` → `dormant` (no PTY survives app restart) |
+| `status` (`completed`) | `processState` | `completed` → `dormant` |
+| `status` (`error`) | `processState` | `error` → `dormant` |
+| `status` (`waiting`) | `processState` | `waiting` → `dormant` |
+| (absent) | `createdAt` | Defaults to `lastActivity` value |
+| (absent) | `role` | Defaults to `null` |
+| (absent) | `isSuperAgent` | Defaults to `false` |
+| (absent) | `superAgentScope` | Defaults to `null` |
+| (absent) | `businessState` | Defaults to `null` |
+| (absent) | `tabId` | Assigned to a default "General" tab |
+| (absent) | `scheduledTaskIds` | Defaults to `[]` |
+| (absent) | `automationIds` | Defaults to `[]` |
+
+All carried-forward fields (`worktreePath`, `branchName`, `error`, `obsidianVaultPaths`, `pathMissing`, `lastCleanOutput`, `character`) are copied as-is.
+
+### Tab migration
+
+- Existing localStorage tab data (`terminals-tab-manager`) is read once
+- Written to `~/.dorothy/tabs.json`
+- localStorage key is cleared after successful write
+- If no localStorage data exists, a default "General" tab is created
+
+### Output buffer migration
+
+- Existing `output: Vec<String>` is truncated to 10,000 lines if longer
+- No other changes to output format
 
 ### UI migration
 
