@@ -1,10 +1,10 @@
 import { useStore } from '@/store';
 import AppSidebar from './Sidebar';
 import NotificationToast from './NotificationToast';
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useElectronAgents } from '@/hooks/useElectron';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 const MosaicTerminalView = lazy(() => import('./MosaicTerminalView'));
 
@@ -25,6 +25,24 @@ export default function ClientLayout() {
   const location = useLocation();
   const { agents } = useElectronAgents();
   const isOnDashboard = location.pathname === '/';
+  const [zenMode, setZenMode] = useState(false);
+
+  // Toggle zen mode with F11 or Ctrl+Shift+F
+  const toggleZen = useCallback(() => setZenMode(prev => !prev), []);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleZen();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
+        e.preventDefault();
+        toggleZen();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [toggleZen]);
 
   // Initialize dark mode from localStorage on mount
   useEffect(() => {
@@ -49,18 +67,27 @@ export default function ClientLayout() {
     void setVaultUnreadCount;
   }, [setVaultUnreadCount]);
 
+  // Zen mode on dashboard = fullscreen terminals, no chrome
+  if (zenMode && isOnDashboard) {
+    return (
+      <div className="h-screen w-screen">
+        <Suspense fallback={null}>
+          <MosaicTerminalView agents={agents} zenMode />
+        </Suspense>
+        <NotificationToast />
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-12 items-center gap-2 border-b border-border px-4">
-          <SidebarTrigger />
-        </header>
         <main className="flex-1 overflow-auto">
           {/* Persistent terminal layer — always mounted, hidden when not on dashboard */}
           <div
             style={{ display: isOnDashboard ? 'block' : 'none' }}
-            className="h-[calc(100vh-3rem)]"
+            className="h-screen"
           >
             <Suspense fallback={null}>
               <MosaicTerminalView agents={agents} />

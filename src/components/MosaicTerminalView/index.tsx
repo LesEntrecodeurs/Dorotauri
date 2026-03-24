@@ -15,6 +15,7 @@ type ViewId = string;
 
 interface MosaicTerminalViewProps {
   agents: AgentStatusType[];
+  zenMode?: boolean;
 }
 
 // --- Tab types (workspace system) ---
@@ -76,13 +77,14 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-primary/20 text-primary',
 };
 
-export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) {
+export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTerminalViewProps) {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(loadTabs);
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
   const [maximizedAgent, setMaximizedAgent] = useState<string | null>(null);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   // Persist tabs
   useEffect(() => { saveTabs(tabs); }, [tabs]);
@@ -284,10 +286,54 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
 
   const layout = activeTab?.layout || null;
 
+  // Right-click context menu handler (zen mode)
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!zenMode) return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, [zenMode]);
+
   return (
-    <div className="flex flex-col w-full h-full">
-      {/* Tab bar */}
-      <div className="flex items-center gap-0.5 px-2 py-1 bg-secondary/80 border-b border-border shrink-0">
+    <div className="flex flex-col w-full h-full" onContextMenu={handleContextMenu}>
+
+      {/* Context menu (zen mode right-click) */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[100]" onClick={() => setContextMenu(null)} />
+          <div
+            className="fixed z-[101] bg-card border border-border rounded-md shadow-lg py-1 min-w-[180px]"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              onClick={() => { addQuickTerminal(); setContextMenu(null); }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              New Terminal
+              <span className="ml-auto text-muted-foreground text-[10px]">Ctrl+T</span>
+            </button>
+            <button
+              onClick={() => { setShowAgentPicker(true); setContextMenu(null); }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Agent
+            </button>
+            <div className="border-t border-border my-1" />
+            <button
+              onClick={() => { setContextMenu(null); /* exit zen: dispatch keyboard event */ window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' })); }}
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              Exit Fullscreen
+              <span className="ml-auto text-muted-foreground text-[10px]">F11</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Tab bar — hidden in zen mode */}
+      <div className={`flex items-center gap-0.5 px-2 py-1 bg-secondary/80 border-b border-border shrink-0 ${zenMode ? 'hidden' : ''}`}>
         {tabs.map(tab => (
           <div
             key={tab.id}
@@ -441,7 +487,24 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
                   <MosaicWindow<ViewId>
                     path={path}
                     title={getAgentTitle(id)}
-                    renderToolbar={() => (
+                    renderToolbar={() => zenMode ? (
+                      /* Zen mode: floating overlay toolbar, visible on hover */
+                      <div className="group/toolbar relative w-full h-0">
+                        <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border border-border/50 rounded px-1 py-0.5 z-10 backdrop-blur-sm">
+                          <span className="text-[10px] text-muted-foreground px-1">{getAgentTitle(id)}</span>
+                          <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Settings">
+                            <Settings className="w-3 h-3" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); handlePopout(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); removeAgentFromTab(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Remove">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Normal mode: fixed toolbar */
                       <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar">
                         <span className="text-sm">{getAgentEmoji(id)}</span>
                         <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{getAgentTitle(id)}</span>
