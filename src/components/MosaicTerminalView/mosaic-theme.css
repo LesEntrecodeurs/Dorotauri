@@ -14,7 +14,12 @@
 }
 
 .mosaic-terminal-view .mosaic-window-toolbar {
-  display: none; /* We use a custom toolbar via renderToolbar */
+  /* Custom toolbar rendered via renderToolbar — keep visible but strip default styling */
+  background: transparent !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
 }
 
 .mosaic-terminal-view .mosaic-window-body {
@@ -62,9 +67,9 @@
   min-height: 32px;
 }
 
-/* Override default mosaic window chrome */
+/* Override default mosaic window chrome — allow drag on custom toolbar */
 .mosaic-terminal-view .mosaic-window .mosaic-window-toolbar.draggable {
-  display: none;
+  cursor: grab;
 }
 
 /* Ensure the window body takes full height below our custom toolbar */

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import { isTauri } from '@/hooks/useTauri';
@@ -21,6 +21,7 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<{ terminal: Terminal; fitAddon: FitAddon; disposed: boolean } | null>(null);
   const initRef = useRef(false);
+  const ptyIdRef = useRef<string | null>(null);
 
   // Initialize xterm in this tile
   useEffect(() => {
@@ -43,7 +44,6 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
 
       const rect = container.getBoundingClientRect();
       if (rect.width < 10 || rect.height < 10) {
-        // Wait for container to get real dimensions
         const ready = await new Promise<boolean>(resolve => {
           let resolved = false;
           const observer = new ResizeObserver((entries) => {
@@ -88,27 +88,34 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
       const entry = { terminal: term, fitAddon, disposed: false };
       termRef.current = entry;
 
-      // Initial fit
+      // Fetch agent to get ptyId and status
+      let agent: AgentStatus | null = null;
+      if (isTauri()) {
+        try {
+          agent = await invoke<AgentStatus | null>('agent_get', { id: agentId });
+          if (agent?.ptyId) {
+            ptyIdRef.current = agent.ptyId;
+          }
+        } catch {}
+      }
+
+      // Initial fit — use ptyId if available
       try {
         fitAddon.fit();
         const { cols, rows } = term;
-        if (isTauri()) {
-          invoke('pty_resize', { ptyId: agentId, cols, rows }).catch(() => {});
+        if (isTauri() && ptyIdRef.current) {
+          invoke('pty_resize', { ptyId: ptyIdRef.current, cols, rows }).catch(() => {});
         }
       } catch {}
 
-      // Replay historical output
-      if (isTauri()) {
-        try {
-          const agent = await invoke<AgentStatus | null>('agent_get', { id: agentId });
-          if (agent?.output?.length) {
-            term.write(agent.output.join(''));
-          }
-          if (agent?.status === 'idle' || agent?.status === 'completed' || agent?.status === 'error') {
-            term.write('\x1b[2J\x1b[H');
-            term.write(`\x1b[90m\u2014 Session ${agent.status} \u2014\x1b[0m\r\n`);
-          }
-        } catch {}
+      // Show status message or replay output
+      if (agent?.status === 'idle' || agent?.status === 'completed' || agent?.status === 'error') {
+        term.write(`\x1b[90m\u2014 Session ${agent.status} \u2014\x1b[0m\r\n`);
+        if (agent.status === 'idle') {
+          term.write(`\x1b[90mStart this agent from the Agents page or NewChat modal.\x1b[0m\r\n`);
+        }
+      } else if (agent?.output?.length) {
+        term.write(agent.output.join(''));
       }
 
       // Fit after content
@@ -145,8 +152,8 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
           try {
             fitAddon.fit();
             const { cols, rows } = term;
-            if (isTauri()) {
-              invoke('pty_resize', { ptyId: agentId, cols, rows }).catch(() => {});
+            if (isTauri() && ptyIdRef.current) {
+              invoke('pty_resize', { ptyId: ptyIdRef.current, cols, rows }).catch(() => {});
             }
           } catch {}
         }
@@ -156,9 +163,14 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
       // Subscribe to agent output
       let unsubOutput: (() => void) | undefined;
       let unsubError: (() => void) | undefined;
+      let unsubStatus: (() => void) | undefined;
 
       listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
         if (event.payload.agent_id === agentId && !entry.disposed) {
+          // Track the ptyId from output events
+          if (event.payload.pty_id && !ptyIdRef.current) {
+            ptyIdRef.current = event.payload.pty_id;
+          }
           term.write(new Uint8Array(event.payload.data));
         }
       }).then(fn => { unsubOutput = fn; });
@@ -169,15 +181,23 @@ export default function TerminalTile({ agentId }: TerminalTileProps) {
         }
       }).then(fn => { unsubError = fn; });
 
-      // Store cleanup in a way accessible to the effect cleanup
-      entry.disposed = false;
-      (entry as Record<string, unknown>)._cleanup = () => {
+      // Listen for status changes to update ptyId when agent starts
+      listen<AgentStatus>('agent:status', (event) => {
+        if (event.payload.id === agentId && event.payload.ptyId) {
+          ptyIdRef.current = event.payload.ptyId;
+        }
+      }).then(fn => { unsubStatus = fn; });
+
+      // Cleanup
+      const cleanup = () => {
         entry.disposed = true;
         resizeObserver.disconnect();
         unsubOutput?.();
         unsubError?.();
+        unsubStatus?.();
         term.dispose();
       };
+      (entry as Record<string, unknown>)._cleanup = cleanup;
     })();
 
     return () => {
