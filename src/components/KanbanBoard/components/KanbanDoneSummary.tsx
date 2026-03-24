@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { X, CheckCircle2, Clock, FolderGit2, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { KanbanTask } from '@/types/kanban';
 
 interface KanbanDoneSummaryProps {
@@ -31,7 +32,7 @@ export function KanbanDoneSummary({ task, onClose, onDelete }: KanbanDoneSummary
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl"
       >
-        <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-card border border-border rounded-md shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-green-500/5">
             <div className="flex items-center gap-3">
@@ -39,19 +40,18 @@ export function KanbanDoneSummary({ task, onClose, onDelete }: KanbanDoneSummary
               <span className="text-sm font-medium text-green-500">Completed</span>
             </div>
             <div className="flex items-center gap-1">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={onDelete}
-                className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-muted-foreground hover:text-red-500"
+                className="text-muted-foreground hover:text-destructive"
                 title="Delete task"
               >
                 <Trash2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-secondary transition-colors"
-              >
+              </Button>
+              <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -74,7 +74,7 @@ export function KanbanDoneSummary({ task, onClose, onDelete }: KanbanDoneSummary
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                   Original Request
                 </h3>
-                <p className="text-sm text-muted-foreground bg-secondary/30 rounded-lg px-4 py-3">
+                <p className="text-sm text-muted-foreground bg-secondary/30 rounded-md px-4 py-3">
                   {task.description}
                 </p>
               </div>
@@ -85,7 +85,7 @@ export function KanbanDoneSummary({ task, onClose, onDelete }: KanbanDoneSummary
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 Agent Output
               </h3>
-              <div className="bg-secondary/30 rounded-lg px-4 py-3 max-h-[300px] overflow-y-auto">
+              <div className="bg-secondary/30 rounded-md px-4 py-3 max-h-[300px] overflow-y-auto">
                 {task.completionSummary ? (
                   <pre className="text-xs text-foreground whitespace-pre-wrap font-mono">
                     {task.completionSummary}
@@ -115,13 +115,9 @@ export function KanbanDoneSummary({ task, onClose, onDelete }: KanbanDoneSummary
 
           {/* Footer */}
           <div className="flex justify-end px-6 py-4 border-t border-border bg-secondary/20">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <Button variant="ghost" onClick={onClose}>
               Close
-            </button>
+            </Button>
           </div>
         </div>
       </motion.div>
