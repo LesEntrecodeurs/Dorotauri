@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, memo } from 'react';
-import { Mosaic, MosaicWindow, MosaicNode, getLeaves } from 'react-mosaic-component';
+import { MosaicWithoutDragDropContext, MosaicWindow, MosaicNode, getLeaves } from 'react-mosaic-component';
+import { DndProvider } from 'react-dnd';
+import { TouchBackend } from 'react-dnd-touch-backend';
 import 'react-mosaic-component/react-mosaic-component.css';
 import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical } from 'lucide-react';
 import type { AgentStatus as AgentStatusType, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
@@ -61,6 +63,81 @@ function buildGridLayout(agentIds: string[], direction: 'row' | 'column' = 'row'
   };
 }
 
+// --- Layout presets ---
+
+function layoutColumns(ids: string[]): MosaicNode<string> | null {
+  if (ids.length === 0) return null;
+  if (ids.length === 1) return ids[0];
+  return {
+    direction: 'row',
+    first: ids[0],
+    second: layoutColumns(ids.slice(1))!,
+    splitPercentage: Math.round(100 / ids.length),
+  };
+}
+
+function layoutRows(ids: string[]): MosaicNode<string> | null {
+  if (ids.length === 0) return null;
+  if (ids.length === 1) return ids[0];
+  return {
+    direction: 'column',
+    first: ids[0],
+    second: layoutRows(ids.slice(1))!,
+    splitPercentage: Math.round(100 / ids.length),
+  };
+}
+
+function layoutFocus(ids: string[]): MosaicNode<string> | null {
+  if (ids.length === 0) return null;
+  if (ids.length === 1) return ids[0];
+  return {
+    direction: 'row',
+    first: ids[0],
+    second: layoutRows(ids.slice(1))!,
+    splitPercentage: 70,
+  };
+}
+
+function layoutFocusBottom(ids: string[]): MosaicNode<string> | null {
+  if (ids.length === 0) return null;
+  if (ids.length === 1) return ids[0];
+  return {
+    direction: 'column',
+    first: ids[0],
+    second: layoutColumns(ids.slice(1))!,
+    splitPercentage: 70,
+  };
+}
+
+const LAYOUT_PRESETS = [
+  { name: 'Grid', icon: LayoutGrid, fn: buildGridLayout },
+  { name: 'Columns', icon: Columns, fn: layoutColumns },
+  { name: 'Rows', icon: Rows, fn: layoutRows },
+  { name: 'Focus', icon: PanelLeft, fn: layoutFocus },
+  { name: 'Focus Bottom', icon: PanelTop, fn: layoutFocusBottom },
+];
+
+// --- Tree manipulation ---
+
+function splitNodeInTree(
+  tree: MosaicNode<string>,
+  targetId: string,
+  newId: string,
+  direction: 'row' | 'column',
+): MosaicNode<string> {
+  if (typeof tree === 'string') {
+    if (tree === targetId) {
+      return { direction, first: tree, second: newId, splitPercentage: 50 };
+    }
+    return tree;
+  }
+  return {
+    ...tree,
+    first: splitNodeInTree(tree.first, targetId, newId, direction),
+    second: splitNodeInTree(tree.second, targetId, newId, direction),
+  };
+}
+
 // --- Status colors ---
 
 const STATUS_DOTS: Record<string, string> = {
@@ -86,8 +163,9 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showAgentPicker, setShowAgentPicker] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; agentId?: string } | null>(null);
   const [editAgentId, setEditAgentId] = useState<string | null>(null);
+  const [layoutPresetIndex, setLayoutPresetIndex] = useState(0);
 
   // Hooks for the edit modal
   const { updateAgent } = useElectronAgents();
@@ -215,6 +293,20 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     ));
   }, [activeTabId]);
 
+  // --- Layout cycling ---
+
+  const handleCycleLayout = useCallback(() => {
+    const ids = activeTab?.agentIds;
+    if (!ids || ids.length < 2) return;
+    const nextIndex = (layoutPresetIndex + 1) % LAYOUT_PRESETS.length;
+    setLayoutPresetIndex(nextIndex);
+    const newLayout = LAYOUT_PRESETS[nextIndex].fn(ids);
+    handleLayoutChange(newLayout);
+  }, [activeTab, layoutPresetIndex, handleLayoutChange]);
+
+  const currentPreset = LAYOUT_PRESETS[layoutPresetIndex % LAYOUT_PRESETS.length];
+  const CurrentPresetIcon = currentPreset.icon;
+
   // --- Actions ---
 
   const handlePopout = useCallback(async (agentId: string) => {
@@ -255,6 +347,36 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       console.error('Failed to create quick terminal:', err);
     }
   }, [addAgentToTab]);
+
+  // Split terminal: create a new terminal next to a target agent
+  const handleSplitTerminal = useCallback(async (targetAgentId: string, direction: 'row' | 'column') => {
+    if (!isTauri()) return;
+    try {
+      const home = await invoke<{ path: string }[]>('projects_list').then(
+        projects => projects[0]?.path || '/home'
+      ).catch(() => '/home');
+
+      const agent = await invoke<AgentStatusType>('agent_create', {
+        config: {
+          projectPath: typeof home === 'string' ? home : '/home',
+          skills: [],
+          name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+          character: 'robot',
+        }
+      });
+
+      setTabs(prev => prev.map(tab => {
+        if (tab.id !== activeTabId) return tab;
+        const newIds = [...tab.agentIds, agent.id];
+        const newLayout = tab.layout
+          ? splitNodeInTree(tab.layout, targetAgentId, agent.id, direction)
+          : agent.id;
+        return { ...tab, agentIds: newIds, layout: newLayout };
+      }));
+    } catch (err) {
+      console.error('Failed to split terminal:', err);
+    }
+  }, [activeTabId]);
 
   // Keyboard shortcut: Ctrl/Cmd+T for quick terminal
   useEffect(() => {
@@ -329,7 +451,14 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     if (!zenMode) return;
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    // Detect which agent tile was right-clicked
+    let agentId: string | undefined;
+    let el = e.target as HTMLElement | null;
+    while (el) {
+      if (el.dataset?.agentId) { agentId = el.dataset.agentId; break; }
+      el = el.parentElement;
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY, agentId });
   }, [zenMode]);
 
   return (
@@ -343,6 +472,25 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
             className="fixed z-[101] bg-card border border-border rounded-md shadow-lg py-1 min-w-[180px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
+            {contextMenu.agentId && (
+              <>
+                <button
+                  onClick={() => { handleSplitTerminal(contextMenu.agentId!, 'row'); setContextMenu(null); }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+                >
+                  <SplitSquareHorizontal className="w-3.5 h-3.5" />
+                  Split Horizontal
+                </button>
+                <button
+                  onClick={() => { handleSplitTerminal(contextMenu.agentId!, 'column'); setContextMenu(null); }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+                >
+                  <SplitSquareVertical className="w-3.5 h-3.5" />
+                  Split Vertical
+                </button>
+                <div className="border-t border-border my-1" />
+              </>
+            )}
             <button
               onClick={() => { addQuickTerminal(); setContextMenu(null); }}
               className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
@@ -433,6 +581,17 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
         >
           <Maximize2 className="w-3.5 h-3.5" />
         </button>
+
+        {/* Layout cycle button */}
+        {(activeTab?.agentIds.length || 0) >= 2 && (
+          <button
+            onClick={handleCycleLayout}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded mr-1"
+            title={`Layout: ${currentPreset.name}`}
+          >
+            <CurrentPresetIcon className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {/* Quick Terminal button */}
         <button
@@ -527,7 +686,8 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
           </div>
         ) : (
           <div className="mosaic-terminal-view w-full h-full">
-            <Mosaic<ViewId>
+            <DndProvider backend={TouchBackend} options={{ enableMouseEvents: true }}>
+            <MosaicWithoutDragDropContext<ViewId>
               renderTile={(id, path) => {
                 const agent = agentMap.get(id);
                 const statusClass = agent ? (STATUS_COLORS[agent.status] || STATUS_COLORS.idle) : STATUS_COLORS.idle;
@@ -537,7 +697,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                     title={getAgentTitle(id)}
                     renderToolbar={() => zenMode ? (
                       /* Zen mode: floating overlay toolbar, visible on hover */
-                      <div className="group/toolbar relative w-full h-0">
+                      <div className="group/toolbar relative w-full h-0" data-agent-id={id}>
                         <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border border-border/50 rounded px-1 py-0.5 z-10 backdrop-blur-sm">
                           <span className="text-[10px] text-muted-foreground px-1">{getAgentTitle(id)}</span>
                           <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Settings">
@@ -553,7 +713,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                       </div>
                     ) : (
                       /* Normal mode: fixed toolbar */
-                      <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar">
+                      <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar" data-agent-id={id}>
                         <span className="text-sm">{getAgentEmoji(id)}</span>
                         <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{getAgentTitle(id)}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.status || 'unknown'}</span>
@@ -573,7 +733,9 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                       </div>
                     )}
                   >
-                    <TerminalTile agentId={id} />
+                    <div data-agent-id={id} className="h-full">
+                      <TerminalTile agentId={id} />
+                    </div>
                   </MosaicWindow>
                 );
               }}
@@ -581,6 +743,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
               onChange={handleLayoutChange}
               className=""
             />
+            </DndProvider>
           </div>
         )}
       </div>

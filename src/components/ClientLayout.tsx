@@ -8,13 +8,33 @@ import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sideb
 
 const MosaicTerminalView = lazy(() => import('./MosaicTerminalView'));
 
-/** Collapses sidebar when entering zen mode, restores when leaving */
-function ZenSidebarSync({ zen }: { zen: boolean }) {
+/** In zen mode, sidebar is hidden but slides in as overlay on left-edge hover */
+function ZenSidebarOverlay({ children }: { children: React.ReactNode }) {
+  const [show, setShow] = useState(false);
   const { setOpen } = useSidebar();
+
   useEffect(() => {
-    if (zen) setOpen(false);
-  }, [zen, setOpen]);
-  return null;
+    setOpen(show);
+  }, [show, setOpen]);
+
+  return (
+    <>
+      {/* Invisible trigger strip on left edge */}
+      <div
+        className="fixed left-0 top-0 h-full w-2 z-50"
+        onMouseEnter={() => setShow(true)}
+      />
+      {/* Overlay sidebar */}
+      <div
+        className={`fixed left-0 top-0 h-svh z-50 shadow-2xl transition-transform duration-200 ease-out ${
+          show ? 'translate-x-0' : '-translate-x-full pointer-events-none'
+        }`}
+        onMouseLeave={() => setShow(false)}
+      >
+        {children}
+      </div>
+    </>
+  );
 }
 
 const VAULT_READ_DOCS_KEY = 'vault-read-docs';
@@ -80,8 +100,13 @@ export default function ClientLayout() {
 
   return (
     <SidebarProvider defaultOpen={!zenDashboard}>
-      <AppSidebar />
-      <ZenSidebarSync zen={zenDashboard} />
+      {zenDashboard ? (
+        <ZenSidebarOverlay>
+          <AppSidebar />
+        </ZenSidebarOverlay>
+      ) : (
+        <AppSidebar />
+      )}
       <SidebarInset>
         <main className="flex-1 overflow-auto">
           {/* Persistent terminal layer — always mounted, hidden when not on dashboard */}
