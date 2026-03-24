@@ -4,8 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import type { AgentStatus } from '@/types/agent'
-import { TERMINAL_THEME, TERMINAL_CONFIG } from '@/components/AgentWorld/constants'
-import { attachShiftEnterHandler } from '@/lib/terminal'
+import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentWorld/constants'
 import '../globals.css'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,162 +30,113 @@ export default function Console() {
     }
   }
 
-  // Initialize xterm.js terminal
   useEffect(() => {
     if (!agentId || !terminalRef.current) return
 
     let cancelled = false
-    let resizeObserver: ResizeObserver | null = null
-    let unlistenOutput: (() => void) | undefined
-    let unlistenError: (() => void) | undefined
-    let unlistenStatus: (() => void) | undefined
-    let termInstance: import('xterm').Terminal | null = null
+    let cleanup: (() => void) | undefined
 
     const init = async () => {
       const [{ Terminal }, { FitAddon }] = await Promise.all([
         import('xterm'),
         import('xterm-addon-fit'),
       ])
-
-      // Also load the CSS
       await import('xterm/css/xterm.css')
 
       if (cancelled || !terminalRef.current) return
 
       const term = new Terminal({
-        theme: TERMINAL_THEME,
-        fontSize: TERMINAL_CONFIG.fontSize,
+        theme: getTerminalTheme('dark'),
+        fontSize: TERMINAL_CONFIG.fontSize || 13,
         fontFamily: TERMINAL_CONFIG.fontFamily,
-        cursorBlink: TERMINAL_CONFIG.cursorBlink,
-        cursorStyle: TERMINAL_CONFIG.cursorStyle,
-        scrollback: TERMINAL_CONFIG.scrollback,
-        convertEol: TERMINAL_CONFIG.convertEol,
+        cursorBlink: true,
+        cursorStyle: 'block',
+        scrollback: 10000,
+        convertEol: true,
         allowProposedApi: true,
       })
 
       const fitAddon = new FitAddon()
       term.loadAddon(fitAddon)
       term.open(terminalRef.current)
-      termInstance = term
 
-      if (cancelled) {
-        term.dispose()
+      setTimeout(() => {
+        if (!cancelled) { fitAddon.fit(); term.focus(); }
+      }, 50)
+
+      // Get agent info to find ptyId
+      let agent: AgentStatus | null = null
+      try {
+        agent = await invoke<AgentStatus | null>('agent_get', { id: agentId })
+        if (agent) {
+          if (agent.name) setAgentName(agent.name)
+          setAgentStatus(agent.status)
+        }
+      } catch {}
+
+      // Create a PTY for this pop-out console in the agent's project dir
+      const cwd = agent?.projectPath || '/home'
+      let ptyId: string
+      try {
+        const { cols, rows } = term
+        ptyId = await invoke<string>('pty_create', { cwd, cols, rows })
+      } catch (err) {
+        term.write(`\x1b[31mFailed to create PTY: ${err}\x1b[0m\r\n`)
+        cleanup = () => term.dispose()
         return
       }
 
-      // Initial fit after a short delay so the container has real dimensions
-      setTimeout(() => {
-        if (cancelled) return
-        fitAddon.fit()
-        term.focus()
-      }, 50)
+      // Subscribe to output from this PTY
+      let unlistenOutput: (() => void) | undefined
+      let unlistenStatus: (() => void) | undefined
+      let disposed = false
 
-      // Handle resize via ResizeObserver
-      resizeObserver = new ResizeObserver(() => {
-        if (cancelled) return
-        try {
-          fitAddon.fit()
-          // Sync PTY dimensions
-          invoke('pty_resize', {
-            ptyId: agentId,
-            cols: term.cols,
-            rows: term.rows,
-          }).catch(() => {})
-        } catch {}
-      })
-      resizeObserver.observe(terminalRef.current)
-
-      // Forward keyboard input to agent PTY
-      // Filter out terminal query responses that xterm.js emits automatically.
-      term.onData((data) => {
-        if (/^(\x1b\[\?[\d;]*c|\d+;\d+c)+$/.test(data)) return
-        const cleaned = data
-          .replace(/\x1b\[\?[\d;]*c/g, '')     // DA response
-          .replace(/\x1b\[\d+;\d+R/g, '')       // CPR response
-          .replace(/\x1b\[(?:I|O)/g, '')         // Focus in/out
-          .replace(/\d+;\d+c/g, '')              // Bare DA fragments
-        if (!cleaned) return
-        invoke('agent_send_input', { id: agentId, input: cleaned }).catch((err) => {
-          console.error('Error sending input to agent:', err)
-        })
-      })
-
-      // Shift+Enter handler
-      attachShiftEnterHandler(term, (data) => {
-        invoke('agent_send_input', { id: agentId, input: data }).catch(() => {})
-      })
-
-      // Subscribe to agent:output events
       listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
-        if (event.payload.agent_id === agentId && termInstance) {
-          termInstance.write(new Uint8Array(event.payload.data))
+        if ((event.payload.agent_id === ptyId || event.payload.pty_id === ptyId) && !disposed) {
+          term.write(new Uint8Array(event.payload.data))
         }
-      }).then((fn) => { unlistenOutput = fn })
+      }).then(fn => { unlistenOutput = fn })
 
-      // Subscribe to agent:error events
-      listen<{ agentId: string; data: string }>('agent:error', (event) => {
-        if (event.payload.agentId === agentId && termInstance) {
-          termInstance.write(`\x1b[31m${event.payload.data}\x1b[0m`)
-        }
-      }).then((fn) => { unlistenError = fn })
-
-      // Subscribe to agent status changes to update the title bar
-      // Rust emits full AgentStatus object with 'id' and 'status' fields
       listen<{ id: string; status: string }>('agent:status', (event) => {
         if (event.payload.id === agentId) {
           setAgentStatus(event.payload.status)
         }
-      }).then((fn) => { unlistenStatus = fn })
+      }).then(fn => { unlistenStatus = fn })
 
-      // Replay buffered output from backend
-      try {
-        const agent = await invoke<AgentStatus | null>('agent_get', { id: agentId })
-        if (cancelled) return
+      // Forward input to PTY
+      term.onData((data) => {
+        if (/^(\x1b\[\?[\d;]*c|\d+;\d+c)+$/.test(data)) return
+        invoke('pty_write', { ptyId, data }).catch(() => {})
+      })
 
-        if (agent) {
-          if (agent.name) setAgentName(agent.name)
-          setAgentStatus(agent.status)
+      // Resize
+      const resizeObserver = new ResizeObserver(() => {
+        if (disposed) return
+        try {
+          fitAddon.fit()
+          invoke('pty_resize', { ptyId, cols: term.cols, rows: term.rows }).catch(() => {})
+        } catch {}
+      })
+      resizeObserver.observe(terminalRef.current!)
 
-          if (agent.output && agent.output.length > 0) {
-            agent.output.forEach((line) => {
-              term.write(line)
-            })
-            term.scrollToBottom()
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch agent data:', err)
-        if (!cancelled) {
-          term.writeln(`\x1b[31mFailed to fetch agent data: ${err}\x1b[0m`)
-        }
+      cleanup = () => {
+        disposed = true
+        resizeObserver.disconnect()
+        unlistenOutput?.()
+        unlistenStatus?.()
+        invoke('pty_kill', { ptyId }).catch(() => {})
+        term.dispose()
       }
-
-      // Refit after content has been written
-      setTimeout(() => {
-        if (!cancelled) fitAddon.fit()
-      }, 100)
     }
 
     init()
-
-    return () => {
-      cancelled = true
-      resizeObserver?.disconnect()
-      unlistenOutput?.()
-      unlistenError?.()
-      unlistenStatus?.()
-      if (termInstance) {
-        termInstance.dispose()
-        termInstance = null
-      }
-    }
+    return () => { cancelled = true; cleanup?.() }
   }, [agentId])
 
   const statusColor = STATUS_COLORS[agentStatus] || STATUS_COLORS.idle
 
   return (
     <div className="h-screen flex flex-col bg-[#1a1a2e]">
-      {/* Title bar */}
       <div className="h-10 flex items-center justify-between px-4 bg-[#16162a] border-b border-gray-800 shrink-0" data-tauri-drag-region>
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${statusColor}`} />
@@ -202,7 +152,6 @@ export default function Console() {
           Re-dock
         </button>
       </div>
-      {/* Terminal */}
       <div ref={terminalRef} className="flex-1 min-h-0" />
     </div>
   )

@@ -102,14 +102,13 @@ impl PtyManager {
             let mut buf = [0u8; 4096];
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) => break, // EOF
+                    Ok(0) => break,
                     Ok(n) => {
                         let event = PtyOutputEvent {
                             agent_id: agent_id_owned.clone(),
                             pty_id: pty_id_owned.clone(),
                             data: buf[..n].to_vec(),
                         };
-                        // Best-effort emit; if the window is gone we stop
                         if handle.emit("agent:output", event).is_err() {
                             break;
                         }
@@ -153,7 +152,7 @@ impl PtyManager {
     }
 
     /// Resize a PTY.
-    pub fn resize(&self, pty_id: &str, rows: u16, cols: u16) -> Result<(), String> {
+    pub fn resize(&self, pty_id: &str, cols: u16, rows: u16) -> Result<(), String> {
         let handles = self.handles.lock().unwrap();
         let handle = handles
             .get(pty_id)
