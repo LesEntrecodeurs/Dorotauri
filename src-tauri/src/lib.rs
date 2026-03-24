@@ -21,6 +21,8 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        // TODO: Enable updater plugin once signing keys are configured
+        // .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let registry = app.state::<windows::WindowRegistry>();
             registry.register(
