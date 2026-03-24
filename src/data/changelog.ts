@@ -60,7 +60,7 @@ export const CHANGELOG: Release[] = [
       'Skills marketplace with community skill browser',
       'Skill installation progress terminal',
       'Link skills to specific providers',
-      'Improved agent world (ClaudeMon) with NPC zones',
+      'Improved agent management with NPC zones',
     ],
   },
   {

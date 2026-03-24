@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,8 @@ import {
   Archive,
   Loader2,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { VaultDocumentElectron, VaultFolderElectron, VaultAttachmentElectron } from '@/types/electron';
 
 import FolderTree from './components/FolderTree';
@@ -349,7 +351,7 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
+              <Input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -361,7 +363,7 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
                   }
                 }}
                 placeholder="Search documents..."
-                className="w-48 sm:w-64 lg:w-80 pl-9 pr-8 py-2 text-sm bg-secondary border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-48 sm:w-64 lg:w-80 pl-9 pr-8 h-9 text-sm"
               />
               {searchQuery && (
                 <button
@@ -374,16 +376,17 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
             </div>
 
             {/* New document button */}
-            <button
+            <Button
+              size="sm"
               onClick={() => {
                 setSelectedDoc(null);
                 setViewMode('edit');
               }}
-              className="flex items-center gap-1.5 px-3 lg:px-4 py-2 text-sm bg-foreground text-background rounded hover:bg-foreground/90 transition-colors shrink-0"
+              className="shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">New Document</span>
-            </button>
+            </Button>
           </div>
         )}
       </div>

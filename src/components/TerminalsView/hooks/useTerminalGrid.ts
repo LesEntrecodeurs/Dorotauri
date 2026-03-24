@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Layout, LayoutItem, GridLayoutProps } from 'react-grid-layout';

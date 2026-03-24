@@ -1,4 +1,4 @@
-'use client';
+
 
 import React, { useState, useRef, useCallback } from 'react';
 import {
@@ -115,7 +115,7 @@ export function MarkdownEditor({
   };
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="border border-border rounded-md overflow-hidden">
       {/* Tab bar + Toolbar */}
       <div className="border-b border-border bg-secondary/30">
         {/* Tabs */}

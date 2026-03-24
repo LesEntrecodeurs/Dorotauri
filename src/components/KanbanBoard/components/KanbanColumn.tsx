@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useDroppable } from '@dnd-kit/core';
 import {
@@ -7,6 +7,8 @@ import {
 } from '@dnd-kit/sortable';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MoreHorizontal } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import type { KanbanTask, KanbanColumn as KanbanColumnType } from '@/types/kanban';
 import { KanbanCard } from './KanbanCard';
 import { COLUMN_CONFIG } from '../constants';
@@ -50,9 +52,9 @@ export function KanbanColumn({
           <h3 className="font-semibold text-sm text-foreground tracking-wide">
             {config.title}
           </h3>
-          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+          <Badge variant="secondary" className="text-xs">
             {tasks.length}
-          </span>
+          </Badge>
         </div>
         <button className="p-1 rounded hover:bg-secondary transition-colors opacity-0 group-hover:opacity-100">
           <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
@@ -60,14 +62,14 @@ export function KanbanColumn({
       </div>
 
       {/* Accent bar */}
-      <div className={`h-0.5 ${config.accentColor} rounded-full mb-4`} />
+      <div className={`h-0.5 ${config.accentColor} rounded-md mb-4`} />
 
       {/* Tasks container */}
       <div
         ref={setNodeRef}
         className={`
           flex-1 space-y-3 min-h-[200px] max-h-[calc(100vh-280px)] overflow-y-auto
-          rounded-lg transition-all duration-200 px-0.5
+          rounded-md transition-all duration-200 px-0.5
           ${isOver ? 'bg-primary/5' : ''}
         `}
       >
@@ -105,7 +107,7 @@ export function KanbanColumn({
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 60 }}
-            className="border-2 border-dashed border-primary/30 rounded-xl bg-primary/5"
+            className="border-2 border-dashed border-primary/30 rounded-md bg-primary/5"
           />
         )}
       </div>

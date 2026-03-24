@@ -12,6 +12,9 @@ import {
   BookOpen,
   Wrench,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { SKILLS_DATABASE, SKILL_CATEGORIES, type Skill } from '@/lib/skills-database';
 import type { ClaudeSkill } from '@/lib/claude-code';
 import type { AgentProvider } from '@/types/electron';
@@ -109,32 +112,32 @@ const StepTools = React.memo(function StepTools({
       {/* Page header */}
       <div>
         <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
-          <Wrench className="w-5 h-5 text-accent-purple" />
+          <Wrench className="w-5 h-5 text-primary" />
           Tools
         </h3>
-        <p className="text-text-secondary text-sm">
+        <p className="text-muted-foreground text-sm">
           Extend your agent with skills and connect knowledge sources
         </p>
       </div>
 
-      {/* ─── Skills Section ─── */}
+      {/* Skills Section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-accent-purple" />
+            <Sparkles className="w-4 h-4 text-primary" />
             <span className="font-medium text-sm">Skills</span>
           </div>
-          <span className="text-xs text-accent-purple">{selectedSkills.length} selected</span>
+          <span className="text-xs text-primary">{selectedSkills.length} selected</span>
         </div>
 
         {/* Selected Skills Chips */}
         {selectedSkills.length > 0 && (
-          <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-accent-purple/10 border border-accent-purple/20">
+          <div className="flex flex-wrap gap-2 p-3 rounded-md bg-primary/10 border border-primary/20">
             {selectedSkills.map((skill) => (
               <button
                 key={skill}
                 onClick={() => onToggleSkill(skill)}
-                className="flex items-center gap-1 px-2 py-1 rounded-full bg-accent-purple/20 text-accent-purple text-xs hover:bg-accent-purple/30 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/20 text-primary text-xs hover:bg-primary/30 transition-colors"
               >
                 {skill}
                 <X className="w-3 h-3" />
@@ -146,29 +149,30 @@ const StepTools = React.memo(function StepTools({
         {/* Search & Filter */}
         <div className="flex gap-2">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
               type="text"
               value={skillSearch}
               onChange={(e) => setSkillSearch(e.target.value)}
               placeholder="Search skills..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm"
+              className="pl-10"
             />
           </div>
           <div className="relative">
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setShowCategoryDropdown(prev => !prev)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-tertiary text-text-secondary hover:text-text-primary transition-colors text-sm"
+              className="gap-2"
             >
               <Filter className="w-3.5 h-3.5" />
               {selectedCategory || 'All'}
               <ChevronDown className="w-3.5 h-3.5" />
-            </button>
+            </Button>
             {showCategoryDropdown && (
-              <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border shadow-lg rounded-lg min-w-[160px] overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border shadow-lg rounded-md min-w-[160px] overflow-hidden">
                 <button
                   onClick={() => { setSelectedCategory(null); setShowCategoryDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors ${!selectedCategory ? 'text-accent-purple font-medium' : ''}`}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors ${!selectedCategory ? 'text-primary font-medium' : ''}`}
                 >
                   All
                 </button>
@@ -176,7 +180,7 @@ const StepTools = React.memo(function StepTools({
                   <button
                     key={cat}
                     onClick={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors ${selectedCategory === cat ? 'text-accent-purple font-medium' : ''}`}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-secondary transition-colors ${selectedCategory === cat ? 'text-primary font-medium' : ''}`}
                   >
                     {cat}
                   </button>
@@ -187,7 +191,7 @@ const StepTools = React.memo(function StepTools({
         </div>
 
         {/* Skills Card List */}
-        <div className="border border-border rounded-lg overflow-hidden max-h-[280px] overflow-y-auto">
+        <ScrollArea className="border border-border rounded-md max-h-[280px]">
           {filteredSkills.map((skill) => {
             const isSelected = selectedSkills.includes(skill.name);
             const installedOnProvider = isSkillInstalled(skill.name);
@@ -197,7 +201,7 @@ const StepTools = React.memo(function StepTools({
               <div
                 key={`${skill.repo}-${skill.name}`}
                 className={`flex items-center gap-3 px-3 py-2.5 border-b border-border/50 last:border-b-0 transition-colors ${
-                  isSelected ? 'bg-accent-purple/5' : 'hover:bg-secondary/50'
+                  isSelected ? 'bg-primary/5' : 'hover:bg-secondary/50'
                 }`}
               >
                 {/* Icon */}
@@ -223,20 +227,18 @@ const StepTools = React.memo(function StepTools({
 
                 {/* Category badge */}
                 {skill.category && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-secondary text-muted-foreground rounded hidden sm:inline-block shrink-0">
+                  <span className="text-[10px] px-1.5 py-0.5 bg-secondary text-muted-foreground rounded-sm hidden sm:inline-block shrink-0">
                     {skill.category}
                   </span>
                 )}
 
                 {/* Action button */}
                 {installedOnProvider ? (
-                  <button
+                  <Button
+                    size="sm"
+                    variant={isSelected ? 'secondary' : 'default'}
                     onClick={() => onToggleSkill(skill.name)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-colors shrink-0 ${
-                      isSelected
-                        ? 'bg-accent-purple/15 text-accent-purple'
-                        : 'bg-foreground text-background hover:bg-foreground/90'
-                    }`}
+                    className={`shrink-0 h-7 text-xs ${isSelected ? 'bg-primary/15 text-primary hover:bg-primary/25' : ''}`}
                   >
                     {isSelected ? (
                       <>
@@ -246,45 +248,46 @@ const StepTools = React.memo(function StepTools({
                     ) : (
                       'Add'
                     )}
-                  </button>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       onInstallSkill(skill);
                     }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-foreground text-background hover:bg-foreground/90 transition-colors shrink-0"
+                    className="shrink-0 h-7 text-xs"
                   >
                     <Download className="w-3 h-3" />
                     Install
-                  </button>
+                  </Button>
                 )}
               </div>
             );
           })}
-        </div>
+        </ScrollArea>
       </div>
 
-      {/* ─── Vaults / Knowledge Section ─── */}
+      {/* Vaults / Knowledge Section */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-purple-500" />
           <span className="font-medium text-sm">Knowledge</span>
-          <span className="text-xs text-text-muted">Data sources your agent can reference</span>
+          <span className="text-xs text-muted-foreground">Data sources your agent can reference</span>
         </div>
 
-        <div className="rounded-lg border border-border-primary bg-secondary/30 p-3 space-y-2">
-          {/* Dorothy Vault — always selected */}
+        <div className="rounded-md border border-border bg-secondary/30 p-3 space-y-2">
+          {/* Dorothy Vault -- always selected */}
           <div className="flex items-center gap-3 p-2">
             <div className="w-5 h-5 rounded border bg-purple-500 border-purple-500 flex items-center justify-center shrink-0">
               <Check className="w-3 h-3 text-white" />
             </div>
             <img src="/dorothy-without-text.png" alt="Dorothy" className="w-4 h-4 object-contain shrink-0" />
             <span className="text-sm">Dorothy Vault</span>
-            <span className="text-[10px] text-text-muted ml-auto">Always included</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">Always included</span>
           </div>
 
-          {/* All Obsidian vaults — detected first, then registered */}
+          {/* All Obsidian vaults -- detected first, then registered */}
           {allVaultPaths.map(vp => (
             <div key={vp} className="flex items-center gap-3 p-2">
               <button
@@ -302,10 +305,10 @@ const StepTools = React.memo(function StepTools({
               <ObsidianIcon />
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium block">{vp.split('/').pop()}</span>
-                <span className="text-[11px] text-text-muted font-mono block truncate">{vp}</span>
+                <span className="text-[11px] text-muted-foreground font-mono block truncate">{vp}</span>
               </div>
               {vp === detectedVault && (
-                <span className="text-[10px] text-text-muted shrink-0">Detected</span>
+                <span className="text-[10px] text-muted-foreground shrink-0">Detected</span>
               )}
             </div>
           ))}

@@ -1,8 +1,11 @@
-'use client';
+
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Trash2, Save, Bot, Clock, Plus, Minus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import type { KanbanTask } from '@/types/kanban';
 import { COLUMN_CONFIG, getLabelColor } from '../constants';
 
@@ -89,7 +92,7 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-xl"
       >
-        <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-card border border-border rounded-md shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <div className="flex items-center gap-3">
@@ -99,19 +102,18 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={onDelete}
-                className="p-2 rounded-lg hover:bg-red-500/10 transition-colors text-muted-foreground hover:text-red-500"
+                className="text-muted-foreground hover:text-destructive"
                 title="Delete task"
               >
                 <Trash2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-secondary transition-colors"
-              >
+              </Button>
+              <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -135,7 +137,7 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add a description..."
                 rows={4}
-                className="w-full text-sm bg-secondary/30 border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none placeholder:text-muted-foreground/50"
+                className="w-full text-sm bg-secondary/30 border border-border rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring resize-none placeholder:text-muted-foreground/50"
               />
             </div>
 
@@ -151,12 +153,12 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                     type="button"
                     onClick={() => setPriority(p)}
                     className={`
-                      flex-1 px-3 py-2 text-sm rounded-lg border-2 transition-all font-medium
+                      flex-1 px-3 py-2 text-sm rounded-md border-2 transition-all font-medium
                       ${priority === p
                         ? p === 'high'
-                          ? 'bg-red-500/10 border-red-500/50 text-red-500'
+                          ? 'bg-destructive/10 border-destructive/50 text-destructive'
                           : p === 'medium'
-                          ? 'bg-amber-500/10 border-amber-500/50 text-amber-500'
+                          ? 'bg-warning/10 border-warning/50 text-warning'
                           : 'bg-zinc-500/10 border-zinc-500/50 text-zinc-500'
                         : 'bg-transparent border-border/50 text-muted-foreground hover:border-border'
                       }
@@ -174,7 +176,7 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                 Labels
               </label>
               <div className="flex gap-2 mb-3">
-                <input
+                <Input
                   type="text"
                   value={labelInput}
                   onChange={(e) => setLabelInput(e.target.value)}
@@ -185,23 +187,25 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                     }
                   }}
                   placeholder="Add label..."
-                  className="flex-1 px-3 py-2 bg-secondary/30 border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="flex-1 h-9 text-sm"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={handleAddLabel}
-                  className="px-3 py-2 bg-secondary/50 border border-border/50 rounded-lg hover:bg-secondary transition-colors"
                 >
-                  <Plus className="w-4 h-4 text-muted-foreground" />
-                </button>
+                  <Plus className="w-4 h-4" />
+                </Button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {labels.map((label) => {
                   const colors = getLabelColor(label);
                   return (
-                    <span
+                    <Badge
                       key={label}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}
+                      variant="secondary"
+                      className={`flex items-center gap-1.5 ${colors.bg} ${colors.text}`}
                     >
                       {label}
                       <button
@@ -211,7 +215,7 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                       >
                         <X className="w-3 h-3" />
                       </button>
-                    </span>
+                    </Badge>
                   );
                 })}
                 {labels.length === 0 && (
@@ -226,7 +230,7 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                 Required Skills
               </label>
               <div className="flex gap-2 mb-3">
-                <input
+                <Input
                   type="text"
                   value={skillInput}
                   onChange={(e) => setSkillInput(e.target.value)}
@@ -237,21 +241,23 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                     }
                   }}
                   placeholder="Add skill..."
-                  className="flex-1 px-3 py-2 bg-secondary/30 border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="flex-1 h-9 text-sm"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={handleAddSkill}
-                  className="px-3 py-2 bg-secondary/50 border border-border/50 rounded-lg hover:bg-secondary transition-colors"
                 >
-                  <Plus className="w-4 h-4 text-muted-foreground" />
-                </button>
+                  <Plus className="w-4 h-4" />
+                </Button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {requiredSkills.map((skill) => (
-                  <span
+                  <Badge
                     key={skill}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-xs font-medium"
+                    variant="secondary"
+                    className="flex items-center gap-1.5 bg-primary/10 text-primary"
                   >
                     {skill}
                     <button
@@ -261,7 +267,7 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
                     >
                       <X className="w-3 h-3" />
                     </button>
-                  </span>
+                  </Badge>
                 ))}
                 {requiredSkills.length === 0 && (
                   <span className="text-xs text-muted-foreground/50">No skills required</span>
@@ -286,21 +292,16 @@ export function KanbanCardDetail({ task, onClose, onUpdate, onDelete }: KanbanCa
 
           {/* Footer */}
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-secondary/20">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <Button variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSave}
               disabled={!hasChanges || !title.trim() || isSaving}
-              className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               <Save className="w-4 h-4" />
               {isSaving ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
           </div>
         </div>
       </motion.div>

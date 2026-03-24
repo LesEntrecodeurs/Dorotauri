@@ -1,4 +1,4 @@
-'use client';
+
 
 import {
   Play,
@@ -138,7 +138,7 @@ export default function GlobalToolbar({
           className={`
             flex items-center gap-1.5 px-2 py-1.5 text-xs transition-colors
             ${broadcastMode
-              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+              ? 'bg-primary/20 text-primary border border-primary/30'
               : 'text-muted-foreground hover:text-foreground hover:bg-primary/5'
             }
           `}

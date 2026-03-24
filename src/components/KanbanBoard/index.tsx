@@ -1,7 +1,6 @@
-'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+
+import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -21,6 +20,8 @@ import { useElectronKanban, useKanbanAgentSync } from '@/hooks/useElectronKanban
 import { isElectron as checkIsElectron } from '@/hooks/useElectron';
 import type { KanbanTask, KanbanColumn as KanbanColumnType, KanbanTaskCreate } from '@/types/kanban';
 import type { AgentStatus } from '@/types/electron';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { KanbanColumn } from './components/KanbanColumn';
 import { KanbanCard } from './components/KanbanCard';
 import { NewTaskModal } from './components/NewTaskModal';
@@ -29,9 +30,8 @@ import { KanbanDoneSummary } from './components/KanbanDoneSummary';
 import { COLUMN_ORDER } from './constants';
 
 // Lazy load the terminal dialog
-const AgentTerminalDialog = dynamic(
-  () => import('@/components/AgentWorld/AgentTerminalDialog'),
-  { ssr: false }
+const AgentTerminalDialog = lazy(
+  () => import('@/components/AgentTerminalDialog')
 );
 
 export default function KanbanBoard() {
@@ -281,14 +281,11 @@ export default function KanbanBoard() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4">
-        <p className="text-red-400">{error}</p>
-        <button
-          onClick={refresh}
-          className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-md hover:bg-secondary/80 transition-colors"
-        >
+        <p className="text-destructive">{error}</p>
+        <Button variant="secondary" onClick={refresh}>
           <RefreshCw className="w-4 h-4" />
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -308,12 +305,12 @@ export default function KanbanBoard() {
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-secondary/50 border border-border/50 rounded-lg text-sm w-52 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+              className="pl-9 pr-4 h-9 w-52 text-sm"
             />
           </div>
 
@@ -322,7 +319,7 @@ export default function KanbanBoard() {
             <select
               value={filterProject || ''}
               onChange={(e) => setFilterProject(e.target.value || null)}
-              className="px-3 py-2 bg-secondary/50 border border-border/50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="px-3 py-2 bg-secondary border border-border text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">All projects</option>
               {projects.map((p) => (
@@ -334,22 +331,15 @@ export default function KanbanBoard() {
           )}
 
           {/* Refresh button */}
-          <button
-            onClick={refresh}
-            className="p-2 rounded-lg hover:bg-secondary/50 transition-colors"
-            title="Refresh"
-          >
+          <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
             <RefreshCw className="w-4 h-4 text-muted-foreground" />
-          </button>
+          </Button>
 
           {/* Add task button */}
-          <button
-            onClick={() => setShowNewTaskModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium text-sm"
-          >
+          <Button onClick={() => setShowNewTaskModal(true)} size="sm">
             New Task
             <Plus className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -430,14 +420,16 @@ export default function KanbanBoard() {
 
       {/* Agent Terminal Dialog - skip historical output to avoid display issues */}
       {terminalAgentId && terminalAgent && (
-        <AgentTerminalDialog
-          agent={terminalAgent}
-          open={!!terminalAgentId}
-          onClose={handleCloseTerminal}
-          onStart={handleAgentStart}
-          onStop={handleAgentStop}
-          skipHistoricalOutput={true}
-        />
+        <Suspense fallback={null}>
+          <AgentTerminalDialog
+            agent={terminalAgent}
+            open={!!terminalAgentId}
+            onClose={handleCloseTerminal}
+            onStart={handleAgentStart}
+            onStop={handleAgentStop}
+            skipHistoricalOutput={true}
+          />
+        </Suspense>
       )}
     </div>
   );

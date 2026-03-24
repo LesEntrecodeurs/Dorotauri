@@ -1,7 +1,8 @@
-'use client';
+
 
 import { motion } from 'framer-motion';
 import { BarChart3 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ClaudeStats } from '@/lib/claude-code';
 
 interface UsageChartProps {
@@ -16,25 +17,25 @@ export default function UsageChart({ stats }: UsageChartProps) {
   const maxMessages = Math.max(...recentActivity.map(d => d.messageCount));
 
   return (
-    <div className="rounded-none border border-border-primary bg-bg-secondary overflow-hidden">
-      <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
+    <Card className="overflow-hidden">
+      <CardHeader className="px-5 py-4 border-b border-border flex flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-accent-cyan" />
-          <h3 className="text-sm font-medium">Daily Activity</h3>
+          <BarChart3 className="w-4 h-4 text-primary" />
+          <CardTitle className="text-sm font-medium">Daily Activity</CardTitle>
         </div>
-        <div className="flex items-center gap-4 text-xs text-text-muted">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-accent-cyan" />
+            <div className="w-2 h-2 rounded-full bg-primary" />
             <span>Messages</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-accent-purple" />
+            <div className="w-2 h-2 rounded-full bg-chart-2" />
             <span>Tool Calls</span>
           </div>
         </div>
-      </div>
+      </CardHeader>
 
-      <div className="p-5">
+      <CardContent className="p-5">
         <div className="flex items-end gap-2 h-40">
           {recentActivity.map((day, index) => {
             const messageHeight = maxMessages > 0 ? (day.messageCount / maxMessages) * 100 : 0;
@@ -48,18 +49,18 @@ export default function UsageChart({ stats }: UsageChartProps) {
                     initial={{ height: 0 }}
                     animate={{ height: `${messageHeight}%` }}
                     transition={{ delay: index * 0.05, duration: 0.3 }}
-                    className="flex-1 bg-accent-cyan/80 rounded-none"
+                    className="flex-1 bg-primary/80"
                     title={`${day.messageCount} messages`}
                   />
                   <motion.div
                     initial={{ height: 0 }}
                     animate={{ height: `${toolHeight}%` }}
                     transition={{ delay: index * 0.05 + 0.1, duration: 0.3 }}
-                    className="flex-1 bg-accent-purple/80 rounded-none"
+                    className="flex-1 bg-chart-2/80"
                     title={`${day.toolCallCount} tool calls`}
                   />
                 </div>
-                <span className="text-[10px] text-text-muted">
+                <span className="text-[10px] text-muted-foreground">
                   {date.getDate()}/{date.getMonth() + 1}
                 </span>
               </div>
@@ -68,27 +69,27 @@ export default function UsageChart({ stats }: UsageChartProps) {
         </div>
 
         {/* Summary stats */}
-        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-border-primary">
+        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-border">
           <div className="text-center">
-            <p className="text-2xl font-bold text-accent-cyan">
+            <p className="text-2xl font-bold text-primary">
               {stats.totalMessages.toLocaleString()}
             </p>
-            <p className="text-xs text-text-muted">Total Messages</p>
+            <p className="text-xs text-muted-foreground">Total Messages</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-accent-purple">
+            <p className="text-2xl font-bold text-chart-2">
               {stats.totalSessions}
             </p>
-            <p className="text-xs text-text-muted">Total Sessions</p>
+            <p className="text-xs text-muted-foreground">Total Sessions</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-accent-green">
+            <p className="text-2xl font-bold text-success">
               {stats.longestSession?.messageCount || 0}
             </p>
-            <p className="text-xs text-text-muted">Longest Session</p>
+            <p className="text-xs text-muted-foreground">Longest Session</p>
           </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

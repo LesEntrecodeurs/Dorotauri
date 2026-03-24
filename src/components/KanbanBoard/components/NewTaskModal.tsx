@@ -1,8 +1,11 @@
-'use client';
+
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, FolderOpen, Plus, Minus, Sparkles, Wand2, ListTodo, Loader2, Paperclip, FileImage, FileText, File, Star } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import type { KanbanTaskCreate, TaskAttachment } from '@/types/kanban';
 import { isElectron } from '@/hooks/useElectron';
 
@@ -40,7 +43,7 @@ function FileTypeIcon({ type }: { type: TaskAttachment['type'] }) {
     case 'image':
       return <FileImage className="w-4 h-4 text-blue-400" />;
     case 'pdf':
-      return <FileText className="w-4 h-4 text-red-400" />;
+      return <FileText className="w-4 h-4 text-destructive" />;
     case 'document':
       return <FileText className="w-4 h-4 text-green-400" />;
     default:
@@ -279,7 +282,7 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
         exit={{ opacity: 0, scale: 0.95 }}
         className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg"
       >
-        <div className="bg-card border border-border rounded-lg shadow-xl">
+        <div className="bg-card border border-border rounded-md shadow-xl">
           {/* Header with Tabs */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-1">
@@ -395,7 +398,7 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
 
               {/* Generated Task Preview */}
               {generatedTask && (
-                <div className="space-y-3 p-3 bg-secondary/50 rounded-lg border border-border">
+                <div className="space-y-3 p-3 bg-secondary/50 rounded-md border border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Generated Task
@@ -443,7 +446,7 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
                           onClick={() => setGeneratedTask({ ...generatedTask, priority: p })}
                           className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${generatedTask.priority === p
                               ? p === 'high'
-                                ? 'bg-red-900/50 text-red-400'
+                                ? 'bg-red-900/50 text-destructive'
                                 : p === 'medium'
                                   ? 'bg-yellow-900/50 text-yellow-400'
                                   : 'bg-zinc-700 text-zinc-300'
@@ -461,31 +464,29 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
                       <label className="text-xs text-muted-foreground">Labels</label>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {generatedTask.labels.map((label) => (
-                          <span
+                          <Badge
                             key={label}
-                            className="px-2 py-0.5 bg-purple-900/30 text-purple-400 text-xs rounded-full"
+                            variant="secondary"
+                            className="bg-purple-900/30 text-purple-400"
                           >
                             {label}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     </div>
                   )}
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      onClick={onClose}
-                      className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-                    >
+                    <Button variant="ghost" size="sm" onClick={onClose}>
                       Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
                       onClick={handleQuickSubmit}
                       disabled={isSubmitting || !generatedTask.projectPath}
-                      className="px-4 py-1.5 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 disabled:opacity-50"
                     >
                       {isSubmitting ? 'Creating...' : 'Create Task'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -498,14 +499,14 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Title <span className="text-red-400">*</span>
+                  Title <span className="text-destructive">*</span>
                 </label>
-                <input
+                <Input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="What needs to be done?"
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="text-sm"
                   autoFocus
                 />
               </div>
@@ -527,7 +528,7 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
               {/* Project */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Project <span className="text-red-400">*</span>
+                  Project <span className="text-destructive">*</span>
                 </label>
 
                 {/* Favorite project quick-select badges */}
@@ -594,7 +595,7 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
                         flex-1 px-3 py-1.5 text-sm rounded-md border transition-colors
                         ${priority === p
                           ? p === 'high'
-                            ? 'bg-red-900/30 border-red-500/50 text-red-400'
+                            ? 'bg-red-900/30 border-red-500/50 text-destructive'
                             : p === 'medium'
                               ? 'bg-yellow-900/30 border-yellow-500/50 text-yellow-400'
                               : 'bg-zinc-700/50 border-zinc-500/50 text-zinc-400'
@@ -638,15 +639,16 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
                 {requiredSkills.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {requiredSkills.map((skill) => (
-                      <span
+                      <Badge
                         key={skill}
-                        className="flex items-center gap-1 px-2 py-0.5 bg-blue-900/30 text-blue-400 text-xs rounded-full"
+                        variant="secondary"
+                        className="flex items-center gap-1 bg-primary/10 text-primary"
                       >
                         {skill}
                         <button type="button" onClick={() => handleRemoveSkill(skill)}>
                           <Minus className="w-3 h-3" />
                         </button>
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -682,15 +684,16 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
                 {labels.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {labels.map((label) => (
-                      <span
+                      <Badge
                         key={label}
-                        className="flex items-center gap-1 px-2 py-0.5 bg-secondary text-muted-foreground text-xs rounded-full"
+                        variant="secondary"
+                        className="flex items-center gap-1"
                       >
                         {label}
                         <button type="button" onClick={() => handleRemoveLabel(label)}>
                           <Minus className="w-3 h-3" />
                         </button>
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -742,20 +745,15 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
 
               {/* Actions */}
               <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <Button type="button" variant="ghost" onClick={onClose}>
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   disabled={!title.trim() || !selectedProjectPath || isSubmitting}
-                  className="px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Creating...' : 'Create Task'}
-                </button>
+                </Button>
               </div>
             </form>
           )}

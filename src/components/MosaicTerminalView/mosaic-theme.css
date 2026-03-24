@@ -1,0 +1,108 @@
+/* Dorothy dark theme overrides for react-mosaic */
+
+.mosaic-terminal-view .mosaic-root {
+  background: transparent;
+}
+
+.mosaic-terminal-view .mosaic-tile {
+  margin: 1px;
+}
+
+.mosaic-terminal-view .mosaic-window,
+.mosaic-terminal-view .mosaic-preview {
+  border-radius: 0;
+}
+
+.mosaic-terminal-view .mosaic-window-toolbar {
+  /* Custom toolbar rendered via renderToolbar — keep visible but strip default styling */
+  background: transparent !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+
+.mosaic-terminal-view .mosaic-window-body {
+  background: #1A1726;
+  overflow: hidden;
+}
+
+.mosaic-terminal-view .mosaic-window-body-overlay {
+  /* Keep in DOM for drag-and-drop — react-mosaic activates it during drag */
+  background: transparent;
+}
+
+/* Split bar styling */
+.mosaic-terminal-view .mosaic-split {
+  z-index: 10;
+}
+
+.mosaic-terminal-view .mosaic-split.-row {
+  margin-left: -3px;
+  margin-right: -3px;
+}
+
+.mosaic-terminal-view .mosaic-split.-column {
+  margin-top: -3px;
+  margin-bottom: -3px;
+}
+
+.mosaic-terminal-view .mosaic-split:hover {
+  background: hsl(var(--primary) / 0.3);
+}
+
+/* Drag preview */
+.mosaic-terminal-view .mosaic-preview {
+  border: 2px solid hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
+}
+
+/* Zero state */
+.mosaic-terminal-view .mosaic-zero-state {
+  background: transparent;
+}
+
+/* Custom toolbar styling */
+.mosaic-custom-toolbar {
+  height: 32px;
+  min-height: 32px;
+}
+
+/* Cursor: drag handle */
+.mosaic-terminal-view .mosaic-window .mosaic-window-toolbar.draggable {
+  cursor: grab;
+}
+
+.mosaic-terminal-view .mosaic-window .mosaic-window-toolbar.draggable:active {
+  cursor: grabbing;
+}
+
+/* Cursor: toolbar buttons */
+.mosaic-terminal-view .mosaic-window .mosaic-window-toolbar button {
+  cursor: pointer;
+}
+
+/* Cursor: grabbing on entire viewport during drag */
+.mosaic-terminal-view .mosaic-drop-target.drop-target-hover {
+  cursor: grabbing;
+}
+
+/* Cursor: split bars (reinforce library defaults) */
+.mosaic-terminal-view .mosaic-split.-row {
+  cursor: col-resize;
+}
+
+.mosaic-terminal-view .mosaic-split.-column {
+  cursor: row-resize;
+}
+
+/* Cursor: drop zone feedback */
+.mosaic-terminal-view .drop-target-container .drop-target {
+  cursor: copy;
+}
+
+/* Ensure the window body takes full height below our custom toolbar */
+.mosaic-terminal-view .mosaic-window .mosaic-window-body {
+  flex: 1;
+  min-height: 0;
+}

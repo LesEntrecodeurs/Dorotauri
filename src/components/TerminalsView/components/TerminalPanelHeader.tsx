@@ -1,4 +1,4 @@
-'use client';
+
 
 import {
   Play,
@@ -11,6 +11,7 @@ import {
   ShieldOff,
 } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';
+import { Button } from '@/components/ui/button';
 import { CHARACTER_FACES, STATUS_COLORS } from '../constants';
 
 interface TerminalPanelHeaderProps {
@@ -41,8 +42,8 @@ export default function TerminalPanelHeader({
   onContextMenu,
 }: TerminalPanelHeaderProps) {
   const emoji = agent.name?.toLowerCase() === 'bitwonka'
-    ? '🐸'
-    : CHARACTER_FACES[agent.character || 'robot'] || '🤖';
+    ? '\u{1F438}'
+    : CHARACTER_FACES[agent.character || 'robot'] || '\u{1F916}';
   const name = agent.name || `Agent ${agent.id.slice(0, 6)}`;
   const projectName = agent.projectPath.split('/').pop() || '';
   const status = STATUS_COLORS[agent.status] || STATUS_COLORS.idle;
@@ -55,7 +56,7 @@ export default function TerminalPanelHeader({
       className={`${showDragHandle ? 'terminal-drag-handle' : ''} flex items-center gap-2 px-3 py-1.5 !rounded-none bg-secondary border-b border-border select-none`}
       onContextMenu={onContextMenu}
     >
-      {/* Drag handle grip — custom tabs only */}
+      {/* Drag handle grip -- custom tabs only */}
       {showDragHandle && (
         <GripVertical className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
       )}
@@ -76,7 +77,7 @@ export default function TerminalPanelHeader({
 
       {/* Broadcast indicator */}
       {isBroadcasting && (
-        <span className="text-[10px] px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 font-medium animate-pulse">
+        <span className="text-[10px] px-1.5 py-0.5 bg-primary/20 text-primary font-medium animate-pulse">
           BROADCAST
         </span>
       )}
@@ -84,7 +85,7 @@ export default function TerminalPanelHeader({
       {/* Skip permissions indicator */}
       {agent.skipPermissions && (
         <span title="Bypass permissions enabled">
-          <ShieldOff className="w-3 h-3 text-yellow-400" />
+          <ShieldOff className="w-3 h-3 text-accent" />
         </span>
       )}
 
@@ -99,48 +100,58 @@ export default function TerminalPanelHeader({
       {/* Action buttons */}
       <div className="flex items-center gap-0.5" onMouseDown={e => e.stopPropagation()}>
         {agent.status === 'running' || agent.status === 'waiting' ? (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onStop}
-            className="p-1 hover:bg-primary/10 transition-colors text-red-400 hover:text-red-300"
+            className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
             title="Stop agent"
           >
             <Square className="w-3 h-3" />
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onStart}
-            className="p-1 hover:bg-primary/10 transition-colors text-green-400 hover:text-green-300"
+            className="h-6 w-6 text-success hover:text-success hover:bg-success/10"
             title="Start agent"
           >
             <Play className="w-3 h-3" />
-          </button>
+          </Button>
         )}
 
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onClear}
-          className="p-1 hover:bg-primary/10 transition-colors text-muted-foreground hover:text-foreground"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
           title="Clear terminal"
         >
           <RotateCcw className="w-3 h-3" />
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={isFullscreen ? onExitFullscreen : onFullscreen}
-          className="p-1 hover:bg-primary/10 transition-colors text-muted-foreground hover:text-foreground"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
           title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
         >
           {isFullscreen ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-        </button>
+        </Button>
 
-        {/* Remove button — custom tabs only */}
+        {/* Remove button -- custom tabs only */}
         {showRemoveButton && !isFullscreen && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onRemove}
-            className="p-1 hover:bg-primary/10 transition-colors text-muted-foreground hover:text-red-400"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Remove from tab"
           >
             <X className="w-3 h-3" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

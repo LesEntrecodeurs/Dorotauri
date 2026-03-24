@@ -1,11 +1,11 @@
-'use client';
+
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
 import { useClaude } from '@/hooks/useClaude';
-import AgentTerminalDialog from '@/components/AgentWorld/AgentTerminalDialog';
+import AgentTerminalDialog from '@/components/AgentTerminalDialog';
 import NewChatModal from '@/components/NewChatModal';
 
 import {
@@ -28,7 +28,7 @@ import {
 } from './components';
 
 export default function CanvasView() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // External hooks
@@ -147,7 +147,7 @@ export default function CanvasView() {
   return (
     <div
       ref={canvasRef}
-      className={`relative w-full h-full bg-[#0D0B08] overflow-hidden touch-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`relative w-full h-full bg-background overflow-hidden touch-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
       {...gestureHandlers}
     >
       <DotGrid />
@@ -232,12 +232,12 @@ export default function CanvasView() {
 
       {/* Empty state */}
       {agentNodes.length === 0 && projectNodes.length === 0 && (
-        <EmptyState onNavigateToAgents={() => router.push('/agents')} />
+        <EmptyState onNavigateToAgents={() => navigate('/agents')} />
       )}
 
       {/* Title */}
       <div className="absolute bottom-20 left-4 z-40 pointer-events-none">
-        <h2 className="text-xl font-mono text-zinc-700 italic">Agent Board</h2>
+        <h2 className="text-xl font-mono text-muted-foreground italic">Agent Board</h2>
       </div>
 
       {/* Agent Terminal Dialog */}

@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState, useCallback } from 'react';
 import {
@@ -18,6 +18,8 @@ import {
   Save,
   X,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useObsidian } from '@/hooks/useObsidian';
 import { formatBytes, timeAgo } from '@/hooks/useMemory';
 import { ObsidianIcon } from '@/components/Settings/ObsidianIcon';
@@ -215,13 +217,12 @@ export default function ObsidianVaultView() {
         title="No Obsidian Vaults Configured"
         description="Register your Obsidian vaults in Settings to browse your notes here and give agents read-only access."
         action={
-          <a
-            href="/settings?section=obsidian"
-            className="px-4 py-2 text-sm bg-foreground text-background rounded hover:bg-foreground/90 transition-colors inline-flex items-center gap-2"
-          >
-            <Settings className="w-4 h-4" />
-            Configure in Settings
-          </a>
+          <Button asChild size="sm">
+            <a href="/settings?section=obsidian">
+              <Settings className="w-4 h-4" />
+              Configure in Settings
+            </a>
+          </Button>
         }
       />
     );
@@ -253,12 +254,12 @@ export default function ObsidianVaultView() {
           <>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
+              <Input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search notes..."
-                className="w-48 sm:w-64 lg:w-80 pl-9 pr-8 py-2 text-sm bg-secondary border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-48 sm:w-64 lg:w-80 pl-9 pr-8 h-9 text-sm"
               />
               {searchQuery && (
                 <button
@@ -271,17 +272,18 @@ export default function ObsidianVaultView() {
             </div>
 
             {activeVault && (
-              <button
+              <Button
+                size="sm"
                 onClick={() => {
                   window.electronAPI?.shell?.exec({
                     command: `open "obsidian://open?vault=${encodeURIComponent(activeVault.name)}"`,
                   });
                 }}
-                className="flex items-center gap-1.5 px-3 lg:px-4 py-2 text-sm bg-foreground text-background rounded hover:bg-foreground/90 transition-colors shrink-0"
+                className="shrink-0"
               >
                 <ExternalLink className="w-4 h-4" />
                 <span className="hidden sm:inline">Open in Obsidian</span>
-              </button>
+              </Button>
             )}
           </>
         )}
@@ -379,7 +381,7 @@ export default function ObsidianVaultView() {
                       <button
                         key={file.path}
                         onClick={() => handleSelectFile(file.path)}
-                        className="w-full text-left p-3 rounded-lg border transition-all bg-card border-border hover:bg-secondary/50 hover:border-border/80"
+                        className="w-full text-left p-3 rounded-md border transition-all bg-card border-border hover:bg-secondary/50 hover:border-border/80"
                       >
                         <div className="flex items-start gap-2">
                           <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-purple-500" />
@@ -439,18 +441,14 @@ export default function ObsidianVaultView() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={handleStartEdit}
-                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
-                      title="Edit"
-                    >
+                    <Button variant="ghost" size="icon" onClick={handleStartEdit} title="Edit">
                       <Edit3 className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
 
                   {/* Frontmatter */}
                   {selectedFile.frontmatter && Object.keys(selectedFile.frontmatter).length > 0 && (
-                    <div className="mx-4 mt-4 p-3 bg-secondary/50 border border-border rounded-lg text-sm shrink-0">
+                    <div className="mx-4 mt-4 p-3 bg-secondary/50 border border-border rounded-md text-sm shrink-0">
                       {Object.entries(selectedFile.frontmatter).map(([key, value]) => (
                         <div key={key} className="flex gap-2">
                           <span className="text-muted-foreground font-mono text-xs">{key}:</span>
@@ -493,19 +491,13 @@ export default function ObsidianVaultView() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCancelEdit}
-                    className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
-                  >
+                  <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
                     Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-foreground text-background rounded hover:bg-foreground/90 transition-colors"
-                  >
+                  </Button>
+                  <Button size="sm" onClick={handleSave}>
                     <Save className="w-3.5 h-3.5" />
                     Save
-                  </button>
+                  </Button>
                 </div>
               </div>
 

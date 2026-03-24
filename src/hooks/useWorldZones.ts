@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '@/hooks/useTauri';
 import type { GenerativeZone } from '@/types/world';
 
 const LOCAL_STORAGE_KEY = 'pokaimon-zones';
@@ -24,21 +27,21 @@ export function useWorldZones() {
   const [zones, setZones] = useState<GenerativeZone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const mountedRef = useRef(true);
-  const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.world;
+  const inTauri = isTauri();
 
   useEffect(() => {
     mountedRef.current = true;
 
-    if (isElectron) {
-      // Electron mode: load via IPC
+    if (inTauri) {
+      // Tauri mode: load via invoke
       async function loadZones() {
         try {
-          const result = await window.electronAPI?.world?.listZones();
+          const result = await invoke<{ zones: GenerativeZone[]; error?: string }>('world_list_zones');
           if (result?.zones && mountedRef.current) {
             setZones(result.zones as GenerativeZone[]);
           }
         } catch {
-          // Ignore errors
+          // Rust commands not implemented yet — return empty
         } finally {
           if (mountedRef.current) setIsLoading(false);
         }
@@ -47,9 +50,11 @@ export function useWorldZones() {
       loadZones();
 
       // Subscribe to live updates
-      const unsubUpdate = window.electronAPI?.world?.onZoneUpdated((zone: unknown) => {
+      const unlistenFns: (() => void)[] = [];
+
+      listen<GenerativeZone>('world:zone_updated', (event) => {
         if (!mountedRef.current) return;
-        const z = zone as GenerativeZone;
+        const z = event.payload as GenerativeZone;
         setZones(prev => {
           const idx = prev.findIndex(p => p.id === z.id);
           if (idx >= 0) {
@@ -59,17 +64,16 @@ export function useWorldZones() {
           }
           return [...prev, z];
         });
-      });
+      }).then(fn => unlistenFns.push(fn));
 
-      const unsubDelete = window.electronAPI?.world?.onZoneDeleted((event: { id: string }) => {
+      listen<{ id: string }>('world:zone_deleted', (event) => {
         if (!mountedRef.current) return;
-        setZones(prev => prev.filter(z => z.id !== event.id));
-      });
+        setZones(prev => prev.filter(z => z.id !== event.payload.id));
+      }).then(fn => unlistenFns.push(fn));
 
       return () => {
         mountedRef.current = false;
-        unsubUpdate?.();
-        unsubDelete?.();
+        unlistenFns.forEach(fn => fn());
       };
     } else {
       // Web mode: load from localStorage
@@ -80,7 +84,7 @@ export function useWorldZones() {
         mountedRef.current = false;
       };
     }
-  }, [isElectron]);
+  }, [inTauri]);
 
   // Add a zone (web mode: persist to localStorage)
   const addZone = useCallback((zone: GenerativeZone) => {
@@ -93,15 +97,15 @@ export function useWorldZones() {
       } else {
         updated = [...prev, zone];
       }
-      if (!isElectron) saveLocalZones(updated);
+      if (!inTauri) saveLocalZones(updated);
       return updated;
     });
-  }, [isElectron]);
+  }, [inTauri]);
 
   // Delete a zone (web mode)
   const deleteZone = useCallback((zoneId: string) => {
-    if (isElectron) {
-      window.electronAPI?.world?.deleteZone(zoneId);
+    if (inTauri) {
+      invoke('world_delete_zone', { zoneId }).catch(() => {});
     } else {
       setZones(prev => {
         const updated = prev.filter(z => z.id !== zoneId);
@@ -109,7 +113,7 @@ export function useWorldZones() {
         return updated;
       });
     }
-  }, [isElectron]);
+  }, [inTauri]);
 
   return { zones, isLoading, addZone, deleteZone };
 }

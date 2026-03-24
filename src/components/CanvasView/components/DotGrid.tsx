@@ -1,4 +1,3 @@
-'use client';
 
 import { motion } from 'framer-motion';
 
@@ -8,7 +7,7 @@ export function DotGrid() {
       <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="dotPattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-            <circle cx="20" cy="20" r="1.5" fill="rgba(255,255,255,0.08)" />
+            <circle cx="20" cy="20" r="1.5" fill="hsl(var(--foreground) / 0.08)" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#dotPattern)" />
@@ -17,7 +16,7 @@ export function DotGrid() {
       {[...Array(15)].map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-1 h-1 rounded-full bg-cyan-500/20"
+          className="absolute w-1 h-1 rounded-full bg-primary/20"
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,

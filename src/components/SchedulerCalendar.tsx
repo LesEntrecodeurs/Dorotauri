@@ -1,9 +1,10 @@
-'use client';
+
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Play, FileText, Pencil, Trash2, Clock } from 'lucide-react';
-import type { ScheduledTask } from '@/app/recurring-tasks/types';
+import { Button } from '@/components/ui/button';
+import type { ScheduledTask } from '@/components/RecurringTasks/types';
 
 export type { ScheduledTask };
 
@@ -385,13 +386,13 @@ export default function SchedulerCalendar({
 
   return (
     <>
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-md overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <button
             onClick={goToToday}
-            className={`px-3 py-1 text-xs rounded-lg border transition-colors font-medium ${
+            className={`px-3 py-1 text-xs rounded-md border transition-colors font-medium ${
               isCurrentWeek
                 ? 'bg-primary/10 border-primary/30 text-primary'
                 : 'border-border hover:bg-secondary text-foreground'
@@ -402,13 +403,13 @@ export default function SchedulerCalendar({
           <div className="flex items-center">
             <button
               onClick={() => navigate(-1)}
-              className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
+              className="p-1.5 hover:bg-secondary rounded-md transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => navigate(1)}
-              className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
+              className="p-1.5 hover:bg-secondary rounded-md transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -613,7 +614,7 @@ export default function SchedulerCalendar({
         <div className="fixed inset-0 z-[9998]" onClick={() => setTooltip(null)} />
         {/* Tooltip card */}
         <div
-          className="bg-card border border-border rounded-xl shadow-2xl p-4"
+          className="bg-card border border-border rounded-md shadow-2xl p-4"
           style={getTooltipStyle(tooltip.anchor)}
           onClick={e => e.stopPropagation()}
         >
@@ -652,7 +653,7 @@ export default function SchedulerCalendar({
             </div>
             <button
               onClick={() => setTooltip(null)}
-              className="p-1 hover:bg-secondary rounded-lg transition-colors shrink-0 -mr-1 -mt-1"
+              className="p-1 hover:bg-secondary rounded-md transition-colors shrink-0 -mr-1 -mt-1"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -667,28 +668,28 @@ export default function SchedulerCalendar({
           <div className="grid grid-cols-2 gap-1.5 ml-4">
             <button
               onClick={() => { onRunTask(tooltip.event.task.id); setTooltip(null); }}
-              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors col-span-2"
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors col-span-2"
             >
               <Play className="w-3 h-3" />
               Run Now
             </button>
             <button
               onClick={() => { onViewLogs(tooltip.event.task.id); setTooltip(null); }}
-              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-secondary hover:bg-secondary/80 rounded-md transition-colors"
             >
               <FileText className="w-3 h-3" />
               Logs
             </button>
             <button
               onClick={() => { onEditTask(tooltip.event.task); setTooltip(null); }}
-              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-secondary hover:bg-secondary/80 rounded-lg transition-colors"
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-secondary hover:bg-secondary/80 rounded-md transition-colors"
             >
               <Pencil className="w-3 h-3" />
               Edit
             </button>
             <button
               onClick={() => { onDeleteTask(tooltip.event.task.id); setTooltip(null); }}
-              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-lg transition-colors col-span-2"
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-md transition-colors col-span-2"
             >
               <Trash2 className="w-3 h-3" />
               Delete

@@ -1,4 +1,4 @@
-'use client';
+
 
 import React, { useState } from 'react';
 import {
@@ -11,6 +11,8 @@ import {
   Paperclip,
   FileText,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import type { VaultDocumentElectron, VaultAttachmentElectron } from '@/types/electron';
 import { SimpleMarkdown } from './MarkdownRenderer';
 
@@ -71,36 +73,28 @@ export default function DocumentViewer({ document, attachments, onBack, onEdit, 
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            onClick={onEdit}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
-            title="Edit"
-          >
+          <Button variant="ghost" size="icon" onClick={onEdit} title="Edit">
             <Edit3 className="w-4 h-4" />
-          </button>
+          </Button>
           {showDeleteConfirm ? (
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => onDelete(document.id)}
-                className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-              >
+              <Button variant="destructive" size="sm" onClick={() => onDelete(document.id)}>
                 Confirm
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-2 py-1 text-xs bg-secondary rounded hover:bg-secondary/80"
-              >
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setShowDeleteConfirm(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowDeleteConfirm(true)}
-              className="p-2 text-muted-foreground hover:text-red-500 hover:bg-secondary rounded transition-colors"
+              className="text-muted-foreground hover:text-destructive"
               title="Delete"
             >
               <Trash2 className="w-4 h-4" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -110,9 +104,9 @@ export default function DocumentViewer({ document, attachments, onBack, onEdit, 
         <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border bg-card">
           <Tag className="w-3.5 h-3.5 text-muted-foreground" />
           {tags.map(tag => (
-            <span key={tag} className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+            <Badge key={tag} variant="secondary" className="bg-primary/10 text-primary">
               {tag}
-            </span>
+            </Badge>
           ))}
         </div>
       )}

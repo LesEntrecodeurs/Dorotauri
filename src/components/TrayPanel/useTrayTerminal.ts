@@ -1,7 +1,13 @@
-'use client';
+
+
 
 import { useEffect, useRef } from 'react';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { attachShiftEnterHandler } from '@/lib/terminal';
+import { TERMINAL_THEME } from '@/components/AgentTerminalDialog/constants';
+import type { AgentStatus } from '@/types/electron';
 
 interface UseTrayTerminalProps {
   agentId: string;
@@ -43,29 +49,7 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
       if (cancelled) return;
 
       const term = new Terminal({
-        theme: {
-          background: '#1a1a2e',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#1a1a2e',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
-        },
+        theme: TERMINAL_THEME,
         fontSize: 11,
         fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
         cursorBlink: true,
@@ -87,11 +71,13 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
       const doFitAndResize = () => {
         if (cancelled) return;
         fitAddon.fit();
-        window.electronAPI?.agent?.resize({
-          id: agentIdRef.current,
-          cols: term.cols,
-          rows: term.rows,
-        }).catch(() => {});
+        if (isTauri()) {
+          invoke('pty_resize', {
+            ptyId: agentIdRef.current,
+            cols: term.cols,
+            rows: term.rows,
+          }).catch(() => {});
+        }
       };
 
       doFitAndResize();
@@ -108,18 +94,22 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
       setTimeout(async () => {
         if (cancelled) return;
         try {
-          const agentData = await window.electronAPI?.agent?.get(agentId);
-          if (!cancelled && agentData?.output?.length) {
-            agentData.output.forEach(chunk => term.write(chunk));
-            term.scrollToBottom();
-            doFitAndResize();
-            term.focus();
+          if (isTauri()) {
+            const agentData = await invoke<AgentStatus | null>('agent_get', { id: agentId });
+            if (!cancelled && agentData?.output?.length) {
+              agentData.output.forEach(chunk => term.write(chunk));
+              term.scrollToBottom();
+              doFitAndResize();
+              term.focus();
+            }
           }
         } catch { /* ignore */ }
       }, 400);
 
       attachShiftEnterHandler(term, (data) => {
-        window.electronAPI?.agent?.sendInput({ id: agentIdRef.current, input: data });
+        if (isTauri()) {
+          invoke('agent_send_input', { id: agentIdRef.current, input: data }).catch(() => {});
+        }
       });
 
       term.onData((data) => {
@@ -130,7 +120,9 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
           .replace(/\x1b\[(?:I|O)/g, '')
           .replace(/\d+;\d+c/g, '');
         if (!cleaned) return;
-        window.electronAPI?.agent?.sendInput({ id: agentIdRef.current, input: cleaned });
+        if (isTauri()) {
+          invoke('agent_send_input', { id: agentIdRef.current, input: cleaned }).catch(() => {});
+        }
       });
 
       resizeObserver = new ResizeObserver(() => {
@@ -138,12 +130,14 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
       });
       resizeObserver.observe(container);
 
-      if (window.electronAPI?.agent?.onOutput) {
-        unsubOutput = window.electronAPI.agent.onOutput((event) => {
-          if (event.agentId === agentIdRef.current && xtermRef.current) {
-            xtermRef.current.write(event.data);
+      if (isTauri()) {
+        listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+          const { agent_id, data } = event.payload;
+          if (agent_id === agentIdRef.current && xtermRef.current) {
+            const bytes = new Uint8Array(data);
+            xtermRef.current.write(bytes);
           }
-        });
+        }).then(fn => { unsubOutput = fn; });
       }
     };
 

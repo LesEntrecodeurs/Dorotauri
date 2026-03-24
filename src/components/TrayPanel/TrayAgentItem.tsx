@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState } from 'react';
 import type { AgentTickItem, DisplayStatus } from '@/types/electron';
@@ -113,7 +113,7 @@ export default function TrayAgentItem({
 
       {/* Expanded terminal */}
       {expanded && (
-        <div className="bg-[#1a1a2e]">
+        <div className="bg-[#1A1726]">
           <div
             ref={setTerminalEl}
             className="h-[380px] w-full overflow-hidden"

@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Activity, Cpu, DollarSign, Terminal } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';

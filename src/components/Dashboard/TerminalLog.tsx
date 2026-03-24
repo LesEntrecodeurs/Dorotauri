@@ -1,7 +1,8 @@
-'use client';
+
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Circle } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { HistoryEntry } from '@/lib/claude-code';
 
 interface TerminalLogProps {
@@ -36,22 +37,22 @@ export default function TerminalLog({ history }: TerminalLogProps) {
   };
 
   return (
-    <div className="rounded-none border border-border-primary bg-bg-secondary overflow-hidden">
+    <Card className="overflow-hidden">
       {/* Header - looks like terminal titlebar */}
-      <div className="px-4 py-3 border-b border-border-primary bg-bg-tertiary flex items-center justify-between">
+      <CardHeader className="px-4 py-3 border-b border-border bg-muted flex flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
-            <Circle className="w-3 h-3 fill-accent-red text-accent-red" />
-            <Circle className="w-3 h-3 fill-accent-amber text-accent-amber" />
-            <Circle className="w-3 h-3 fill-accent-green text-accent-green" />
+            <Circle className="w-3 h-3 fill-destructive text-destructive" />
+            <Circle className="w-3 h-3 fill-warning text-warning" />
+            <Circle className="w-3 h-3 fill-success text-success" />
           </div>
-          <span className="text-xs text-text-muted ml-2">claude-history — zsh</span>
+          <span className="text-xs text-muted-foreground ml-2">claude-history &mdash; zsh</span>
         </div>
-        <Terminal className="w-4 h-4 text-text-muted" />
-      </div>
+        <Terminal className="w-4 h-4 text-muted-foreground" />
+      </CardHeader>
 
       {/* Log content */}
-      <div className="p-4 h-64 overflow-y-auto font-mono text-xs leading-relaxed bg-[#0d0e12]">
+      <CardContent className="p-4 h-64 overflow-y-auto font-mono text-xs leading-relaxed bg-background">
         <AnimatePresence mode="popLayout">
           {recentHistory.map((entry, index) => (
             <motion.div
@@ -60,29 +61,29 @@ export default function TerminalLog({ history }: TerminalLogProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="flex items-start gap-2 py-0.5 hover:bg-white/[0.02]"
+              className="flex items-start gap-2 py-0.5 hover:bg-muted/30"
             >
-              <span className="text-text-muted shrink-0">{formatTime(entry.timestamp)}</span>
-              <span className="text-accent-purple shrink-0">[{getProjectShortName(entry.project)}]</span>
-              <span className="text-accent-cyan shrink-0">$</span>
-              <span className="text-text-secondary">{truncateMessage(entry.display)}</span>
+              <span className="text-muted-foreground shrink-0">{formatTime(entry.timestamp)}</span>
+              <span className="text-primary shrink-0">[{getProjectShortName(entry.project)}]</span>
+              <span className="text-primary shrink-0">$</span>
+              <span className="text-muted-foreground">{truncateMessage(entry.display)}</span>
             </motion.div>
           ))}
         </AnimatePresence>
 
         {recentHistory.length === 0 && (
-          <div className="flex items-center gap-2 text-text-muted">
-            <span className="animate-pulse">▌</span>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span className="animate-pulse">&#9612;</span>
             <span>Waiting for activity...</span>
           </div>
         )}
 
         {/* Cursor line */}
-        <div className="flex items-center gap-2 text-text-muted mt-1">
-          <span className="text-accent-cyan">$</span>
+        <div className="flex items-center gap-2 text-muted-foreground mt-1">
+          <span className="text-primary">$</span>
           <span className="cursor-blink"></span>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

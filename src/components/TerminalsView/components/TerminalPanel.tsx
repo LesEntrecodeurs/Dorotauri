@@ -1,8 +1,10 @@
-'use client';
+
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { AgentStatus } from '@/types/electron';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import TerminalPanelHeader from './TerminalPanelHeader';
 
 interface TerminalPanelProps {
@@ -69,14 +71,15 @@ export default function TerminalPanel({
   const handleContextMenu = useCallback((e: React.MouseEvent) => onContextMenu(e, agent.id), [agent.id, onContextMenu]);
 
   return (
-    <div
+    <Card
       ref={setDropRef}
-      className={`
-        flex flex-col overflow-hidden h-full
-        ${isOver ? 'border-purple-500/70 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : isFocused ? 'border-cyan-500/50 shadow-[0_0_10px_rgba(34,211,238,0.1)]' : 'border-white/10'}
-        ${isFullscreen ? 'fixed inset-0 z-50' : ''}
-      `}
-      style={{ backgroundColor: '#1a1a2e' }}
+      className={cn(
+        'flex flex-col overflow-hidden h-full border bg-card',
+        isOver && 'border-accent shadow-[0_0_15px_rgba(205,127,74,0.2)]',
+        !isOver && isFocused && 'border-primary shadow-[0_0_10px_rgba(61,155,148,0.1)]',
+        !isOver && !isFocused && 'border-border',
+        isFullscreen && 'fixed inset-0 z-50',
+      )}
       onClick={handleClick}
     >
       {/* Header */}
@@ -97,9 +100,8 @@ export default function TerminalPanel({
       {/* Terminal body */}
       <div
         ref={containerRef}
-        className="flex-1 min-h-0 overflow-hidden relative"
-        style={{ backgroundColor: '#1a1a2e' }}
+        className="flex-1 min-h-0 overflow-hidden relative bg-background"
       />
-    </div>
+    </Card>
   );
 }

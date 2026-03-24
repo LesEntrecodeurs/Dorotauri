@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Play, Square } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';
@@ -46,7 +46,7 @@ export default function SidebarAgentList({
             className={`
               flex items-center gap-2 px-2.5 py-2 cursor-pointer transition-colors group
               ${isFocused
-                ? 'bg-primary/10 border-l-2 border-cyan-500'
+                ? 'bg-primary/10 border-l-2 border-primary'
                 : 'hover:bg-primary/5 border-l-2 border-transparent'
               }
             `}

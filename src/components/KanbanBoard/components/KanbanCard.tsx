@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -15,6 +15,7 @@ import {
   Play,
   Terminal,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import type { KanbanTask, KanbanColumn } from '@/types/kanban';
 import { getLabelColor } from '../constants';
 
@@ -86,7 +87,7 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
       {...attributes}
       {...listeners}
       className={`
-        group relative bg-card rounded-xl p-4
+        group relative bg-card rounded-md p-4
         shadow-sm transition-all duration-200
         border border-border/50
         ${isLocked ? 'cursor-default' : 'cursor-pointer hover:shadow-md hover:border-border'}
@@ -101,7 +102,7 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
         <div className="absolute top-2 right-2 z-10">
           <button
             onClick={handleStart}
-            className="p-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1.5 rounded-md bg-green-500/10 hover:bg-green-500/20 transition-colors opacity-0 group-hover:opacity-100"
             title="Start task"
           >
             <Play className="w-4 h-4 text-green-500 fill-green-500" />
@@ -119,10 +120,10 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
                 e.stopPropagation();
                 onOpenTerminal(task.assignedAgentId!);
               }}
-              className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 transition-colors"
+              className="p-1.5 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
               title="View terminal"
             >
-              <Terminal className="w-4 h-4 text-cyan-400" />
+              <Terminal className="w-4 h-4 text-primary" />
             </button>
           )}
           {/* Stop button */}
@@ -133,10 +134,10 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
                 onDelete?.(task.id);
               }
             }}
-            className="p-1 rounded hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1 rounded-md hover:bg-destructive/20 transition-colors opacity-0 group-hover:opacity-100"
             title="Stop task"
           >
-            <StopCircle className="w-4 h-4 text-red-500" />
+            <StopCircle className="w-4 h-4 text-destructive" />
           </button>
           {/* Working indicator */}
           <span className="relative flex h-2.5 w-2.5 ml-1">
@@ -167,7 +168,7 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
       {/* Progress bar for ongoing tasks */}
       {task.column === 'ongoing' && task.progress > 0 && (
         <div className="mb-3">
-          <div className="h-1 bg-secondary rounded-full overflow-hidden">
+          <div className="h-1 bg-secondary rounded-md overflow-hidden">
             <motion.div
               className="h-full bg-green-500"
               initial={{ width: 0 }}
@@ -184,12 +185,13 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
           {task.labels.slice(0, 3).map((label) => {
             const colors = getLabelColor(label);
             return (
-              <span
+              <Badge
                 key={label}
-                className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors.bg} ${colors.text}`}
+                variant="secondary"
+                className={`text-xs font-medium ${colors.bg} ${colors.text}`}
               >
                 {label}
-              </span>
+              </Badge>
             );
           })}
           {task.labels.length > 3 && (

@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { TERMINAL_THEME, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 import type { Skill } from '@/lib/skills-database';
 
 export interface SkillInstallState {
@@ -31,34 +34,8 @@ export function useSkillInstall(onRefreshSkills?: () => void): SkillInstallState
       const { FitAddon } = await import('xterm-addon-fit');
 
       const term = new Terminal({
-        theme: {
-          background: '#0D0B08',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#0D0B08',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
-        },
-        fontSize: 13,
-        fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-        cursorBlink: true,
-        cursorStyle: 'bar',
-        scrollback: 10000,
+        theme: TERMINAL_THEME,
+        ...TERMINAL_CONFIG,
       });
 
       const fitAddon = new FitAddon();
@@ -70,20 +47,16 @@ export function useSkillInstall(onRefreshSkills?: () => void): SkillInstallState
 
       // Handle user input
       term.onData((data) => {
-        if (ptyIdRef.current && window.electronAPI?.skill?.installWrite) {
-          window.electronAPI.skill.installWrite({ id: ptyIdRef.current, data });
+        if (ptyIdRef.current && isTauri()) {
+          invoke('pty_write', { ptyId: ptyIdRef.current, data }).catch(() => {});
         }
       });
 
       // Handle resize
       const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
-        if (ptyIdRef.current && window.electronAPI?.skill?.installResize) {
-          window.electronAPI.skill.installResize({
-            id: ptyIdRef.current,
-            cols: term.cols,
-            rows: term.rows,
-          });
+        if (ptyIdRef.current && isTauri()) {
+          invoke('pty_resize', { ptyId: ptyIdRef.current, cols: term.cols, rows: term.rows }).catch(() => {});
         }
       });
       resizeObserver.observe(terminalRef.current!);
@@ -104,13 +77,15 @@ export function useSkillInstall(onRefreshSkills?: () => void): SkillInstallState
 
   // Start PTY after terminal is ready
   useEffect(() => {
-    if (!terminalReady || !installingSkill || !window.electronAPI?.skill?.installStart) return;
+    if (!terminalReady || !installingSkill || !isTauri()) return;
 
     const startPty = async () => {
       try {
         const fullRepo = `${installingSkill.repo}/${installingSkill.name}`;
-        const result = await window.electronAPI!.skill.installStart({ repo: fullRepo });
-        ptyIdRef.current = result.id;
+        const ptyId = await invoke<string>('pty_create', {});
+        ptyIdRef.current = ptyId;
+        // Run the skill install command
+        await invoke('pty_write', { ptyId, data: `claude mcp add-from-claude-code ${fullRepo}\n` });
       } catch (err) {
         console.error('Failed to start installation:', err);
         setShowInstallTerminal(false);
@@ -121,34 +96,41 @@ export function useSkillInstall(onRefreshSkills?: () => void): SkillInstallState
     startPty();
   }, [terminalReady, installingSkill]);
 
-  // Listen for PTY data
+  // Listen for PTY data via Tauri events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.skill?.onPtyData) return;
+    if (!isTauri()) return;
 
-    const unsubscribe = window.electronAPI.skill.onPtyData(({ id, data }) => {
-      if (id === ptyIdRef.current && xtermRef.current) {
-        xtermRef.current.write(data);
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { pty_id, data } = event.payload;
+      if (pty_id === ptyIdRef.current && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
       }
-    });
+    }).then(fn => { unlisten = fn; });
 
-    return unsubscribe;
+    return () => { unlisten?.(); };
   }, []);
 
-  // Listen for PTY exit
+  // Listen for PTY exit via Tauri events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.skill?.onPtyExit) return;
+    if (!isTauri()) return;
 
-    const unsubscribe = window.electronAPI.skill.onPtyExit(({ id, exitCode }) => {
-      if (id === ptyIdRef.current) {
+    let unlisten: (() => void) | undefined;
+
+    listen<{ pty_id: string; exit_code: number }>('pty:exit', (event) => {
+      const { pty_id, exit_code } = event.payload;
+      if (pty_id === ptyIdRef.current) {
         setInstallComplete(true);
-        setInstallExitCode(exitCode);
-        if (exitCode === 0 && onRefreshSkills) {
+        setInstallExitCode(exit_code);
+        if (exit_code === 0 && onRefreshSkills) {
           onRefreshSkills();
         }
       }
-    });
+    }).then(fn => { unlisten = fn; });
 
-    return unsubscribe;
+    return () => { unlisten?.(); };
   }, [onRefreshSkills]);
 
   const handleInstallSkill = useCallback((skill: Skill) => {
@@ -160,8 +142,8 @@ export function useSkillInstall(onRefreshSkills?: () => void): SkillInstallState
   }, []);
 
   const closeInstallTerminal = useCallback(() => {
-    if (ptyIdRef.current && !installComplete) {
-      window.electronAPI?.skill?.installKill({ id: ptyIdRef.current });
+    if (ptyIdRef.current && !installComplete && isTauri()) {
+      invoke('pty_kill', { ptyId: ptyIdRef.current }).catch(() => {});
     }
     setShowInstallTerminal(false);
     setInstallingSkill(null);

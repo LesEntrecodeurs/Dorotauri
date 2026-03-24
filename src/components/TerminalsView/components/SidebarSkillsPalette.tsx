@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState, useMemo } from 'react';
 import { Search, GripVertical, Sparkles } from 'lucide-react';

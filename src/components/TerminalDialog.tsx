@@ -1,9 +1,13 @@
-'use client';
+
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle, X, Link2 } from 'lucide-react';
-import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { Button } from '@/components/ui/button';
 import ProviderBadge, { PROVIDER_CONFIG } from '@/components/ProviderBadge';
+import { TERMINAL_THEME, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 import 'xterm/css/xterm.css';
 
 interface TerminalDialogProps {
@@ -12,12 +16,11 @@ interface TerminalDialogProps {
   title: string;
   onClose: (success?: boolean) => void;
   availableProviders?: string[];
-  /** When set, runs this shell command via plugin:install-start instead of skill:install-start */
+  /** When set, runs this shell command via pty_create instead of skill install */
   command?: string;
 }
 
 export default function TerminalDialog({ open, repo, title, onClose, availableProviders = ['claude'], command }: TerminalDialogProps) {
-  // command mode uses plugin.* APIs, skill mode uses skill.* APIs
   const isCommandMode = !!command;
   const [installComplete, setInstallComplete] = useState(false);
   const [installExitCode, setInstallExitCode] = useState<number | null>(null);
@@ -48,34 +51,8 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
       const { FitAddon } = await import('xterm-addon-fit');
 
       const term = new Terminal({
-        theme: {
-          background: '#0D0B08',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#0D0B08',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
-        },
-        fontSize: 13,
-        fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-        cursorBlink: true,
-        cursorStyle: 'bar',
-        scrollback: 10000,
+        theme: TERMINAL_THEME,
+        ...TERMINAL_CONFIG,
       });
 
       const fitAddon = new FitAddon();
@@ -89,24 +66,15 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
       term.onData((data) => {
         const cleaned = data.replace(/\x1b\[(?:I|O)/g, '');
         if (!cleaned) return;
-        if (!ptyIdRef.current) return;
-        if (isCommandMode) {
-          window.electronAPI?.plugin?.installWrite({ id: ptyIdRef.current, data: cleaned });
-        } else {
-          window.electronAPI?.skill?.installWrite({ id: ptyIdRef.current, data: cleaned });
-        }
+        if (!ptyIdRef.current || !isTauri()) return;
+        invoke('pty_write', { ptyId: ptyIdRef.current, data: cleaned }).catch(() => {});
       });
 
       // Handle resize
       const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
-        if (!ptyIdRef.current) return;
-        const dims = { id: ptyIdRef.current, cols: term.cols, rows: term.rows };
-        if (isCommandMode) {
-          window.electronAPI?.plugin?.installResize(dims);
-        } else {
-          window.electronAPI?.skill?.installResize(dims);
-        }
+        if (!ptyIdRef.current || !isTauri()) return;
+        invoke('pty_resize', { ptyId: ptyIdRef.current, cols: term.cols, rows: term.rows }).catch(() => {});
       });
       resizeObserver.observe(terminalRef.current!);
 
@@ -118,12 +86,8 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
 
     return () => {
       // Kill PTY process to prevent zombie processes
-      if (ptyIdRef.current) {
-        if (isCommandMode) {
-          window.electronAPI?.plugin?.installKill({ id: ptyIdRef.current });
-        } else {
-          window.electronAPI?.skill?.installKill({ id: ptyIdRef.current });
-        }
+      if (ptyIdRef.current && isTauri()) {
+        invoke('pty_kill', { ptyId: ptyIdRef.current }).catch(() => {});
         ptyIdRef.current = null;
       }
       if (xtermRef.current) {
@@ -136,61 +100,52 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
 
   // Start PTY only after terminal is ready
   useEffect(() => {
-    if (!terminalReady) return;
+    if (!terminalReady || !isTauri()) return;
 
-    if (isCommandMode) {
-      if (!command || !window.electronAPI?.plugin?.installStart) return;
-      const startPty = async () => {
-        try {
-          const term = xtermRef.current;
-          const result = await window.electronAPI!.plugin!.installStart({
-            command: command!,
-            cols: term?.cols,
-            rows: term?.rows,
-          });
-          if (result) ptyIdRef.current = result.id;
-        } catch (err) {
-          xtermRef.current?.writeln(
-            `Failed to start: ${err instanceof Error ? err.message : 'Unknown error'}`
-          );
-          setInstallComplete(true);
-          setInstallExitCode(1);
+    const startPty = async () => {
+      try {
+        const term = xtermRef.current;
+        // Create a standalone PTY for the install command or skill install
+        const ptyId = await invoke<string>('pty_create', {
+          cols: term?.cols,
+          rows: term?.rows,
+        });
+        ptyIdRef.current = ptyId;
+
+        // Write the actual command to run in the PTY
+        if (isCommandMode && command) {
+          await invoke('pty_write', { ptyId, data: command + '\n' });
+        } else if (repo) {
+          // For skill install, run the install command
+          await invoke('pty_write', { ptyId, data: `claude mcp add-from-claude-code ${repo}\n` });
         }
-      };
-      startPty();
-    } else {
-      if (!repo || !window.electronAPI?.skill?.installStart) return;
-      const startPty = async () => {
-        try {
-          const result = await window.electronAPI!.skill.installStart({ repo });
-          ptyIdRef.current = result.id;
-        } catch (err) {
-          xtermRef.current?.writeln(
-            `Failed to start installation: ${err instanceof Error ? err.message : 'Unknown error'}`
-          );
-          setInstallComplete(true);
-          setInstallExitCode(1);
-        }
-      };
-      startPty();
-    }
+      } catch (err) {
+        xtermRef.current?.writeln(
+          `Failed to start: ${err instanceof Error ? err.message : String(err)}`
+        );
+        setInstallComplete(true);
+        setInstallExitCode(1);
+      }
+    };
+    startPty();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalReady, repo, command]);
 
-  // Listen for PTY data on both channels — ID filtering ensures correctness
+  // Listen for PTY data via Tauri events
   useEffect(() => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
 
-    const handler = ({ id, data }: { id: string; data: string }) => {
-      if (id === ptyIdRef.current && xtermRef.current) {
-        xtermRef.current.write(data);
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { pty_id, data } = event.payload;
+      if (pty_id === ptyIdRef.current && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
       }
-    };
+    }).then(fn => { unlisten = fn; });
 
-    const unsub1 = window.electronAPI?.plugin?.onPtyData(handler);
-    const unsub2 = window.electronAPI?.skill?.onPtyData(handler);
-
-    return () => { unsub1?.(); unsub2?.(); };
+    return () => { unlisten?.(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -198,26 +153,26 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
   const isCommandModeRef = useRef(isCommandMode);
   isCommandModeRef.current = isCommandMode;
 
-  // Listen for PTY exit on both channels
+  // Listen for PTY exit via Tauri events
   useEffect(() => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
 
-    const handler = ({ id, exitCode }: { id: string; exitCode: number }) => {
-      if (id === ptyIdRef.current) {
+    let unlisten: (() => void) | undefined;
+
+    listen<{ pty_id: string; exit_code: number }>('pty:exit', (event) => {
+      const { pty_id, exit_code } = event.payload;
+      if (pty_id === ptyIdRef.current) {
         setInstallComplete(true);
-        setInstallExitCode(exitCode);
+        setInstallExitCode(exit_code);
 
         // On success, symlink to additional providers (skill mode only)
-        if (exitCode === 0 && !isCommandModeRef.current) {
+        if (exit_code === 0 && !isCommandModeRef.current) {
           linkToAdditionalProviders();
         }
       }
-    };
+    }).then(fn => { unlisten = fn; });
 
-    const unsub1 = window.electronAPI?.plugin?.onPtyExit(handler);
-    const unsub2 = window.electronAPI?.skill?.onPtyExit(handler);
-
-    return () => { unsub1?.(); unsub2?.(); };
+    return () => { unlisten?.(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -232,8 +187,10 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
     for (const providerId of additionalProviders) {
       setLinkingStatus(prev => ({ ...prev, [providerId]: 'pending' }));
       try {
-        const result = await window.electronAPI!.skill.linkToProvider({ skillName, providerId });
-        setLinkingStatus(prev => ({ ...prev, [providerId]: result.success ? 'done' : 'error' }));
+        if (isTauri()) {
+          const result = await invoke<{ success: boolean; error?: string }>('skill_link_to_provider', { skillName, providerId });
+          setLinkingStatus(prev => ({ ...prev, [providerId]: result.success ? 'done' : 'error' }));
+        }
       } catch {
         setLinkingStatus(prev => ({ ...prev, [providerId]: 'error' }));
       }
@@ -251,12 +208,8 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
   };
 
   const handleClose = () => {
-    if (ptyIdRef.current && !installComplete) {
-      if (isCommandMode) {
-        window.electronAPI?.plugin?.installKill({ id: ptyIdRef.current });
-      } else {
-        window.electronAPI?.skill?.installKill({ id: ptyIdRef.current });
-      }
+    if (ptyIdRef.current && !installComplete && isTauri()) {
+      invoke('pty_kill', { ptyId: ptyIdRef.current }).catch(() => {});
     }
     ptyIdRef.current = null;
     if (xtermRef.current) {
@@ -282,11 +235,11 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl bg-card border border-border rounded-none overflow-hidden"
+            className="w-full max-w-4xl bg-card border border-border overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-none flex items-center justify-center ${
+                <div className={`w-8 h-8 flex items-center justify-center ${
                   installComplete
                     ? installExitCode === 0
                       ? 'bg-green-500/20'
@@ -316,13 +269,13 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
               </div>
               <button
                 onClick={handleClose}
-                className="p-2 hover:bg-secondary rounded-none"
+                className="p-2 hover:bg-secondary"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Provider Selector — skill mode only */}
+            {/* Provider Selector -- skill mode only */}
             {!isCommandMode && nonClaudeProviders.length > 0 && (
               <div className="px-5 py-3 border-b border-border flex items-center gap-3">
                 <span className="text-xs text-muted-foreground">Install to:</span>
@@ -338,12 +291,11 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
                       key={id}
                       onClick={() => toggleProvider(id)}
                       disabled={isClaude || installComplete}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors rounded-sm ${
                         isSelected
                           ? 'bg-secondary text-foreground'
                           : 'bg-secondary/50 text-muted-foreground hover:text-foreground'
                       } ${isClaude ? 'opacity-90 cursor-default' : ''}`}
-                      style={{ borderRadius: 4 }}
                     >
                       {typeof icon === 'string' ? (
                         <img src={icon} alt={config.label} className="w-3 h-3 object-contain" />
@@ -372,7 +324,7 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
               </p>
               <div
                 ref={terminalRef}
-                className="bg-[#0D0B08] rounded-none overflow-hidden"
+                className="bg-background overflow-hidden"
                 style={{ height: '400px' }}
               />
             </div>
@@ -383,16 +335,13 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
                   ? `Exited with code ${installExitCode}`
                   : 'Waiting for installation to complete...'}
               </p>
-              <button
+              <Button
                 onClick={handleClose}
-                className={`px-4 py-2 rounded-none font-medium ${
-                  installComplete
-                    ? 'bg-foreground text-background hover:bg-foreground/90'
-                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                }`}
+                variant={installComplete ? 'default' : 'destructive'}
+                className={!installComplete ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : ''}
               >
                 {installComplete ? 'Close' : 'Cancel'}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>
