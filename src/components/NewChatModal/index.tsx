@@ -399,7 +399,7 @@ export default function NewChatModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-2xl mx-4 bg-card border border-border rounded-xl shadow-2xl overflow-hidden h-[85vh] lg:h-[90vh] flex flex-col"
+          className="w-full max-w-2xl mx-4 bg-card border border-border shadow-2xl overflow-hidden h-[85vh] lg:h-[90vh] flex flex-col"
         >
           {/* Header: Step Indicator + Close */}
           <div className="px-4 lg:px-6 py-3 lg:py-4 border-b border-border flex items-center justify-between bg-secondary">
@@ -408,7 +408,7 @@ export default function NewChatModal({
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-bg-tertiary transition-colors ml-2"
+              className="p-2 hover:bg-muted transition-colors ml-2"
             >
               <X className="w-5 h-5" />
             </button>
@@ -524,7 +524,7 @@ export default function NewChatModal({
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     isEditMode
                       ? 'bg-foreground text-background hover:bg-foreground/90'
-                      : 'bg-accent-green text-white hover:bg-accent-green/90'
+                      : 'bg-green-600 text-white hover:bg-green-600/90'
                   }`}
                 >
                   {isEditMode ? (

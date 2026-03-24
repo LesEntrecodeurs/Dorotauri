@@ -1,8 +1,9 @@
-
-
 import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface StartPromptModalProps {
   open: boolean;
@@ -48,17 +49,19 @@ export function StartPromptModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-bg-secondary border border-border-primary rounded-none p-6 w-full max-w-lg mx-4 shadow-2xl"
+            className="bg-background border border-border p-6 w-full max-w-lg mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Play className="w-5 h-5 text-accent-green" />
-              Start Agent Task
-            </h3>
-            <p className="text-text-secondary text-sm mb-4">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Play className="w-5 h-5 text-success" />
+                Start Agent Task
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-muted-foreground text-sm mb-4 mt-4">
               Enter the task you want the agent to perform:
             </p>
-            <input
+            <Input
               ref={inputRef}
               type="text"
               value={value}
@@ -73,26 +76,26 @@ export function StartPromptModal({
                 }
               }}
               placeholder="e.g., Fix the bug in login.tsx..."
-              className="w-full px-4 py-3 bg-bg-primary border border-border-primary rounded-none text-sm focus:outline-none focus:border-accent-cyan mb-4"
+              className="mb-4"
               autoFocus
             />
             <div className="flex justify-end gap-3">
-              <button
+              <Button
                 onClick={onClose}
-                className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+                variant="ghost"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   handleSubmit();
                   onClose();
                 }}
                 disabled={!value.trim()}
-                className="px-4 py-2 text-sm bg-accent-green/20 text-accent-green rounded-none hover:bg-accent-green/30 transition-colors disabled:opacity-50"
+                className="bg-success/20 text-success hover:bg-success/30"
               >
                 Start Agent
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>

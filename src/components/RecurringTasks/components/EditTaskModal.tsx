@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { ScheduledTask } from '../types';
 import { ScheduleFieldPicker } from './ScheduleFieldPicker';
 import { TaskOptionsFields } from './TaskOptionsFields';
@@ -49,16 +50,18 @@ export function EditTaskModal({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-card border border-border w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h2 className="text-lg font-semibold">Edit Scheduled Task</h2>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
                 onClick={onClose}
-                className="p-1 hover:bg-secondary rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-6 space-y-4">
@@ -70,7 +73,7 @@ export function EditTaskModal({
                   value={editForm.title}
                   onChange={(e) => onFormChange({ ...editForm, title: e.target.value })}
                   placeholder="e.g. Daily code review"
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm"
+                  className="w-full px-3 py-2 bg-secondary border border-border text-sm"
                 />
               </div>
 
@@ -81,7 +84,7 @@ export function EditTaskModal({
                   type="text"
                   value={editForm.projectPath}
                   onChange={(e) => onFormChange({ ...editForm, projectPath: e.target.value })}
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg font-mono text-sm"
+                  className="w-full px-3 py-2 bg-secondary border border-border font-mono text-sm"
                 />
               </div>
 
@@ -92,7 +95,7 @@ export function EditTaskModal({
                   value={editForm.prompt}
                   onChange={(e) => onFormChange({ ...editForm, prompt: e.target.value })}
                   rows={6}
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg resize-none text-sm"
+                  className="w-full px-3 py-2 bg-secondary border border-border resize-none text-sm"
                 />
               </div>
 
@@ -124,16 +127,15 @@ export function EditTaskModal({
             </div>
 
             <div className="p-6 border-t border-border flex items-center justify-end gap-3">
-              <button
+              <Button
+                variant="ghost"
                 onClick={onClose}
-                className="px-4 py-2 text-sm hover:bg-secondary rounded-lg transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={onSave}
                 disabled={isSaving || !editForm.prompt.trim()}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
               >
                 {isSaving ? (
                   <>
@@ -143,7 +145,7 @@ export function EditTaskModal({
                 ) : (
                   'Save Changes'
                 )}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>

@@ -23,12 +23,13 @@
 }
 
 .mosaic-terminal-view .mosaic-window-body {
-  background: #1a1a2e;
+  background: #1A1726;
   overflow: hidden;
 }
 
 .mosaic-terminal-view .mosaic-window-body-overlay {
-  display: none;
+  /* Keep in DOM for drag-and-drop — react-mosaic activates it during drag */
+  background: transparent;
 }
 
 /* Split bar styling */
@@ -67,9 +68,37 @@
   min-height: 32px;
 }
 
-/* Override default mosaic window chrome — allow drag on custom toolbar */
+/* Cursor: drag handle */
 .mosaic-terminal-view .mosaic-window .mosaic-window-toolbar.draggable {
   cursor: grab;
+}
+
+.mosaic-terminal-view .mosaic-window .mosaic-window-toolbar.draggable:active {
+  cursor: grabbing;
+}
+
+/* Cursor: toolbar buttons */
+.mosaic-terminal-view .mosaic-window .mosaic-window-toolbar button {
+  cursor: pointer;
+}
+
+/* Cursor: grabbing on entire viewport during drag */
+.mosaic-terminal-view .mosaic-drop-target.drop-target-hover {
+  cursor: grabbing;
+}
+
+/* Cursor: split bars (reinforce library defaults) */
+.mosaic-terminal-view .mosaic-split.-row {
+  cursor: col-resize;
+}
+
+.mosaic-terminal-view .mosaic-split.-column {
+  cursor: row-resize;
+}
+
+/* Cursor: drop zone feedback */
+.mosaic-terminal-view .drop-target-container .drop-target {
+  cursor: copy;
 }
 
 /* Ensure the window body takes full height below our custom toolbar */

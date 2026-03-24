@@ -6,6 +6,7 @@ import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { attachShiftEnterHandler } from '@/lib/terminal';
+import { TERMINAL_THEME } from '@/components/AgentTerminalDialog/constants';
 import type { AgentStatus } from '@/types/electron';
 
 interface UseTrayTerminalProps {
@@ -48,29 +49,7 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
       if (cancelled) return;
 
       const term = new Terminal({
-        theme: {
-          background: '#1a1a2e',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#1a1a2e',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
-        },
+        theme: TERMINAL_THEME,
         fontSize: 11,
         fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
         cursorBlink: true,

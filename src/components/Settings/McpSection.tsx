@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback } from 'react';
 import {
   RefreshCw,
@@ -16,6 +14,11 @@ import {
   AlertCircle,
   Check,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 type Provider = 'claude' | 'codex' | 'gemini';
 
@@ -176,7 +179,7 @@ export function McpSection() {
     });
   };
 
-  // ── Arg helpers ──
+  // -- Arg helpers --
 
   const addArg = (name: string) => {
     const state = getEditState(name);
@@ -195,7 +198,7 @@ export function McpSection() {
     updateEditState(name, { args: state.args.filter((_, i) => i !== idx) });
   };
 
-  // ── Env helpers ──
+  // -- Env helpers --
 
   const addEnvVar = (name: string) => {
     const state = getEditState(name);
@@ -246,12 +249,12 @@ export function McpSection() {
       </div>
 
       {/* Provider Tabs */}
-      <div className="flex gap-1 border border-border rounded-lg p-1">
+      <div className="flex gap-1 border border-border p-1">
         {PROVIDER_TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
-            className={`flex-1 px-4 py-2 text-sm font-medium transition-colors rounded-md flex items-center justify-center gap-2 ${
+            className={`flex-1 px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
               provider === tab.id
                 ? 'bg-foreground text-background'
                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
@@ -265,7 +268,7 @@ export function McpSection() {
 
       {/* Error */}
       {error && (
-        <div className="p-3 text-sm flex items-center gap-2 bg-red-700/10 text-red-700 border border-red-700/20 rounded-lg">
+        <div className="p-3 text-sm flex items-center gap-2 bg-red-700/10 text-destructive border border-red-700/20">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
           <button onClick={() => setError(null)} className="ml-auto p-1 hover:text-red-500">
@@ -275,203 +278,209 @@ export function McpSection() {
       )}
 
       {/* Content */}
-      <div className="border border-border bg-card p-6 rounded-lg">
-        {/* Header row */}
-        <div className="flex items-center justify-between pb-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <Plug className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <p className="font-medium">{PROVIDER_TABS.find(t => t.id === provider)?.label} MCP Servers</p>
-              <p className="text-sm text-muted-foreground">
-                {loading ? 'Loading...' : `${servers.length} custom server${servers.length !== 1 ? 's' : ''}`}
-              </p>
+      <Card>
+        <CardContent className="p-6">
+          {/* Header row */}
+          <div className="flex items-center justify-between pb-4">
+            <div className="flex items-center gap-3">
+              <Plug className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="font-medium">{PROVIDER_TABS.find(t => t.id === provider)?.label} MCP Servers</p>
+                <p className="text-sm text-muted-foreground">
+                  {loading ? 'Loading...' : `${servers.length} custom server${servers.length !== 1 ? 's' : ''}`}
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => loadServers(provider)}
+              disabled={loading}
+              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
-          <button
-            onClick={() => loadServers(provider)}
-            disabled={loading}
-            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
 
-        {/* Server list */}
-        <div className="mt-4 space-y-2">
-          {loading && servers.length === 0 && (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              Loading servers...
-            </div>
-          )}
+          <Separator />
 
-          {!loading && servers.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              No custom MCP servers found for {PROVIDER_TABS.find(t => t.id === provider)?.label}.
-            </div>
-          )}
+          {/* Server list */}
+          <div className="mt-4 space-y-2">
+            {loading && servers.length === 0 && (
+              <div className="flex items-center justify-center py-8 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                Loading servers...
+              </div>
+            )}
 
-          {servers.map(server => {
-            const isExpanded = expandedServer === server.name;
-            const state = getEditState(server.name);
-            const isSaving = savingServer === server.name;
-            const isSaved = savedServer === server.name;
-            const isDeleting = deletingServer === server.name;
+            {!loading && servers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No custom MCP servers found for {PROVIDER_TABS.find(t => t.id === provider)?.label}.
+              </div>
+            )}
 
-            return (
-              <div key={server.name} className="border border-border rounded-lg overflow-hidden">
-                {/* Collapsed header */}
-                <button
-                  onClick={() => setExpandedServer(isExpanded ? null : server.name)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-secondary/50 transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isExpanded
-                      ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-                      : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                    }
-                    <span className="font-medium text-sm truncate">{server.name}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground font-mono truncate ml-3 max-w-[50%]">
-                    {server.command} {server.args.join(' ')}
-                  </span>
-                </button>
+            {servers.map(server => {
+              const isExpanded = expandedServer === server.name;
+              const state = getEditState(server.name);
+              const isSaving = savingServer === server.name;
+              const isSaved = savedServer === server.name;
+              const isDeleting = deletingServer === server.name;
 
-                {/* Expanded editor */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
-                    {/* Command */}
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Command</label>
-                      <input
-                        type="text"
-                        value={state.command}
-                        onChange={e => updateEditState(server.name, { command: e.target.value })}
-                        className="w-full px-3 py-2 bg-secondary border border-border text-sm font-mono focus:border-foreground focus:outline-none"
-                      />
+              return (
+                <div key={server.name} className="border border-border overflow-hidden">
+                  {/* Collapsed header */}
+                  <button
+                    onClick={() => setExpandedServer(isExpanded ? null : server.name)}
+                    className="w-full flex items-center justify-between p-3 hover:bg-secondary/50 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isExpanded
+                        ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                        : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                      }
+                      <span className="font-medium text-sm truncate">{server.name}</span>
                     </div>
+                    <span className="text-xs text-muted-foreground font-mono truncate ml-3 max-w-[50%]">
+                      {server.command} {server.args.join(' ')}
+                    </span>
+                  </button>
 
-                    {/* Args */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-muted-foreground">Arguments</label>
-                        <button
-                          onClick={() => addArg(server.name)}
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-                        >
-                          <Plus className="w-3 h-3" /> Add
-                        </button>
+                  {/* Expanded editor */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
+                      {/* Command */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">Command</Label>
+                        <Input
+                          type="text"
+                          value={state.command}
+                          onChange={e => updateEditState(server.name, { command: e.target.value })}
+                          className="font-mono"
+                        />
                       </div>
-                      {state.args.length === 0 && (
-                        <p className="text-xs text-muted-foreground italic">No arguments</p>
-                      )}
-                      <div className="space-y-1">
-                        {state.args.map((arg, idx) => (
-                          <div key={idx} className="flex gap-1">
-                            <input
-                              type="text"
-                              value={arg}
-                              onChange={e => updateArg(server.name, idx, e.target.value)}
-                              className="flex-1 px-3 py-1.5 bg-secondary border border-border text-sm font-mono focus:border-foreground focus:outline-none"
-                              placeholder={`arg ${idx}`}
-                            />
-                            <button
-                              onClick={() => removeArg(server.name, idx)}
-                              className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    {/* Env vars */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs text-muted-foreground">Environment Variables</label>
-                        <button
-                          onClick={() => addEnvVar(server.name)}
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-                        >
-                          <Plus className="w-3 h-3" /> Add
-                        </button>
-                      </div>
-                      {Object.keys(state.env).length === 0 && (
-                        <p className="text-xs text-muted-foreground italic">No environment variables</p>
-                      )}
-                      <div className="space-y-1">
-                        {Object.entries(state.env).map(([key, value]) => {
-                          const isMasked = maskedEnvKeys.has(`${server.name}:${key}`);
-                          return (
-                            <div key={key} className="flex gap-1">
-                              <input
+                      {/* Args */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-xs text-muted-foreground">Arguments</Label>
+                          <button
+                            onClick={() => addArg(server.name)}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                        </div>
+                        {state.args.length === 0 && (
+                          <p className="text-xs text-muted-foreground italic">No arguments</p>
+                        )}
+                        <div className="space-y-1">
+                          {state.args.map((arg, idx) => (
+                            <div key={idx} className="flex gap-1">
+                              <Input
                                 type="text"
-                                value={key}
-                                onChange={e => updateEnvKey(server.name, key, e.target.value)}
-                                className="w-[40%] px-3 py-1.5 bg-secondary border border-border text-sm font-mono focus:border-foreground focus:outline-none"
-                                placeholder="KEY"
+                                value={arg}
+                                onChange={e => updateArg(server.name, idx, e.target.value)}
+                                className="flex-1 font-mono h-8"
+                                placeholder={`arg ${idx}`}
                               />
-                              <div className="flex-1 flex">
-                                <input
-                                  type={isMasked ? 'password' : 'text'}
-                                  value={value}
-                                  onChange={e => updateEnvValue(server.name, key, e.target.value)}
-                                  className="flex-1 px-3 py-1.5 bg-secondary border border-border border-r-0 text-sm font-mono focus:border-foreground focus:outline-none"
-                                  placeholder="value"
-                                />
-                                <button
-                                  onClick={() => toggleEnvMask(server.name, key)}
-                                  className="px-2 bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                  {isMasked ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
                               <button
-                                onClick={() => removeEnvVar(server.name, key)}
-                                className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                                onClick={() => removeArg(server.name, idx)}
+                                className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                          );
-                        })}
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Env vars */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <Label className="text-xs text-muted-foreground">Environment Variables</Label>
+                          <button
+                            onClick={() => addEnvVar(server.name)}
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                        </div>
+                        {Object.keys(state.env).length === 0 && (
+                          <p className="text-xs text-muted-foreground italic">No environment variables</p>
+                        )}
+                        <div className="space-y-1">
+                          {Object.entries(state.env).map(([key, value]) => {
+                            const isMasked = maskedEnvKeys.has(`${server.name}:${key}`);
+                            return (
+                              <div key={key} className="flex gap-1">
+                                <Input
+                                  type="text"
+                                  value={key}
+                                  onChange={e => updateEnvKey(server.name, key, e.target.value)}
+                                  className="w-[40%] font-mono h-8"
+                                  placeholder="KEY"
+                                />
+                                <div className="flex-1 flex">
+                                  <Input
+                                    type={isMasked ? 'password' : 'text'}
+                                    value={value}
+                                    onChange={e => updateEnvValue(server.name, key, e.target.value)}
+                                    className="flex-1 font-mono h-8 rounded-r-none border-r-0"
+                                    placeholder="value"
+                                  />
+                                  <button
+                                    onClick={() => toggleEnvMask(server.name, key)}
+                                    className="px-2 bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    {isMasked ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={() => removeEnvVar(server.name, key)}
+                                  className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <Separator />
+                      <div className="flex items-center justify-end gap-2 pt-2">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(server.name)}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          Delete
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSave(server.name)}
+                          disabled={isSaving}
+                        >
+                          {isSaving ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : isSaved ? (
+                            <Check className="w-3.5 h-3.5" />
+                          ) : (
+                            <Save className="w-3.5 h-3.5" />
+                          )}
+                          {isSaved ? 'Saved' : 'Save'}
+                        </Button>
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                      <button
-                        onClick={() => handleDelete(server.name)}
-                        disabled={isDeleting}
-                        className="px-3 py-1.5 bg-red-600/10 text-red-500 hover:bg-red-600/20 border border-red-600/20 transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                        Delete
-                      </button>
-                      <button
-                        onClick={() => handleSave(server.name)}
-                        disabled={isSaving}
-                        className="px-3 py-1.5 bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {isSaving ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : isSaved ? (
-                          <Check className="w-3.5 h-3.5" />
-                        ) : (
-                          <Save className="w-3.5 h-3.5" />
-                        )}
-                        {isSaved ? 'Saved' : 'Save'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

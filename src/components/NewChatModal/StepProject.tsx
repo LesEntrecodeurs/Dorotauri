@@ -12,6 +12,8 @@ import {
   Star,
   Pin,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import type { Project } from './types';
 
 const INITIAL_VISIBLE = 8;
@@ -97,10 +99,10 @@ const StepProject = React.memo(function StepProject({
     <div className="space-y-5">
       <div>
         <h3 className="text-lg font-medium mb-1 flex items-center gap-2">
-          <FolderOpen className="w-5 h-5 text-accent-blue" />
+          <FolderOpen className="w-5 h-5 text-primary" />
           Select Project
         </h3>
-        <p className="text-text-secondary text-sm">
+        <p className="text-muted-foreground text-sm">
           Choose the codebase your agent will work in
         </p>
       </div>
@@ -108,13 +110,13 @@ const StepProject = React.memo(function StepProject({
       {/* Search (only show if enough projects to warrant it) */}
       {projects.length > INITIAL_VISIBLE && (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setShowAll(false); }}
             placeholder="Search projects..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg text-sm"
+            className="pl-10"
           />
         </div>
       )}
@@ -126,10 +128,10 @@ const StepProject = React.memo(function StepProject({
             key={project.path}
             onClick={() => onSelectProject(project.path)}
             className={`
-              text-left p-3 rounded-lg border transition-all
+              text-left p-3 border transition-all rounded-md
               ${selectedProject === project.path
-                ? 'border-accent-blue bg-accent-blue/10'
-                : 'border-border-primary hover:border-border-accent bg-bg-tertiary/30'
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:border-primary bg-muted/30'
               }
             `}
           >
@@ -140,15 +142,15 @@ const StepProject = React.memo(function StepProject({
                 ) : isFavorite(project) ? (
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
                 ) : (
-                  <FolderOpen className="w-4 h-4 text-accent-purple" />
+                  <FolderOpen className="w-4 h-4 text-primary" />
                 )}
                 <span className="font-medium">{project.name}</span>
               </div>
               {selectedProject === project.path && (
-                <Check className="w-4 h-4 text-accent-blue" />
+                <Check className="w-4 h-4 text-primary" />
               )}
             </div>
-            <p className="text-xs text-text-muted mt-1 truncate font-mono">
+            <p className="text-xs text-muted-foreground mt-1 truncate font-mono">
               {project.path}
             </p>
           </button>
@@ -159,7 +161,7 @@ const StepProject = React.memo(function StepProject({
       {hasMore && (
         <button
           onClick={() => setShowAll(true)}
-          className="w-full text-center text-sm text-text-muted hover:text-foreground transition-colors py-1.5"
+          className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-1.5"
         >
           Show all {filteredProjects.length} projects
         </button>
@@ -167,7 +169,7 @@ const StepProject = React.memo(function StepProject({
       {showAll && !search && filteredProjects.length > INITIAL_VISIBLE && (
         <button
           onClick={() => setShowAll(false)}
-          className="w-full text-center text-sm text-text-muted hover:text-foreground transition-colors py-1.5"
+          className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-1.5"
         >
           Show less
         </button>
@@ -175,41 +177,41 @@ const StepProject = React.memo(function StepProject({
 
       {/* No results */}
       {search && filteredProjects.length === 0 && (
-        <p className="text-sm text-text-muted text-center py-2">No projects match &ldquo;{search}&rdquo;</p>
+        <p className="text-sm text-muted-foreground text-center py-2">No projects match &ldquo;{search}&rdquo;</p>
       )}
 
       {/* Custom Path */}
       <div className="relative">
         <label className="block text-sm font-medium mb-2">Or enter a custom path:</label>
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             value={customPath}
             onChange={(e) => onCustomPathChange(e.target.value)}
             placeholder="/path/to/your/project"
-            className="flex-1 px-4 py-3 rounded-lg font-mono text-sm"
+            className="flex-1 font-mono"
           />
           {onBrowseFolder && (
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={async () => {
                 const path = await onBrowseFolder();
                 if (path) onCustomPathChange(path);
               }}
-              className="px-4 py-3 rounded-lg bg-bg-tertiary border border-border-primary hover:border-accent-blue transition-colors flex items-center gap-2"
             >
-              <FolderOpen className="w-4 h-4 text-accent-blue" />
+              <FolderOpen className="w-4 h-4 text-primary" />
               <span className="text-sm">Browse</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Secondary Project (Collapsible) */}
-      <div className="border border-border-primary rounded-lg overflow-hidden">
+      <div className="border border-border rounded-md overflow-hidden">
         <button
           onClick={onToggleSecondary}
-          className="w-full flex items-center justify-between px-4 py-3 bg-bg-tertiary/30 hover:bg-bg-tertiary/50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
         >
           <span className="font-medium text-sm flex items-center gap-2">
             {showSecondaryProject ? (
@@ -217,11 +219,11 @@ const StepProject = React.memo(function StepProject({
             ) : (
               <ChevronRight className="w-4 h-4" />
             )}
-            <Layers className="w-4 h-4 text-accent-purple" />
+            <Layers className="w-4 h-4 text-primary" />
             Add second project for context (optional)
           </span>
           {(selectedSecondaryProject || customSecondaryPath) && (
-            <span className="text-xs text-accent-purple px-2 py-0.5 rounded bg-accent-purple/10">
+            <span className="text-xs text-primary px-2 py-0.5 rounded-md bg-primary/10">
               Selected
             </span>
           )}
@@ -235,9 +237,9 @@ const StepProject = React.memo(function StepProject({
               exit={{ height: 0 }}
               className="overflow-hidden"
             >
-              <div className="p-4 space-y-4 border-t border-border-primary">
-                <p className="text-xs text-text-muted">
-                  The agent will have access to this project via <code className="bg-bg-tertiary px-1 rounded">--add-dir</code>
+              <div className="p-4 space-y-4 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  The agent will have access to this project via <code className="bg-muted px-1 rounded-sm">--add-dir</code>
                 </p>
 
                 {projects.filter(p => p.path !== projectPath).length > 0 ? (
@@ -247,53 +249,53 @@ const StepProject = React.memo(function StepProject({
                         key={project.path}
                         onClick={() => onSelectSecondaryProject(project.path)}
                         className={`
-                          text-left p-3 rounded-lg border transition-all text-sm
+                          text-left p-3 border transition-all text-sm rounded-md
                           ${selectedSecondaryProject === project.path
-                            ? 'border-accent-purple bg-accent-purple/10'
-                            : 'border-border-primary hover:border-border-accent bg-bg-tertiary/30'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary bg-muted/30'
                           }
                         `}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <FolderPlus className="w-3.5 h-3.5 text-accent-amber" />
+                            <FolderPlus className="w-3.5 h-3.5 text-warning" />
                             <span className="font-medium">{project.name}</span>
                           </div>
                           {selectedSecondaryProject === project.path && (
-                            <Check className="w-3.5 h-3.5 text-accent-purple" />
+                            <Check className="w-3.5 h-3.5 text-primary" />
                           )}
                         </div>
-                        <p className="text-xs text-text-muted mt-1 truncate font-mono">
+                        <p className="text-xs text-muted-foreground mt-1 truncate font-mono">
                           {project.path}
                         </p>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-text-muted italic">No other projects available</p>
+                  <p className="text-xs text-muted-foreground italic">No other projects available</p>
                 )}
 
                 {/* Custom secondary path */}
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     type="text"
                     value={customSecondaryPath}
                     onChange={(e) => onCustomSecondaryPathChange(e.target.value)}
                     placeholder="/path/to/secondary/project"
-                    className="flex-1 px-3 py-2 rounded-lg font-mono text-sm"
+                    className="flex-1 font-mono"
                   />
                   {onBrowseFolder && (
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
                       onClick={async () => {
                         const path = await onBrowseFolder();
                         if (path) onCustomSecondaryPathChange(path);
                       }}
-                      className="px-3 py-2 rounded-lg bg-bg-tertiary border border-border-primary hover:border-accent-purple transition-colors flex items-center gap-2"
                     >
-                      <FolderOpen className="w-4 h-4 text-accent-purple" />
+                      <FolderOpen className="w-4 h-4 text-primary" />
                       <span className="text-sm">Browse</span>
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -301,7 +303,7 @@ const StepProject = React.memo(function StepProject({
                 {(selectedSecondaryProject || customSecondaryPath) && (
                   <button
                     onClick={onClearSecondary}
-                    className="text-xs text-text-muted hover:text-accent-red transition-colors flex items-center gap-1"
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
                   >
                     <X className="w-3 h-3" />
                     Clear selection

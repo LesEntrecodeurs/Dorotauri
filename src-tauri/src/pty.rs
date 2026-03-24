@@ -80,6 +80,9 @@ impl PtyManager {
         cmd.arg("--login");
         cmd.cwd(cwd);
 
+        // Remove CLAUDECODE env var so nested Claude Code sessions can launch
+        cmd.env_remove("CLAUDECODE");
+
         let child = pair
             .slave
             .spawn_command(cmd)

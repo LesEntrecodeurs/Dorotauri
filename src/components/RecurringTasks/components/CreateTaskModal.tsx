@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { Agent } from '../types';
 import { ScheduleFieldPicker } from './ScheduleFieldPicker';
 import { TaskOptionsFields } from './TaskOptionsFields';
@@ -56,30 +57,32 @@ export function CreateTaskModal({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-card border border-border w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h2 className="text-lg font-semibold">Create Scheduled Task</h2>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
                 onClick={onClose}
-                className="p-1 hover:bg-secondary rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-6 space-y-4">
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Title <span className="text-red-500">*</span>
+                  Title <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => onFormChange({ ...formData, title: e.target.value })}
                   placeholder="e.g. Daily code review"
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm"
+                  className="w-full px-3 py-2 bg-secondary border border-border text-sm"
                   autoFocus
                 />
               </div>
@@ -97,7 +100,7 @@ export function CreateTaskModal({
                       projectPath: selectedAgent?.projectPath || formData.projectPath,
                     });
                   }}
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg"
+                  className="w-full px-3 py-2 bg-secondary border border-border"
                 >
                   <option value="">No agent (use project path below)</option>
                   {agents.map(agent => (
@@ -117,7 +120,7 @@ export function CreateTaskModal({
                     value={formData.projectPath}
                     onChange={(e) => onFormChange({ ...formData, projectPath: e.target.value })}
                     placeholder="/path/to/your/project"
-                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg font-mono text-sm"
+                    className="w-full px-3 py-2 bg-secondary border border-border font-mono text-sm"
                   />
                 </div>
               )}
@@ -130,7 +133,7 @@ export function CreateTaskModal({
                   onChange={(e) => onFormChange({ ...formData, prompt: e.target.value })}
                   placeholder="What should Claude do?"
                   rows={4}
-                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg resize-none"
+                  className="w-full px-3 py-2 bg-secondary border border-border resize-none"
                 />
               </div>
 
@@ -163,24 +166,23 @@ export function CreateTaskModal({
               />
 
               {createError && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm text-red-500">{createError}</span>
+                <div className="bg-destructive/10 border border-destructive/20 p-3 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive" />
+                  <span className="text-sm text-destructive">{createError}</span>
                 </div>
               )}
             </div>
 
             <div className="p-6 border-t border-border flex items-center justify-end gap-3">
-              <button
+              <Button
+                variant="ghost"
                 onClick={onClose}
-                className="px-4 py-2 text-sm hover:bg-secondary rounded-lg transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={onSubmit}
                 disabled={isCreating || !formData.prompt || (!formData.agentId && !formData.projectPath)}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors disabled:opacity-50"
               >
                 {isCreating ? (
                   <>
@@ -193,7 +195,7 @@ export function CreateTaskModal({
                     Create Task
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>
