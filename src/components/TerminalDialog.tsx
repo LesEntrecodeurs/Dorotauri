@@ -1,8 +1,10 @@
-'use client';
+
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle, X, Link2 } from 'lucide-react';
-import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import ProviderBadge, { PROVIDER_CONFIG } from '@/components/ProviderBadge';
 import 'xterm/css/xterm.css';
 
@@ -12,12 +14,11 @@ interface TerminalDialogProps {
   title: string;
   onClose: (success?: boolean) => void;
   availableProviders?: string[];
-  /** When set, runs this shell command via plugin:install-start instead of skill:install-start */
+  /** When set, runs this shell command via pty_create instead of skill install */
   command?: string;
 }
 
 export default function TerminalDialog({ open, repo, title, onClose, availableProviders = ['claude'], command }: TerminalDialogProps) {
-  // command mode uses plugin.* APIs, skill mode uses skill.* APIs
   const isCommandMode = !!command;
   const [installComplete, setInstallComplete] = useState(false);
   const [installExitCode, setInstallExitCode] = useState<number | null>(null);
@@ -89,24 +90,15 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
       term.onData((data) => {
         const cleaned = data.replace(/\x1b\[(?:I|O)/g, '');
         if (!cleaned) return;
-        if (!ptyIdRef.current) return;
-        if (isCommandMode) {
-          window.electronAPI?.plugin?.installWrite({ id: ptyIdRef.current, data: cleaned });
-        } else {
-          window.electronAPI?.skill?.installWrite({ id: ptyIdRef.current, data: cleaned });
-        }
+        if (!ptyIdRef.current || !isTauri()) return;
+        invoke('pty_write', { ptyId: ptyIdRef.current, data: cleaned }).catch(() => {});
       });
 
       // Handle resize
       const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
-        if (!ptyIdRef.current) return;
-        const dims = { id: ptyIdRef.current, cols: term.cols, rows: term.rows };
-        if (isCommandMode) {
-          window.electronAPI?.plugin?.installResize(dims);
-        } else {
-          window.electronAPI?.skill?.installResize(dims);
-        }
+        if (!ptyIdRef.current || !isTauri()) return;
+        invoke('pty_resize', { ptyId: ptyIdRef.current, cols: term.cols, rows: term.rows }).catch(() => {});
       });
       resizeObserver.observe(terminalRef.current!);
 
@@ -118,12 +110,8 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
 
     return () => {
       // Kill PTY process to prevent zombie processes
-      if (ptyIdRef.current) {
-        if (isCommandMode) {
-          window.electronAPI?.plugin?.installKill({ id: ptyIdRef.current });
-        } else {
-          window.electronAPI?.skill?.installKill({ id: ptyIdRef.current });
-        }
+      if (ptyIdRef.current && isTauri()) {
+        invoke('pty_kill', { ptyId: ptyIdRef.current }).catch(() => {});
         ptyIdRef.current = null;
       }
       if (xtermRef.current) {
@@ -136,61 +124,52 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
 
   // Start PTY only after terminal is ready
   useEffect(() => {
-    if (!terminalReady) return;
+    if (!terminalReady || !isTauri()) return;
 
-    if (isCommandMode) {
-      if (!command || !window.electronAPI?.plugin?.installStart) return;
-      const startPty = async () => {
-        try {
-          const term = xtermRef.current;
-          const result = await window.electronAPI!.plugin!.installStart({
-            command: command!,
-            cols: term?.cols,
-            rows: term?.rows,
-          });
-          if (result) ptyIdRef.current = result.id;
-        } catch (err) {
-          xtermRef.current?.writeln(
-            `Failed to start: ${err instanceof Error ? err.message : 'Unknown error'}`
-          );
-          setInstallComplete(true);
-          setInstallExitCode(1);
+    const startPty = async () => {
+      try {
+        const term = xtermRef.current;
+        // Create a standalone PTY for the install command or skill install
+        const ptyId = await invoke<string>('pty_create', {
+          cols: term?.cols,
+          rows: term?.rows,
+        });
+        ptyIdRef.current = ptyId;
+
+        // Write the actual command to run in the PTY
+        if (isCommandMode && command) {
+          await invoke('pty_write', { ptyId, data: command + '\n' });
+        } else if (repo) {
+          // For skill install, run the install command
+          await invoke('pty_write', { ptyId, data: `claude mcp add-from-claude-code ${repo}\n` });
         }
-      };
-      startPty();
-    } else {
-      if (!repo || !window.electronAPI?.skill?.installStart) return;
-      const startPty = async () => {
-        try {
-          const result = await window.electronAPI!.skill.installStart({ repo });
-          ptyIdRef.current = result.id;
-        } catch (err) {
-          xtermRef.current?.writeln(
-            `Failed to start installation: ${err instanceof Error ? err.message : 'Unknown error'}`
-          );
-          setInstallComplete(true);
-          setInstallExitCode(1);
-        }
-      };
-      startPty();
-    }
+      } catch (err) {
+        xtermRef.current?.writeln(
+          `Failed to start: ${err instanceof Error ? err.message : String(err)}`
+        );
+        setInstallComplete(true);
+        setInstallExitCode(1);
+      }
+    };
+    startPty();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalReady, repo, command]);
 
-  // Listen for PTY data on both channels — ID filtering ensures correctness
+  // Listen for PTY data via Tauri events
   useEffect(() => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
 
-    const handler = ({ id, data }: { id: string; data: string }) => {
-      if (id === ptyIdRef.current && xtermRef.current) {
-        xtermRef.current.write(data);
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { pty_id, data } = event.payload;
+      if (pty_id === ptyIdRef.current && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
       }
-    };
+    }).then(fn => { unlisten = fn; });
 
-    const unsub1 = window.electronAPI?.plugin?.onPtyData(handler);
-    const unsub2 = window.electronAPI?.skill?.onPtyData(handler);
-
-    return () => { unsub1?.(); unsub2?.(); };
+    return () => { unlisten?.(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -198,26 +177,26 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
   const isCommandModeRef = useRef(isCommandMode);
   isCommandModeRef.current = isCommandMode;
 
-  // Listen for PTY exit on both channels
+  // Listen for PTY exit via Tauri events
   useEffect(() => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
 
-    const handler = ({ id, exitCode }: { id: string; exitCode: number }) => {
-      if (id === ptyIdRef.current) {
+    let unlisten: (() => void) | undefined;
+
+    listen<{ pty_id: string; exit_code: number }>('pty:exit', (event) => {
+      const { pty_id, exit_code } = event.payload;
+      if (pty_id === ptyIdRef.current) {
         setInstallComplete(true);
-        setInstallExitCode(exitCode);
+        setInstallExitCode(exit_code);
 
         // On success, symlink to additional providers (skill mode only)
-        if (exitCode === 0 && !isCommandModeRef.current) {
+        if (exit_code === 0 && !isCommandModeRef.current) {
           linkToAdditionalProviders();
         }
       }
-    };
+    }).then(fn => { unlisten = fn; });
 
-    const unsub1 = window.electronAPI?.plugin?.onPtyExit(handler);
-    const unsub2 = window.electronAPI?.skill?.onPtyExit(handler);
-
-    return () => { unsub1?.(); unsub2?.(); };
+    return () => { unlisten?.(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -232,8 +211,10 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
     for (const providerId of additionalProviders) {
       setLinkingStatus(prev => ({ ...prev, [providerId]: 'pending' }));
       try {
-        const result = await window.electronAPI!.skill.linkToProvider({ skillName, providerId });
-        setLinkingStatus(prev => ({ ...prev, [providerId]: result.success ? 'done' : 'error' }));
+        if (isTauri()) {
+          const result = await invoke<{ success: boolean; error?: string }>('skill_link_to_provider', { skillName, providerId });
+          setLinkingStatus(prev => ({ ...prev, [providerId]: result.success ? 'done' : 'error' }));
+        }
       } catch {
         setLinkingStatus(prev => ({ ...prev, [providerId]: 'error' }));
       }
@@ -251,12 +232,8 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
   };
 
   const handleClose = () => {
-    if (ptyIdRef.current && !installComplete) {
-      if (isCommandMode) {
-        window.electronAPI?.plugin?.installKill({ id: ptyIdRef.current });
-      } else {
-        window.electronAPI?.skill?.installKill({ id: ptyIdRef.current });
-      }
+    if (ptyIdRef.current && !installComplete && isTauri()) {
+      invoke('pty_kill', { ptyId: ptyIdRef.current }).catch(() => {});
     }
     ptyIdRef.current = null;
     if (xtermRef.current) {

@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/hooks/useTauri';
 import type { AgentStatus, AgentCharacter } from '@/types/electron';
-import { ORCHESTRATOR_PROMPT } from '@/app/agents/constants';
+import { ORCHESTRATOR_PROMPT } from '@/components/AgentList/constants';
 
 interface Project {
   path: string;
@@ -49,20 +51,29 @@ export function useSuperAgent({
     }
 
     // Check if orchestrator is configured
-    if (!window.electronAPI?.orchestrator?.getStatus) {
-      console.error('Orchestrator API not available');
+    if (!isTauri()) {
+      console.error('Tauri API not available');
       return;
     }
 
-    const status = await window.electronAPI.orchestrator.getStatus();
+    try {
+      const status = await invoke<{ configured: boolean; error?: string }>('orchestrator_get_status');
 
-    // If not configured, set it up first
-    if (!status.configured && window.electronAPI?.orchestrator?.setup) {
-      const setupResult = await window.electronAPI.orchestrator.setup();
-      if (!setupResult.success) {
-        console.error('Failed to setup orchestrator:', setupResult.error);
-        return;
+      // If not configured, set it up first
+      if (!status.configured) {
+        try {
+          const setupResult = await invoke<{ success: boolean; error?: string }>('orchestrator_setup');
+          if (!setupResult.success) {
+            console.error('Failed to setup orchestrator:', setupResult.error);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to setup orchestrator:', err);
+          return;
+        }
       }
+    } catch {
+      // Rust commands not implemented yet — skip orchestrator check
     }
 
     // Create a new super agent

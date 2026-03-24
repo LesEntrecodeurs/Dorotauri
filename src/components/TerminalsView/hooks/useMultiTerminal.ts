@@ -1,10 +1,13 @@
-'use client';
+
+
 
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import type { AgentStatus } from '@/types/electron';
-import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { TERMINAL_CONFIG } from '../constants';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
 import { attachShiftEnterHandler } from '@/lib/terminal';
@@ -41,8 +44,11 @@ function safeFit(agentId: string, entry: TerminalEntry) {
     if (cols !== entry.lastCols || rows !== entry.lastRows) {
       entry.lastCols = cols;
       entry.lastRows = rows;
-      if (isElectron()) {
-        window.electronAPI!.agent.resize({ id: agentId, cols, rows }).catch(() => {});
+      if (isTauri()) {
+        invoke('agent_send_input', { id: agentId, input: '' }).catch(() => {});
+        // Use pty_resize via the agent's ptyId if available, otherwise no-op
+        // The agent_send_input above is a no-op ping; resize goes through pty_resize
+        invoke('pty_resize', { ptyId: agentId, cols, rows }).catch(() => {});
       }
     }
   } catch {}
@@ -166,11 +172,11 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       // Step 1: Initial fit — determines correct cols/rows for this panel size
       safeFit(agentId, entry);
 
-      // Step 2: Replay historical output from Electron main process.
-      // Fetch directly via IPC to avoid depending on React state (agents array).
-      if (isElectron() && window.electronAPI?.agent?.get) {
+      // Step 2: Replay historical output from backend.
+      // Fetch directly via invoke to avoid depending on React state (agents array).
+      if (isTauri()) {
         try {
-          const agent = await window.electronAPI.agent.get(agentId);
+          const agent = await invoke<AgentStatus | null>('agent_get', { id: agentId });
           if (agent?.output?.length) {
             const outputStr = agent.output.join('');
             term.write(outputStr);
@@ -191,8 +197,8 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       setTimeout(() => safeFit(agentId, entry), 200);
 
       attachShiftEnterHandler(term, (data) => {
-        if (isElectron()) {
-          window.electronAPI!.agent.sendInput({ id: agentId, input: data }).catch(() => {});
+        if (isTauri()) {
+          invoke('agent_send_input', { id: agentId, input: data }).catch(() => {});
         }
       });
 
@@ -207,8 +213,8 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
           .replace(/\x1b\[(?:I|O)/g, '')         // Focus in/out: \x1b[I / \x1b[O
           .replace(/\d+;\d+c/g, '');             // Bare DA fragments: 1;2c
         if (!cleaned) return;
-        if (isElectron()) {
-          window.electronAPI!.agent.sendInput({ id: agentId, input: cleaned }).catch(() => {});
+        if (isTauri()) {
+          invoke('agent_send_input', { id: agentId, input: cleaned }).catch(() => {});
         }
       });
 
@@ -266,8 +272,8 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
     }
   }, []);
 
-  // Write to a specific terminal
-  const writeToTerminal = useCallback((agentId: string, data: string) => {
+  // Write to a specific terminal (accepts string or Uint8Array)
+  const writeToTerminal = useCallback((agentId: string, data: string | Uint8Array) => {
     const entry = terminalsRef.current.get(agentId);
     if (entry && !entry.disposed) {
       entry.terminal.write(data);
@@ -276,15 +282,15 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
 
   // Send input to agent PTY
   const sendInput = useCallback(async (agentId: string, input: string) => {
-    if (!isElectron()) return;
-    await window.electronAPI!.agent.sendInput({ id: agentId, input });
+    if (!isTauri()) return;
+    await invoke('agent_send_input', { id: agentId, input });
   }, []);
 
   // Broadcast input to all terminals
   const broadcastInput = useCallback(async (input: string) => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
     const promises = Array.from(terminalsRef.current.keys()).map(agentId =>
-      window.electronAPI!.agent.sendInput({ id: agentId, input })
+      invoke('agent_send_input', { id: agentId, input })
     );
     await Promise.allSettled(promises);
   }, []);
@@ -381,19 +387,25 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
 
   // Single global onOutput listener that dispatches to correct terminal
   useEffect(() => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
 
-    const unsubOutput = window.electronAPI!.agent.onOutput((event) => {
-      writeToTerminal(event.agentId, event.data);
-    });
+    let unsubOutput: (() => void) | undefined;
+    let unsubError: (() => void) | undefined;
 
-    const unsubError = window.electronAPI!.agent.onError((event) => {
-      writeToTerminal(event.agentId, `\x1b[31m${event.data}\x1b[0m`);
-    });
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { agent_id, data } = event.payload;
+      const bytes = new Uint8Array(data);
+      writeToTerminal(agent_id, bytes);
+    }).then(fn => { unsubOutput = fn; });
+
+    listen<{ agentId: string; data: string }>('agent:error', (event) => {
+      const e = event.payload;
+      writeToTerminal(e.agentId, `\x1b[31m${e.data}\x1b[0m`);
+    }).then(fn => { unsubError = fn; });
 
     return () => {
-      unsubOutput();
-      unsubError();
+      unsubOutput?.();
+      unsubError?.();
     };
   }, [writeToTerminal]);
 

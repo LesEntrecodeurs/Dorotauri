@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState } from 'react';
 import type { AgentTickItem, DisplayStatus } from '@/types/electron';

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { isElectron } from '@/hooks/useElectron';
-import type { AgentProvider } from '@/types/electron';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '@/hooks/useTauri';
+import type { AgentProvider, AgentStatus, AgentEvent } from '@/types/electron';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
 import { attachShiftEnterHandler } from '@/lib/terminal';
 
@@ -108,8 +110,8 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
         fitAddon.fit();
         term.focus();
         // Send initial resize to agent PTY (ignore errors if PTY not ready)
-        if (window.electronAPI?.agent?.resize) {
-          window.electronAPI.agent.resize({
+        if (isTauri()) {
+          invoke('agent_resize', {
             id: selectedAgentId,
             cols: term.cols,
             rows: term.rows,
@@ -124,8 +126,8 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
 
       attachShiftEnterHandler(term, (data) => {
         const agentId = selectedAgentIdRef.current;
-        if (agentId && window.electronAPI?.agent?.sendInput) {
-          window.electronAPI.agent.sendInput({ id: agentId, input: data }).catch(() => {});
+        if (agentId && isTauri()) {
+          invoke('agent_send_input', { id: agentId, input: data }).catch(() => {});
         }
       });
 
@@ -144,9 +146,9 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
           .replace(/\d+;\d+c/g, '');             // Bare DA fragments: 1;2c
         if (!cleaned) return;
         const agentId = selectedAgentIdRef.current;
-        if (agentId && window.electronAPI?.agent?.sendInput) {
+        if (agentId && isTauri()) {
           try {
-            const result = await window.electronAPI.agent.sendInput({ id: agentId, input: cleaned });
+            const result = await invoke<{ success: boolean }>('agent_send_input', { id: agentId, input: cleaned });
             if (!result.success) {
               console.warn('Failed to send input to agent');
             }
@@ -161,8 +163,8 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
         if (fitAddonRef.current) {
           fitAddonRef.current.fit();
           const agentId = selectedAgentIdRef.current;
-          if (agentId && xtermRef.current && window.electronAPI?.agent?.resize) {
-            window.electronAPI.agent.resize({
+          if (agentId && xtermRef.current && isTauri()) {
+            invoke('agent_resize', {
               id: agentId,
               cols: xtermRef.current.cols,
               rows: xtermRef.current.rows,
@@ -183,10 +185,10 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
 
       if (cancelled) return;
 
-      // Fetch latest agent data from main process to get all stored output
-      if (window.electronAPI?.agent?.get) {
+      // Fetch latest agent data to get all stored output
+      if (isTauri()) {
         try {
-          const latestAgent = await window.electronAPI.agent.get(selectedAgentId);
+          const latestAgent = await invoke<AgentStatus | null>('agent_get', { id: selectedAgentId });
 
           if (cancelled) return;
 
@@ -216,7 +218,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
           }
         }
       } else if (!cancelled) {
-        term.writeln('\x1b[31mElectron API not available\x1b[0m');
+        term.writeln('\x1b[31mTauri API not available\x1b[0m');
       }
     };
 
@@ -237,35 +239,44 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
     };
   }, [selectedAgentId, terminalRef, provider, terminalTheme, terminalFontSize]);
 
-  // Listen for agent output events
+  // Listen for agent output events (Rust PTY sends bytes as number[])
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.agent?.onOutput) {
-      console.log('Agent output listener not set up - electronAPI not available');
+    if (!isTauri()) {
+      console.log('Agent output listener not set up - Tauri API not available');
       return;
     }
 
-   
-    const unsubscribe = window.electronAPI.agent.onOutput((event) => {
-     
-      if (event.agentId === selectedAgentIdRef.current && xtermRef.current) {
-        xtermRef.current.write(event.data);
-      } 
-    });
+    let unlisten: (() => void) | undefined;
 
-    return unsubscribe;
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { agent_id, data } = event.payload;
+      if (agent_id === selectedAgentIdRef.current && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
+      }
+    }).then(fn => { unlisten = fn; });
+
+    return () => {
+      unlisten?.();
+    };
   }, []);
 
   // Listen for agent error events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.agent?.onError) return;
+    if (!isTauri()) return;
 
-    const unsubscribe = window.electronAPI.agent.onError((event) => {
-      if (event.agentId === selectedAgentIdRef.current && xtermRef.current) {
-        xtermRef.current.write(`\x1b[31m${event.data}\x1b[0m`);
+    let unlisten: (() => void) | undefined;
+
+    listen<AgentEvent>('agent:error', (event) => {
+      const e = event.payload;
+      if (e.agentId === selectedAgentIdRef.current && xtermRef.current) {
+        xtermRef.current.write(`\x1b[31m${e.data}\x1b[0m`);
       }
-    });
+    }).then(fn => { unlisten = fn; });
 
-    return unsubscribe;
+    return () => {
+      unlisten?.();
+    };
   }, []);
 
   const clearTerminal = useCallback(() => {

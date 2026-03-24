@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState, useCallback, useRef, KeyboardEvent } from 'react';
 import { SendHorizontal } from 'lucide-react';

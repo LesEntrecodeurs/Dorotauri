@@ -6,6 +6,7 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import type { AgentPersonaValues } from './types';
 import type { AgentProvider } from '@/types/electron';
 import AgentPersonaEditor from './AgentPersonaEditor';
@@ -110,8 +111,8 @@ const StepModel = React.memo(function StepModel({
     setLoadingTasmania(true);
 
     Promise.all([
-      window.electronAPI?.tasmania?.getStatus(),
-      window.electronAPI?.tasmania?.getModels(),
+      invoke<{ status: string; modelName: string | null; endpoint: string | null }>('tasmania_get_status').catch(() => null),
+      invoke<{ models: TasmaniaModel[] }>('tasmania_get_models').catch(() => null),
     ]).then(([status, modelsResult]) => {
       if (cancelled) return;
       if (status) setTasmaniaStatus(status);

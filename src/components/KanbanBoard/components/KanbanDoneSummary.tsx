@@ -1,4 +1,4 @@
-'use client';
+
 
 import { motion } from 'framer-motion';
 import { X, CheckCircle2, Clock, FolderGit2, Trash2 } from 'lucide-react';

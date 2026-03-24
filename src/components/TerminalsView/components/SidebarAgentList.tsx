@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Play, Square } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';

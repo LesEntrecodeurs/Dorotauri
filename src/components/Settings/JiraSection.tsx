@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState } from 'react';
 import { Eye, EyeOff, Loader2, TicketCheck, CheckCircle, XCircle } from 'lucide-react';

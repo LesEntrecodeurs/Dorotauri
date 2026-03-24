@@ -1,5 +1,3 @@
-'use client';
-
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -24,8 +22,8 @@ import { useEffect, useState } from 'react';
 import { LATEST_RELEASE, WHATS_NEW_STORAGE_KEY } from '@/data/changelog';
 
 import { useStore } from '@/store';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useNotifications } from '@/hooks/useNotifications';
+import { Link, useLocation } from 'react-router';
 
 const navItems = [
   { href: '/', icon: LayoutDashboard, label: 'Dashboard', shortcut: '1' },
@@ -62,9 +60,11 @@ function useWhatsNewBadge() {
 }
 
 export default function Sidebar({ isMobile = false }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
   const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen, darkMode, toggleDarkMode, vaultUnreadCount } = useStore();
   const whatsNewHasNew = useWhatsNewBadge();
+  const { undismissed: undismissedNotifications } = useNotifications();
+  const notificationCount = undismissedNotifications.length;
 
   // For mobile, sidebar is always expanded (240px) when open
   const sidebarWidth = isMobile ? 240 : (sidebarCollapsed ? 72 : 240);
@@ -111,7 +111,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                to={item.href}
                 className={`
                   group flex items-center gap-3 px-3 py-2.5 transition-all duration-150
                   ${isActive
@@ -127,6 +127,11 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                       {vaultUnreadCount}
                     </span>
                   )}
+                  {item.href === '/agents' && notificationCount > 0 && !showLabels && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] flex items-center justify-center text-[8px] font-bold bg-orange-500 text-white rounded-full px-0.5">
+                      {notificationCount}
+                    </span>
+                  )}
                 </div>
                 {showLabels && (
                   <span className="text-sm flex-1">
@@ -136,6 +141,11 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                 {item.href === '/vault' && vaultUnreadCount > 0 && showLabels && (
                   <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-primary text-primary-foreground rounded-full px-1">
                     {vaultUnreadCount}
+                  </span>
+                )}
+                {item.href === '/agents' && notificationCount > 0 && showLabels && (
+                  <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-orange-500 text-white rounded-full px-1">
+                    {notificationCount}
                   </span>
                 )}
               </Link>
@@ -148,7 +158,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           {showLabels && (
             <>
               <Link
-                href="/whats-new"
+                to="/whats-new"
                 className={`flex items-center gap-3 px-5 py-3 transition-colors ${
                   pathname === '/whats-new'
                     ? 'bg-primary/20 text-primary border-l-2 border-primary'
@@ -181,7 +191,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           )}
           {!showLabels && (
             <Link
-              href="/whats-new"
+              to="/whats-new"
               className={`flex items-center justify-center py-3 transition-colors ${
                 pathname === '/whats-new'
                   ? 'bg-primary/20 text-primary'
@@ -201,7 +211,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
         {/* Settings & Collapse */}
         <div className="border-t border-border">
           <Link
-            href="/settings"
+            to="/settings"
             className={`
               flex items-center gap-3 px-5 py-3 transition-colors
               ${pathname === '/settings' || pathname.startsWith('/settings/')
@@ -269,7 +279,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  to={item.href}
                   onClick={handleNavClick}
                   className={`
                     group flex items-center gap-3 px-3 py-2.5 transition-all duration-150
@@ -290,6 +300,11 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
                       {vaultUnreadCount}
                     </span>
                   )}
+                  {item.href === '/agents' && notificationCount > 0 && (
+                    <span className="min-w-[20px] h-[20px] flex items-center justify-center text-[10px] font-medium bg-orange-500 text-white rounded-full px-1">
+                      {notificationCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -298,7 +313,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           {/* What's New + Status indicator */}
           <div className="border-t border-border">
             <Link
-              href="/whats-new"
+              to="/whats-new"
               onClick={handleNavClick}
               className={`flex items-center gap-3 px-5 py-3 transition-colors ${
                 pathname === '/whats-new'
@@ -333,7 +348,7 @@ export default function Sidebar({ isMobile = false }: SidebarProps) {
           {/* Settings & Theme Toggle */}
           <div className="border-t border-border">
             <Link
-              href="/settings"
+              to="/settings"
               onClick={handleNavClick}
               className={`
                 flex items-center gap-3 px-5 py-3 transition-colors

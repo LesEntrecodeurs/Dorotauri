@@ -1,5 +1,3 @@
-'use client';
-
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';

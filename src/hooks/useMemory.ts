@@ -1,10 +1,7 @@
-'use client';
-
 import { useState, useCallback, useEffect } from 'react';
-import type { ProjectMemory, MemoryFile } from '@/types/electron';
-
-export const isElectron = (): boolean =>
-  typeof window !== 'undefined' && window.electronAPI !== undefined;
+import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/hooks/useTauri';
+import type { ProjectMemory, MemoryFile, AgentStatus } from '@/types/electron';
 
 export interface MemoryState {
   projects: ProjectMemory[];
@@ -27,7 +24,7 @@ export function useMemory() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchProjects = useCallback(async () => {
-    if (!isElectron() || !window.electronAPI?.memory) {
+    if (!isTauri()) {
       setLoading(false);
       return;
     }
@@ -36,8 +33,8 @@ export function useMemory() {
       setError(null);
       // Fetch projects and active agents in parallel
       const [memResult, agents] = await Promise.all([
-        window.electronAPI.memory.listProjects(),
-        window.electronAPI.agent.list().catch(() => []),
+        invoke<{ projects: ProjectMemory[]; error: string | null }>('memory_list_projects').catch(() => ({ projects: [], error: 'Failed to fetch memory projects' })),
+        invoke<AgentStatus[]>('agent_list').catch(() => []),
       ]);
 
       // Build agent count map keyed by projectPath
@@ -77,10 +74,10 @@ export function useMemory() {
   }, []);
 
   const saveFile = useCallback(async (filePath: string, content: string): Promise<boolean> => {
-    if (!isElectron() || !window.electronAPI?.memory) return false;
+    if (!isTauri()) return false;
     try {
       setSaving(true);
-      const result = await window.electronAPI.memory.writeFile(filePath, content);
+      const result = await invoke<{ success: boolean; error?: string }>('memory_write_file', { path: filePath, content });
       if (result.success) {
         // Update local state
         setSelectedFile(prev => prev ? { ...prev, content } : null);
@@ -101,9 +98,9 @@ export function useMemory() {
   }, []);
 
   const createFile = useCallback(async (memoryDir: string, fileName: string): Promise<boolean> => {
-    if (!isElectron() || !window.electronAPI?.memory) return false;
+    if (!isTauri()) return false;
     try {
-      const result = await window.electronAPI.memory.createFile(memoryDir, fileName, '');
+      const result = await invoke<{ success: boolean; file?: MemoryFile; error?: string }>('memory_create_file', { memoryDir, fileName, content: '' });
       if (result.success && result.file) {
         await fetchProjects();
         return true;
@@ -117,9 +114,9 @@ export function useMemory() {
   }, [fetchProjects]);
 
   const deleteFile = useCallback(async (filePath: string): Promise<boolean> => {
-    if (!isElectron() || !window.electronAPI?.memory) return false;
+    if (!isTauri()) return false;
     try {
-      const result = await window.electronAPI.memory.deleteFile(filePath);
+      const result = await invoke<{ success: boolean; error?: string }>('memory_delete_file', { path: filePath });
       if (result.success) {
         if (selectedFile?.path === filePath) setSelectedFile(null);
         await fetchProjects();
@@ -173,7 +170,7 @@ export function useMemory() {
     totalFiles,
     totalSize,
     projectsWithMemory,
-    isElectron: isElectron(),
+    isElectron: isTauri(),
     selectProject,
     selectFile,
     saveFile,

@@ -1,6 +1,6 @@
-'use client';
-
 import { useState, useEffect, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/hooks/useTauri';
 import type {
   ClaudeSettings,
   ClaudeStats,
@@ -11,7 +11,6 @@ import type {
   HistoryEntry,
   ClaudeMessage,
 } from '@/lib/claude-code';
-import { isElectron } from './useElectron';
 
 interface ClaudeData {
   settings: ClaudeSettings | null;
@@ -32,62 +31,76 @@ export function useClaude() {
     try {
       setLoading(true);
 
-      // Use IPC in Electron, API in browser
-      if (isElectron() && window.electronAPI?.claude?.getData) {
-        const result = await window.electronAPI.claude.getData();
-        if (result) {
-          // Transform the result to match expected types
-          // Electron returns lastAccessed as number (ms timestamp), frontend expects lastActivity as Date
-          interface ElectronProject {
-            id: string;
-            path: string;
-            name: string;
-            sessions: Array<{ id: string; timestamp: number }>;
-            lastAccessed: number;
-          }
+      // Use invoke in Tauri, API in browser
+      if (isTauri()) {
+        try {
+          const result = await invoke<{
+            settings: unknown;
+            stats: unknown;
+            projects: unknown[];
+            plugins: unknown[];
+            skills: unknown[];
+            history: unknown[];
+            activeSessions: string[];
+          } | null>('claude_get_data');
 
-          const rawProjects = (result.projects || []) as ElectronProject[];
-          const transformedProjects = rawProjects.map((p) => ({
-            id: p.id,
-            name: p.name,
-            path: p.path,
-            sessions: (p.sessions || []).map(s => ({
-              id: s.id,
-              projectPath: p.path,
-              messages: [] as ClaudeMessage[],
-              startTime: new Date(s.timestamp),
-              lastActivity: new Date(s.timestamp),
-            })),
-            lastActivity: new Date(p.lastAccessed),
-          }));
+          if (result) {
+            // Transform the result to match expected types
+            // Electron returns lastAccessed as number (ms timestamp), frontend expects lastActivity as Date
+            interface ElectronProject {
+              id: string;
+              path: string;
+              name: string;
+              sessions: Array<{ id: string; timestamp: number }>;
+              lastAccessed: number;
+            }
 
-          // Only update if data actually changed to prevent unnecessary re-renders
-          setData(prev => {
-            const newData = {
-              settings: result.settings as ClaudeSettings | null,
-              stats: result.stats as ClaudeStats | null,
-              projects: transformedProjects,
-              plugins: (result.plugins || []) as ClaudePlugin[],
-              skills: (result.skills || []) as ClaudeSkill[],
-              history: (result.history || []) as HistoryEntry[],
-              activeSessions: (result.activeSessions || []) as string[],
-            };
-            // Quick comparison - check if project count or active sessions changed
-            if (!prev) return newData;
-            if (prev.projects.length !== newData.projects.length) return newData;
-            if (prev.activeSessions.length !== newData.activeSessions.length) return newData;
-            // Check if any project changed
-            const projectsChanged = newData.projects.some((p, i) => {
-              const prevP = prev.projects[i];
-              return prevP?.id !== p.id || prevP?.sessions.length !== p.sessions.length;
+            const rawProjects = (result.projects || []) as ElectronProject[];
+            const transformedProjects = rawProjects.map((p) => ({
+              id: p.id,
+              name: p.name,
+              path: p.path,
+              sessions: (p.sessions || []).map(s => ({
+                id: s.id,
+                projectPath: p.path,
+                messages: [] as ClaudeMessage[],
+                startTime: new Date(s.timestamp),
+                lastActivity: new Date(s.timestamp),
+              })),
+              lastActivity: new Date(p.lastAccessed),
+            }));
+
+            // Only update if data actually changed to prevent unnecessary re-renders
+            setData(prev => {
+              const newData = {
+                settings: result.settings as ClaudeSettings | null,
+                stats: result.stats as ClaudeStats | null,
+                projects: transformedProjects,
+                plugins: (result.plugins || []) as ClaudePlugin[],
+                skills: (result.skills || []) as ClaudeSkill[],
+                history: (result.history || []) as HistoryEntry[],
+                activeSessions: (result.activeSessions || []) as string[],
+              };
+              // Quick comparison - check if project count or active sessions changed
+              if (!prev) return newData;
+              if (prev.projects.length !== newData.projects.length) return newData;
+              if (prev.activeSessions.length !== newData.activeSessions.length) return newData;
+              // Check if any project changed
+              const projectsChanged = newData.projects.some((p, i) => {
+                const prevP = prev.projects[i];
+                return prevP?.id !== p.id || prevP?.sessions.length !== p.sessions.length;
+              });
+              if (projectsChanged) return newData;
+              // No significant changes
+              return prev;
             });
-            if (projectsChanged) return newData;
-            // No significant changes
-            return prev;
-          });
+            setError(null);
+          } else {
+            throw new Error('Failed to get Claude data from Tauri');
+          }
+        } catch {
+          // Rust commands not implemented yet — return empty
           setError(null);
-        } else {
-          throw new Error('Failed to get Claude data from Electron');
         }
       } else {
         const response = await fetch('/api/claude');
@@ -111,9 +124,10 @@ export function useClaude() {
 
   useEffect(() => {
     fetchData();
-    // Poll every 10 seconds to reduce CPU usage
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    // No polling — claude_get_data is not yet implemented in Rust.
+    // Re-enable polling when the Rust command exists.
+    // const interval = setInterval(fetchData, 10000);
+    // return () => clearInterval(interval);
   }, [fetchData]);
 
   return { data, loading, error, refresh: fetchData };

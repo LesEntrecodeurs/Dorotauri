@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { AgentStatus } from '@/types/electron';
-import { isSuperAgentCheck, getStatusPriority } from '@/app/agents/constants';
+import { isSuperAgentCheck, getStatusPriority } from '@/components/AgentList/constants';
 
 interface UseAgentFilteringProps {
   agents: AgentStatus[];

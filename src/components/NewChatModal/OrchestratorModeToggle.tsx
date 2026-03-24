@@ -8,6 +8,7 @@ import {
   XCircle,
   Crown,
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { isElectron } from '@/hooks/useElectron';
 
 // Module-level cache: avoids re-running the slow IPC call every time Step 3 mounts
@@ -38,17 +39,9 @@ export default function OrchestratorModeToggle({
     }
 
     const checkStatus = async () => {
-      if (!window.electronAPI?.orchestrator?.getStatus) {
-        cachedStatus = 'error';
-        cachedError = 'Orchestrator API not available';
-        setStatus('error');
-        setErrorMessage(cachedError);
-        return;
-      }
-
       setStatus('loading');
       try {
-        const result = await window.electronAPI.orchestrator.getStatus();
+        const result = await invoke<{ configured?: boolean; error?: string }>('orchestrator_get_status');
         if (result.error) {
           cachedStatus = 'error';
           cachedError = result.error;
@@ -64,11 +57,10 @@ export default function OrchestratorModeToggle({
           setStatus('not-configured');
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        cachedStatus = 'error';
-        cachedError = msg;
-        setStatus('error');
-        setErrorMessage(msg);
+        // Command not implemented yet in Tauri — treat as not-configured
+        cachedStatus = 'not-configured';
+        cachedError = null;
+        setStatus('not-configured');
       }
     };
 
@@ -76,13 +68,11 @@ export default function OrchestratorModeToggle({
   }, []);
 
   const handleSetup = async () => {
-    if (!window.electronAPI?.orchestrator?.setup) return;
-
     setIsSettingUp(true);
     setErrorMessage(null);
 
     try {
-      const result = await window.electronAPI.orchestrator.setup();
+      const result = await invoke<{ success?: boolean; error?: string }>('orchestrator_setup');
       if (result.success) {
         cachedStatus = 'configured';
         cachedError = null;
@@ -92,20 +82,18 @@ export default function OrchestratorModeToggle({
         setErrorMessage(result.error || 'Setup failed');
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Unknown error');
+      setErrorMessage(err instanceof Error ? err.message : 'Orchestrator setup not available yet');
     } finally {
       setIsSettingUp(false);
     }
   };
 
   const handleRemove = async () => {
-    if (!window.electronAPI?.orchestrator?.remove) return;
-
     setIsSettingUp(true);
     setErrorMessage(null);
 
     try {
-      const result = await window.electronAPI.orchestrator.remove();
+      const result = await invoke<{ success?: boolean; error?: string }>('orchestrator_remove');
       if (result.success) {
         cachedStatus = 'not-configured';
         cachedError = null;
@@ -115,7 +103,7 @@ export default function OrchestratorModeToggle({
         setErrorMessage(result.error || 'Remove failed');
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Unknown error');
+      setErrorMessage(err instanceof Error ? err.message : 'Orchestrator remove not available yet');
     } finally {
       setIsSettingUp(false);
     }
