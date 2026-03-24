@@ -151,13 +151,12 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
     setTabs(prev => prev.map(tab => {
       if (tab.id !== activeTabId || tab.agentIds.includes(agentId)) return tab;
       const newIds = [...tab.agentIds, agentId];
-      // Add to existing layout
       const newLayout = tab.layout
-        ? { direction: 'row' as const, first: tab.layout, second: agentId, splitPercentage: 70 }
+        ? { direction: 'row' as const, first: tab.layout, second: agentId, splitPercentage: Math.round(100 * tab.agentIds.length / (tab.agentIds.length + 1)) }
         : agentId;
       return { ...tab, agentIds: newIds, layout: newLayout };
     }));
-    setShowAgentPicker(false);
+    // Keep picker open so user can add multiple agents
   }, [activeTabId]);
 
   const removeAgentFromTab = useCallback((agentId: string) => {
@@ -262,10 +261,11 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
         ))}
         <button
           onClick={createTab}
-          className="p-1 text-muted-foreground hover:text-foreground hover:bg-card/50 rounded"
+          className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded border border-dashed border-border/50 hover:border-border"
           title="New tab"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-3 h-3" />
+          <span>New Tab</span>
         </button>
 
         <div className="flex-1" />
@@ -274,29 +274,43 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
         <div className="relative">
           <button
             onClick={() => setShowAgentPicker(!showAgentPicker)}
-            className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-foreground bg-card border border-border rounded hover:bg-card/80"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5" />
             Add Agent
           </button>
           {showAgentPicker && (
-            <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-md shadow-lg z-50 min-w-[200px] max-h-[300px] overflow-y-auto">
+            <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-md shadow-lg z-50 min-w-[250px] max-h-[400px] overflow-y-auto">
+              <div className="px-3 py-2 border-b border-border text-xs font-medium text-muted-foreground">
+                Click agents to add them to "{activeTab?.name}"
+              </div>
               {availableAgents.length === 0 ? (
-                <div className="p-3 text-xs text-muted-foreground">No agents available</div>
+                <div className="p-3 text-xs text-muted-foreground">All agents are already in this tab</div>
               ) : (
                 availableAgents.map(agent => (
                   <button
                     key={agent.id}
                     onClick={() => addAgentToTab(agent.id)}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary transition-colors"
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0"
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOTS[agent.status] || STATUS_DOTS.idle}`} />
-                    <span>{getAgentEmoji(agent.id)}</span>
-                    <span className="truncate">{agent.name || agent.id.slice(0, 8)}</span>
-                    <span className="text-muted-foreground ml-auto">{agent.projectPath?.split('/').pop()}</span>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOTS[agent.status] || STATUS_DOTS.idle}`} />
+                    <span className="text-sm">{getAgentEmoji(agent.id)}</span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="truncate font-medium">{agent.name || agent.id.slice(0, 8)}</span>
+                      <span className="text-[10px] text-muted-foreground truncate">{agent.projectPath?.split('/').pop()}</span>
+                    </div>
+                    <span className="ml-auto text-muted-foreground">+</span>
                   </button>
                 ))
               )}
+              <div className="px-3 py-2 border-t border-border">
+                <button
+                  onClick={() => setShowAgentPicker(false)}
+                  className="w-full text-xs text-center text-muted-foreground hover:text-foreground"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           )}
         </div>
