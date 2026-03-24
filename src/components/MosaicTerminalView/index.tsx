@@ -386,6 +386,15 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
         <div className="flex-1" />
 
+        {/* Fullscreen toggle */}
+        <button
+          onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' }))}
+          className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded mr-1"
+          title="Fullscreen (F11)"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+
         {/* Quick Terminal button */}
         <button
           onClick={addQuickTerminal}
