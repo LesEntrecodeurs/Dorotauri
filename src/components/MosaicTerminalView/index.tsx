@@ -6,9 +6,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router';
-import type { AgentStatus as AgentStatusType } from '@/types/electron';
+import type { AgentStatus as AgentStatusType, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
+import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
+import NewChatModal from '@/components/NewChatModal';
+import type { EditAgentData } from '@/components/NewChatModal/types';
 import TerminalTile from './TerminalTile';
 
 type ViewId = string;
@@ -85,6 +87,12 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const [editingName, setEditingName] = useState('');
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [editAgentId, setEditAgentId] = useState<string | null>(null);
+
+  // Hooks for the edit modal
+  const { updateAgent } = useElectronAgents();
+  const { projects, openFolderDialog } = useElectronFS();
+  const { installedSkills } = useElectronSkills();
 
   // Persist tabs
   useEffect(() => { saveTabs(tabs); }, [tabs]);
@@ -226,8 +234,6 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     setMaximizedAgent(prev => prev === agentId ? null : agentId);
   }, []);
 
-  const navigate = useNavigate();
-
   // Quick terminal: create a temporary unconfig'd agent and add to current tab
   const addQuickTerminal = useCallback(async () => {
     if (!isTauri()) return;
@@ -263,9 +269,42 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   }, [addQuickTerminal]);
 
   const handleOpenAgentSettings = useCallback((agentId: string) => {
-    // Navigate to agents page — the agent's edit modal can be opened from there
-    navigate('/agents');
-  }, [navigate]);
+    setEditAgentId(agentId);
+  }, []);
+
+  const editAgentData: EditAgentData | null = useMemo(() => {
+    if (!editAgentId) return null;
+    const agent = agentMap.get(editAgentId);
+    if (!agent) return null;
+    return {
+      id: agent.id,
+      name: agent.name,
+      character: agent.character as AgentCharacter | undefined,
+      projectPath: agent.projectPath,
+      secondaryProjectPath: agent.secondaryProjectPath,
+      skills: agent.skills,
+      skipPermissions: agent.skipPermissions,
+      provider: agent.provider,
+      localModel: agent.localModel,
+      branchName: agent.branchName,
+      obsidianVaultPaths: agent.obsidianVaultPaths,
+    };
+  }, [editAgentId, agentMap]);
+
+  const handleUpdateAgent = useCallback(async (id: string, updates: {
+    skills?: string[];
+    secondaryProjectPath?: string | null;
+    skipPermissions?: boolean;
+    name?: string;
+    character?: AgentCharacter;
+  }) => {
+    try {
+      await updateAgent({ id, ...updates });
+      setEditAgentId(null);
+    } catch (err) {
+      console.error('Failed to update agent:', err);
+    }
+  }, [updateAgent]);
 
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
