@@ -1,27 +1,26 @@
-'use client';
-
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import type { AgentStatus, AgentEvent, ElectronAPI, AgentCharacter, AgentProvider } from '@/types/electron';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '@/hooks/useTauri';
+import type { AgentStatus, AgentEvent, AgentCharacter, AgentProvider, AgentTickItem } from '@/types/electron';
 
-// Check if we're running in Electron
-export const isElectron = (): boolean => {
-  return typeof window !== 'undefined' && window.electronAPI !== undefined;
-};
+// Re-export isTauri as isElectron for backward compatibility with consuming components
+export const isElectron = isTauri;
 
-// Hook for agent management via Electron IPC
+// Hook for agent management via Tauri invoke
 export function useElectronAgents() {
   const [agents, setAgents] = useState<AgentStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch all agents
   const fetchAgents = useCallback(async () => {
-    if (!isElectron()) {
+    if (!isTauri()) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const list = await window.electronAPI!.agent.list();
+      const list = await invoke<AgentStatus[]>('agent_list');
       // Only update state if data has actually changed to prevent unnecessary re-renders
       setAgents(prev => {
         // Quick length check first
@@ -38,8 +37,8 @@ export function useElectronAgents() {
         });
         return hasChanged ? list : prev;
       });
-    } catch (error) {
-      console.error('Failed to fetch agents:', error);
+    } catch {
+      // Rust commands not implemented yet — return empty
     } finally {
       setIsLoading(false);
     }
@@ -58,12 +57,16 @@ export function useElectronAgents() {
     localModel?: string;
     obsidianVaultPaths?: string[];
   }) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    const agent = await window.electronAPI!.agent.create(config);
-    setAgents(prev => [...prev, agent]);
-    return agent;
+    try {
+      const agent = await invoke<AgentStatus>('agent_create', { config });
+      setAgents(prev => [...prev, agent]);
+      return agent;
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Update an agent
@@ -75,14 +78,18 @@ export function useElectronAgents() {
     name?: string;
     character?: AgentCharacter;
   }) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    const result = await window.electronAPI!.agent.update(params);
-    if (result.success && result.agent) {
-      setAgents(prev => prev.map(a => a.id === params.id ? result.agent! : a));
+    try {
+      const result = await invoke<{ success: boolean; error?: string; agent?: AgentStatus }>('agent_update', { params });
+      if (result.success && result.agent) {
+        setAgents(prev => prev.map(a => a.id === params.id ? result.agent! : a));
+      }
+      return result;
+    } catch (err) {
+      throw err;
     }
-    return result;
   }, []);
 
   // Start an agent
@@ -91,66 +98,82 @@ export function useElectronAgents() {
     prompt: string,
     options?: { model?: string; resume?: boolean; provider?: AgentProvider; localModel?: string }
   ) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    await window.electronAPI!.agent.start({ id, prompt, options });
-    await fetchAgents();
+    try {
+      await invoke('agent_start', { id, prompt, options });
+      await fetchAgents();
+    } catch (err) {
+      throw err;
+    }
   }, [fetchAgents]);
 
   // Stop an agent
   const stopAgent = useCallback(async (id: string) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    await window.electronAPI!.agent.stop(id);
-    await fetchAgents();
+    try {
+      await invoke('agent_stop', { id });
+      await fetchAgents();
+    } catch (err) {
+      throw err;
+    }
   }, [fetchAgents]);
 
   // Remove an agent
   const removeAgent = useCallback(async (id: string) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    await window.electronAPI!.agent.remove(id);
-    setAgents(prev => prev.filter(a => a.id !== id));
+    try {
+      await invoke('agent_remove', { id });
+      setAgents(prev => prev.filter(a => a.id !== id));
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Send input to an agent
   const sendInput = useCallback(async (id: string, input: string) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    await window.electronAPI!.agent.sendInput({ id, input });
+    try {
+      await invoke('agent_send_input', { id, input });
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Subscribe to agent events
   useEffect(() => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
 
-    // Output and error events are handled directly by xterm.js terminals.
-    // We do NOT update React state here — doing so on every output chunk
-    // causes "Maximum update depth exceeded" because high-frequency PTY
-    // output triggers a re-render cascade.
-    const unsubOutput = window.electronAPI!.agent.onOutput(() => {});
+    const unlistenFns: (() => void)[] = [];
 
-    const unsubError = window.electronAPI!.agent.onError(() => {});
+    // Output events are handled directly by xterm.js terminals.
+    listen<AgentEvent>('agent:output', () => {}).then(fn => unlistenFns.push(fn));
 
-    const unsubComplete = window.electronAPI!.agent.onComplete(() => {
+    listen<AgentEvent>('agent:error', () => {}).then(fn => unlistenFns.push(fn));
+
+    listen<AgentEvent>('agent:complete', () => {
       fetchAgents();
-    });
+    }).then(fn => unlistenFns.push(fn));
 
-    const unsubStatus = window.electronAPI!.agent.onStatus?.((event: { agentId: string; status: string; timestamp: string }) => {
+    listen<{ agentId: string; status: string; timestamp: string }>('agent:status', (event) => {
+      const e = event.payload;
       setAgents(prev => prev.map(a =>
-        a.id === event.agentId
-          ? { ...a, status: event.status as AgentStatus['status'], lastActivity: event.timestamp || new Date().toISOString() }
+        a.id === e.agentId
+          ? { ...a, status: e.status as AgentStatus['status'], lastActivity: e.timestamp || new Date().toISOString() }
           : a
       ));
-    });
+    }).then(fn => unlistenFns.push(fn));
 
     // Also subscribe to agents:tick for reliable live status updates
-    // (proven to reach all windows — tray panel uses this successfully)
-    const unsubTick = window.electronAPI!.agent.onTick?.((tickAgents) => {
+    listen<AgentTickItem[]>('agents:tick', (event) => {
+      const tickAgents = event.payload;
       setAgents(prev => {
         if (prev.length !== tickAgents.length) return prev;
         const hasStatusChange = tickAgents.some(t => {
@@ -166,14 +189,10 @@ export function useElectronAgents() {
           return a;
         });
       });
-    });
+    }).then(fn => unlistenFns.push(fn));
 
     return () => {
-      unsubOutput();
-      unsubError();
-      unsubComplete();
-      unsubStatus?.();
-      unsubTick?.();
+      unlistenFns.forEach(fn => fn());
     };
   }, [fetchAgents]);
 
@@ -185,7 +204,7 @@ export function useElectronAgents() {
   return {
     agents,
     isLoading,
-    isElectron: isElectron(),
+    isElectron: isTauri(),
     createAgent,
     updateAgent,
     startAgent,
@@ -196,7 +215,7 @@ export function useElectronAgents() {
   };
 }
 
-// Hook for skill management via Electron IPC
+// Hook for skill management via Tauri invoke
 export function useElectronSkills() {
   const [installedSkillsByProvider, setInstalledSkillsByProvider] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -217,35 +236,43 @@ export function useElectronSkills() {
   }, [installedSkillsByProvider]);
 
   const fetchInstalledSkills = useCallback(async () => {
-    if (!isElectron()) {
+    if (!isTauri()) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const byProvider = await window.electronAPI!.skill.listInstalledAll();
+      const byProvider = await invoke<Record<string, string[]>>('skill_list_installed_all');
       setInstalledSkillsByProvider(byProvider);
-    } catch (error) {
-      console.error('Failed to fetch installed skills:', error);
+    } catch {
+      // Rust commands not implemented yet — return empty
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const installSkill = useCallback(async (repo: string) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    const result = await window.electronAPI!.skill.install(repo);
-    await fetchInstalledSkills();
-    return result;
+    try {
+      const result = await invoke<{ success: boolean; output?: string; message?: string }>('skill_install', { repo });
+      await fetchInstalledSkills();
+      return result;
+    } catch (err) {
+      throw err;
+    }
   }, [fetchInstalledSkills]);
 
   const linkToProvider = useCallback(async (skillName: string, providerId: string) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    return window.electronAPI!.skill.linkToProvider({ skillName, providerId });
+    try {
+      return await invoke<{ success: boolean; error?: string }>('skill_link_to_provider', { skillName, providerId });
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   useEffect(() => {
@@ -257,39 +284,43 @@ export function useElectronSkills() {
     installedSkillsByProvider,
     isSkillInstalledOn,
     isLoading,
-    isElectron: isElectron(),
+    isElectron: isTauri(),
     installSkill,
     linkToProvider,
     refresh: fetchInstalledSkills,
   };
 }
 
-// Hook for file system operations via Electron IPC
+// Hook for file system operations via Tauri invoke
 export function useElectronFS() {
   const [projects, setProjects] = useState<{ path: string; name: string; lastModified: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchProjects = useCallback(async () => {
-    if (!isElectron()) {
+    if (!isTauri()) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const list = await window.electronAPI!.fs.listProjects();
+      const list = await invoke<{ path: string; name: string; lastModified: string }[]>('projects_list');
       setProjects(list);
-    } catch (error) {
-      console.error('Failed to fetch projects:', error);
+    } catch {
+      // Rust commands not implemented yet — return empty
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const openFolderDialog = useCallback(async () => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    return window.electronAPI!.dialog.openFolder();
+    try {
+      return await invoke<string | null>('dialog_open_folder');
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   useEffect(() => {
@@ -299,30 +330,38 @@ export function useElectronFS() {
   return {
     projects,
     isLoading,
-    isElectron: isElectron(),
+    isElectron: isTauri(),
     openFolderDialog,
     refresh: fetchProjects,
   };
 }
 
-// Hook for shell operations via Electron IPC
+// Hook for shell operations via Tauri invoke
 export function useElectronShell() {
   const openTerminal = useCallback(async (cwd: string, command?: string) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    return window.electronAPI!.shell.openTerminal({ cwd, command });
+    try {
+      return await invoke<{ success: boolean }>('shell_open_terminal', { cwd, command });
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   const exec = useCallback(async (command: string, cwd?: string) => {
-    if (!isElectron()) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
-    return window.electronAPI!.shell.exec({ command, cwd });
+    try {
+      return await invoke<{ success: boolean; output?: string; error?: string; code?: number }>('shell_exec', { command, cwd });
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   return {
-    isElectron: isElectron(),
+    isElectron: isTauri(),
     openTerminal,
     exec,
   };

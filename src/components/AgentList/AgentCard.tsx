@@ -1,8 +1,8 @@
-'use client';
+
 
 import { Loader2, AlertTriangle, GitBranch, Pencil, Crown, Cpu } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';
-import { STATUS_COLORS, STATUS_LABELS, CHARACTER_FACES, getProjectColor, isSuperAgentCheck } from '@/app/agents/constants';
+import { STATUS_COLORS, STATUS_LABELS, CHARACTER_FACES, getProjectColor, isSuperAgentCheck } from '@/components/AgentList/constants';
 
 const PROVIDER_ICONS: Record<string, { src: string; alt: string }> = {
   claude: { src: '/claude-ai-icon.webp', alt: 'Claude' },

@@ -1,6 +1,6 @@
-'use client';
 
-import { useState, useMemo } from 'react';
+
+import { useState, useMemo, lazy, Suspense } from 'react';
 import {
   Loader2,
   BarChart3,
@@ -20,33 +20,10 @@ import {
 import { useClaude } from '@/hooks/useClaude';
 import { useElectronAgents } from '@/hooks/useElectron';
 import StatsCard from './StatsCard';
-import dynamic from 'next/dynamic';
 
-// Dynamically import CanvasView to avoid SSR issues
-const CanvasView = dynamic(() => import('@/components/CanvasView'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading Board...</p>
-      </div>
-    </div>
-  ),
-});
+const CanvasView = lazy(() => import('@/components/CanvasView'));
 
-// Dynamically import TerminalsView to avoid SSR issues with xterm
-const TerminalsView = dynamic(() => import('@/components/TerminalsView'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">Loading Terminals...</p>
-      </div>
-    </div>
-  ),
-});
+const MosaicTerminalView = lazy(() => import('@/components/MosaicTerminalView'));
 
 export default function Dashboard() {
   const { data, loading, error } = useClaude();
@@ -265,17 +242,21 @@ export default function Dashboard() {
           className="border border-border bg-card overflow-hidden"
           style={{ height: 'calc(100vh - 200px)', minHeight: '400px' }}
         >
-          <CanvasView />
+          <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Board...</p></div></div>}>
+            <CanvasView />
+          </Suspense>
         </div>
       )}
 
-      {/* Terminals View */}
+      {/* Terminals View (Mosaic) */}
       {viewMode === 'terminals' && (
         <div
           className="border border-border bg-card overflow-hidden"
           style={{ height: 'calc(100vh - 130px)', minHeight: '400px' }}
         >
-          <TerminalsView />
+          <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Terminals...</p></div></div>}>
+            <MosaicTerminalView agents={agents} />
+          </Suspense>
         </div>
       )}
 

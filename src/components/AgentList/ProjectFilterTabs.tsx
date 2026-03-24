@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Layers, FolderOpen } from 'lucide-react';
 

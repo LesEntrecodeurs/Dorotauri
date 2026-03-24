@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Plus, Crown, Loader2 } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';

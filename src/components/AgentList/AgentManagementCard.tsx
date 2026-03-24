@@ -1,4 +1,4 @@
-'use client';
+
 
 import { Play, Square, Pencil, Trash2, AlertTriangle, Crown, Clock } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';
@@ -7,7 +7,7 @@ import {
   STATUS_LABELS,
   CHARACTER_FACES,
   isSuperAgentCheck,
-} from '@/app/agents/constants';
+} from '@/components/AgentList/constants';
 
 function formatTimeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();

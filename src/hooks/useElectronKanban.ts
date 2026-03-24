@@ -1,11 +1,12 @@
-'use client';
-
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '@/hooks/useTauri';
 import type { KanbanTask, KanbanColumn, KanbanTaskCreate, KanbanTaskUpdate, KanbanMoveResult } from '@/types/kanban';
-import { isElectron } from './useElectron';
+import type { AgentStatus } from '@/types/electron';
 
 /**
- * Hook for Kanban board management via Electron IPC
+ * Hook for Kanban board management via Tauri invoke
  */
 export function useElectronKanban() {
   const [tasks, setTasks] = useState<KanbanTask[]>([]);
@@ -14,22 +15,22 @@ export function useElectronKanban() {
 
   // Fetch all tasks
   const fetchTasks = useCallback(async () => {
-    if (!isElectron() || !window.electronAPI?.kanban) {
+    if (!isTauri()) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const result = await window.electronAPI.kanban.list();
+      const result = await invoke<{ tasks: KanbanTask[]; error?: string }>('kanban_list');
       if (result.error) {
         setError(result.error);
       } else {
         setTasks(result.tasks as KanbanTask[]);
         setError(null);
       }
-    } catch (err) {
-      console.error('Failed to fetch kanban tasks:', err);
-      setError('Failed to fetch tasks');
+    } catch {
+      // Rust commands not implemented yet — return empty
+      setIsLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -38,23 +39,31 @@ export function useElectronKanban() {
   // Create a new task
   // Note: State is updated via onTaskCreated event to avoid duplicates
   const createTask = useCallback(async (params: KanbanTaskCreate) => {
-    if (!isElectron() || !window.electronAPI?.kanban) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
 
-    const result = await window.electronAPI.kanban.create(params);
-    return result;
+    try {
+      const result = await invoke<{ success: boolean; task?: KanbanTask; error?: string }>('kanban_create', { params });
+      return result;
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Update a task
   // Note: State is updated via onTaskUpdated event
   const updateTask = useCallback(async (params: KanbanTaskUpdate) => {
-    if (!isElectron() || !window.electronAPI?.kanban) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
 
-    const result = await window.electronAPI.kanban.update(params);
-    return result;
+    try {
+      const result = await invoke<{ success: boolean; task?: KanbanTask; error?: string }>('kanban_update', { params });
+      return result;
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Move a task to a different column
@@ -64,34 +73,46 @@ export function useElectronKanban() {
     column: KanbanColumn,
     order?: number
   ): Promise<KanbanMoveResult> => {
-    if (!isElectron() || !window.electronAPI?.kanban) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
 
-    const result = await window.electronAPI.kanban.move({ id, column, order });
-    return result as KanbanMoveResult;
+    try {
+      const result = await invoke<KanbanMoveResult>('kanban_move', { id, column, order });
+      return result;
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Delete a task
   // Note: State is updated via onTaskDeleted event
   const deleteTask = useCallback(async (id: string) => {
-    if (!isElectron() || !window.electronAPI?.kanban) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
 
-    const result = await window.electronAPI.kanban.delete(id);
-    return result;
+    try {
+      const result = await invoke<{ success: boolean; error?: string }>('kanban_delete', { id });
+      return result;
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Reorder tasks within a column
   // Note: State is updated via onTaskUpdated events
   const reorderTasks = useCallback(async (taskIds: string[], column: KanbanColumn) => {
-    if (!isElectron() || !window.electronAPI?.kanban) {
-      throw new Error('Electron API not available');
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
     }
 
-    const result = await window.electronAPI.kanban.reorder({ taskIds, column });
-    return result;
+    try {
+      const result = await invoke<{ success: boolean; error?: string }>('kanban_reorder', { taskIds, column });
+      return result;
+    } catch (err) {
+      throw err;
+    }
   }, []);
 
   // Get tasks by column
@@ -103,9 +124,12 @@ export function useElectronKanban() {
 
   // Subscribe to real-time events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.kanban) return;
+    if (!isTauri()) return;
 
-    const unsubCreated = window.electronAPI.kanban.onTaskCreated((task) => {
+    const unlistenFns: (() => void)[] = [];
+
+    listen<KanbanTask>('kanban:task_created', (event) => {
+      const task = event.payload;
       setTasks(prev => {
         // Check if task already exists (might have been added by our own action)
         if (prev.some(t => t.id === task.id)) {
@@ -113,20 +137,19 @@ export function useElectronKanban() {
         }
         return [...prev, task as KanbanTask];
       });
-    });
+    }).then(fn => unlistenFns.push(fn));
 
-    const unsubUpdated = window.electronAPI.kanban.onTaskUpdated((task) => {
+    listen<KanbanTask>('kanban:task_updated', (event) => {
+      const task = event.payload;
       setTasks(prev => prev.map(t => t.id === task.id ? task as KanbanTask : t));
-    });
+    }).then(fn => unlistenFns.push(fn));
 
-    const unsubDeleted = window.electronAPI.kanban.onTaskDeleted((event: { id: string }) => {
-      setTasks(prev => prev.filter(t => t.id !== event.id));
-    });
+    listen<{ id: string }>('kanban:task_deleted', (event) => {
+      setTasks(prev => prev.filter(t => t.id !== event.payload.id));
+    }).then(fn => unlistenFns.push(fn));
 
     return () => {
-      unsubCreated();
-      unsubUpdated();
-      unsubDeleted();
+      unlistenFns.forEach(fn => fn());
     };
   }, []);
 
@@ -139,7 +162,7 @@ export function useElectronKanban() {
     tasks,
     isLoading,
     error,
-    isElectron: isElectron(),
+    isElectron: isTauri(),
     createTask,
     updateTask,
     moveTask,
@@ -170,48 +193,46 @@ export function useKanbanAgentSync(
   moveTaskRef.current = moveTask;
 
   useEffect(() => {
-    if (!isElectron()) return;
+    if (!isTauri()) return;
 
     console.log('[Kanban Sync] Setting up agent event listeners');
 
+    const unlistenFns: (() => void)[] = [];
+
     // Listen to agent status changes - only for progress updates, NOT for completion
-    // The detectAgentStatus patterns are too broad and trigger false "completed" states
-    const unsubStatus = window.electronAPI?.agent.onStatus?.((event: {
-      agentId: string;
-      status: string;
-      timestamp: string;
-    }) => {
+    listen<{ agentId: string; status: string; timestamp: string }>('agent:status', (event) => {
+      const e = event.payload;
       // Find task assigned to this agent
-      const task = tasksRef.current.find(t => t.assignedAgentId === event.agentId);
+      const task = tasksRef.current.find(t => t.assignedAgentId === e.agentId);
       if (!task || task.column !== 'ongoing') return;
 
       // Only update progress for running status, NOT for completion
-      // Completion is handled by onComplete (PTY exit) which is more reliable
-      if (event.status === 'running' && task.progress < 50) {
+      if (e.status === 'running' && task.progress < 50) {
         updateTaskRef.current({ id: task.id, progress: 50 });
       }
-    });
+    }).then(fn => unlistenFns.push(fn));
 
     // onComplete fires when PTY actually exits - this is the reliable completion signal
-    const unsubComplete = window.electronAPI?.agent.onComplete(async (event) => {
-      console.log(`[Kanban Sync] Received complete event:`, event);
+    listen<{ agentId: string; exitCode?: number }>('agent:complete', async (event) => {
+      const e = event.payload;
+      console.log(`[Kanban Sync] Received complete event:`, e);
 
-      const task = tasksRef.current.find(t => t.assignedAgentId === event.agentId);
+      const task = tasksRef.current.find(t => t.assignedAgentId === e.agentId);
       if (!task) {
-        console.log(`[Kanban Sync] No task found for agent ${event.agentId}`);
+        console.log(`[Kanban Sync] No task found for agent ${e.agentId}`);
         return;
       }
 
-      console.log(`[Kanban Sync] Agent ${event.agentId} completed with exit code: ${event.exitCode} for task "${task.title}"`);
+      console.log(`[Kanban Sync] Agent ${e.agentId} completed with exit code: ${e.exitCode} for task "${task.title}"`);
 
       if (task.column === 'ongoing') {
-        const isSuccess = event.exitCode === 0;
+        const isSuccess = e.exitCode === 0;
         console.log(`[Kanban Sync] Moving task ${task.id} to done (success: ${isSuccess})`);
 
         // Get agent output for completion summary
         let completionSummary = isSuccess ? 'Task completed successfully.' : 'Task completed with errors.';
         try {
-          const agent = await window.electronAPI?.agent.get(event.agentId);
+          const agent = await invoke<AgentStatus | null>('agent_get', { id: e.agentId });
           if (agent?.output && agent.output.length > 0) {
             // Get last 50 lines of output as summary (or less if not available)
             const outputLines = agent.output.slice(-50);
@@ -224,11 +245,10 @@ export function useKanbanAgentSync(
         updateTaskRef.current({ id: task.id, progress: 100, completionSummary });
         moveTaskRef.current(task.id, 'done');
       }
-    });
+    }).then(fn => unlistenFns.push(fn));
 
     return () => {
-      unsubStatus?.();
-      unsubComplete?.();
+      unlistenFns.forEach(fn => fn());
     };
   }, []); // Empty deps - we use refs to avoid re-subscribing
 }

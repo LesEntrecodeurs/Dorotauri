@@ -1,8 +1,8 @@
-'use client';
+
 
 import { motion } from 'framer-motion';
 import { FolderKanban, MessageSquare, Clock } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from 'react-router';
 import type { ClaudeProject } from '@/lib/claude-code';
 
 interface ProjectsOverviewProps {
@@ -39,7 +39,7 @@ export default function ProjectsOverview({ projects }: ProjectsOverviewProps) {
           <FolderKanban className="w-4 h-4 text-accent-amber" />
           <h3 className="text-sm font-medium">Projects</h3>
         </div>
-        <Link href="/projects" className="text-xs text-accent-cyan hover:underline">
+        <Link to="/projects" className="text-xs text-accent-cyan hover:underline">
           View all →
         </Link>
       </div>

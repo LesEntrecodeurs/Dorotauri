@@ -13,10 +13,6 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
-
 # production
 /build
 
@@ -38,7 +34,9 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+
+# Superpowers brainstorm sessions
+.superpowers/
 
 release/
 
@@ -60,3 +58,8 @@ mcp-world/dist
 electron/dist
 
 .idea
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/
+dist/

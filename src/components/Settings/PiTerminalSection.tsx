@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useState } from 'react';
 import { Loader2, CheckCircle, XCircle, Terminal, ExternalLink } from 'lucide-react';

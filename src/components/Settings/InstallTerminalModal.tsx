@@ -1,9 +1,12 @@
-'use client';
+
+
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Terminal as TerminalIcon, X } from 'lucide-react';
-import { isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 interface InstallTerminalModalProps {
   show: boolean;
@@ -70,20 +73,16 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
       term.onData((data) => {
         const cleaned = data.replace(/\x1b\[(?:I|O)/g, '');
         if (!cleaned) return;
-        if (ptyIdRef.current && window.electronAPI?.plugin?.installWrite) {
-          window.electronAPI.plugin.installWrite({ id: ptyIdRef.current, data: cleaned });
+        if (ptyIdRef.current && isTauri()) {
+          invoke('pty_write', { ptyId: ptyIdRef.current, data: cleaned }).catch(() => {});
         }
       });
 
       // Handle resize
       const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
-        if (ptyIdRef.current && window.electronAPI?.plugin?.installResize) {
-          window.electronAPI.plugin.installResize({
-            id: ptyIdRef.current,
-            cols: term.cols,
-            rows: term.rows,
-          });
+        if (ptyIdRef.current && isTauri()) {
+          invoke('pty_resize', { ptyId: ptyIdRef.current, cols: term.cols, rows: term.rows }).catch(() => {});
         }
       });
       resizeObserver.observe(terminalRef.current!);
@@ -95,8 +94,8 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
 
     return () => {
       // Kill PTY process to prevent zombie processes
-      if (ptyIdRef.current && window.electronAPI?.plugin?.installKill) {
-        window.electronAPI.plugin.installKill({ id: ptyIdRef.current });
+      if (ptyIdRef.current && isTauri()) {
+        invoke('pty_kill', { ptyId: ptyIdRef.current }).catch(() => {});
         ptyIdRef.current = null;
       }
       if (xtermRef.current) {
@@ -109,18 +108,18 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
 
   // Start PTY only after terminal is ready
   useEffect(() => {
-    if (!terminalReady || !command || !window.electronAPI?.plugin?.installStart) return;
+    if (!terminalReady || !command || !isTauri()) return;
 
     const startPty = async () => {
       try {
         const term = xtermRef.current;
-        const result = await window.electronAPI?.plugin?.installStart({
-          command,
+        const ptyId = await invoke<string>('pty_create', {
           cols: term?.cols,
           rows: term?.rows,
         });
-        if (!result) return;
-        ptyIdRef.current = result.id;
+        ptyIdRef.current = ptyId;
+        // Write the command to execute
+        await invoke('pty_write', { ptyId, data: command + '\n' });
       } catch (err) {
         console.error('Failed to start plugin installation:', err);
         onClose();
@@ -130,36 +129,43 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
     startPty();
   }, [terminalReady, command, onClose]);
 
-  // Listen for PTY data
+  // Listen for PTY data via Tauri events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.plugin?.onPtyData) return;
+    if (!isTauri()) return;
 
-    const unsubscribe = window.electronAPI.plugin.onPtyData(({ id, data }) => {
-      if (id === ptyIdRef.current && xtermRef.current) {
-        xtermRef.current.write(data);
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { pty_id, data } = event.payload;
+      if (pty_id === ptyIdRef.current && xtermRef.current) {
+        const bytes = new Uint8Array(data);
+        xtermRef.current.write(bytes);
       }
-    });
+    }).then(fn => { unlisten = fn; });
 
-    return unsubscribe;
+    return () => { unlisten?.(); };
   }, []);
 
-  // Listen for PTY exit
+  // Listen for PTY exit via Tauri events
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.plugin?.onPtyExit) return;
+    if (!isTauri()) return;
 
-    const unsubscribe = window.electronAPI.plugin.onPtyExit(({ id, exitCode }) => {
-      if (id === ptyIdRef.current) {
+    let unlisten: (() => void) | undefined;
+
+    listen<{ pty_id: string; exit_code: number }>('pty:exit', (event) => {
+      const { pty_id, exit_code } = event.payload;
+      if (pty_id === ptyIdRef.current) {
         setInstallComplete(true);
-        setInstallExitCode(exitCode);
+        setInstallExitCode(exit_code);
       }
-    });
+    }).then(fn => { unlisten = fn; });
 
-    return unsubscribe;
+    return () => { unlisten?.(); };
   }, []);
 
   const handleClose = () => {
-    if (ptyIdRef.current && window.electronAPI?.plugin?.installKill) {
-      window.electronAPI.plugin.installKill({ id: ptyIdRef.current });
+    if (ptyIdRef.current && isTauri()) {
+      invoke('pty_kill', { ptyId: ptyIdRef.current }).catch(() => {});
     }
     setInstallComplete(false);
     setInstallExitCode(null);

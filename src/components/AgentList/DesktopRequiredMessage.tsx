@@ -1,4 +1,4 @@
-'use client';
+
 
 import { MonitorDown } from 'lucide-react';
 

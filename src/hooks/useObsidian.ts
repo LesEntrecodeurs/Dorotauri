@@ -1,6 +1,6 @@
-'use client';
-
 import { useState, useEffect, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@/hooks/useTauri';
 import type { ObsidianFile, ObsidianFolder } from '@/types/electron';
 
 type FileMeta = Omit<ObsidianFile, 'content'> & { preview?: string };
@@ -27,7 +27,11 @@ export function useObsidian() {
     setLoading(true);
     setError(null);
     try {
-      const result = await window.electronAPI?.obsidian?.scan();
+      if (!isTauri()) {
+        setLoading(false);
+        return;
+      }
+      const result = await invoke<{ vaults: VaultData[] }>('obsidian_scan');
       if (result) {
         setVaults(result.vaults);
         // Auto-select the first vault if none selected
@@ -57,10 +61,10 @@ export function useObsidian() {
   const activeVault = vaults.find(v => v.vaultPath === activeVaultPath) || null;
 
   const openFile = useCallback(async (filePath: string) => {
-    if (!activeVaultPath) return;
+    if (!activeVaultPath || !isTauri()) return;
     setFileLoading(true);
     try {
-      const result = await window.electronAPI?.obsidian?.readFile(filePath, activeVaultPath);
+      const result = await invoke<{ file?: ObsidianFile; error?: string }>('obsidian_read_file', { filePath, vaultPath: activeVaultPath });
       if (result?.file) {
         setSelectedFile(result.file);
       } else if (result?.error) {
@@ -74,9 +78,9 @@ export function useObsidian() {
   }, [activeVaultPath]);
 
   const saveFile = useCallback(async (filePath: string, content: string) => {
-    if (!activeVaultPath) return { error: 'No active vault' };
+    if (!activeVaultPath || !isTauri()) return { error: 'No active vault or not in Tauri' };
     try {
-      const result = await window.electronAPI?.obsidian?.writeFile(filePath, content, activeVaultPath);
+      const result = await invoke<{ success?: boolean; error?: string }>('obsidian_write_file', { filePath, content, vaultPath: activeVaultPath });
       if (result?.success) {
         // Update local state with new content
         setSelectedFile(prev => prev && prev.path === filePath ? { ...prev, content } : prev);

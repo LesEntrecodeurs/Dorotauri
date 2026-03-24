@@ -1,4 +1,4 @@
-'use client';
+
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, MessageSquare, FolderKanban } from 'lucide-react';

@@ -1,10 +1,10 @@
-'use client';
+
 
 import { motion } from 'framer-motion';
 import { Bot, Pause, Play, Square, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/store';
 import { AgentStatus } from '@/types';
-import Link from 'next/link';
+import { Link } from 'react-router';
 
 const statusConfig: Record<AgentStatus, { icon: typeof Bot; color: string; bg: string; label: string }> = {
   idle: { icon: Square, color: 'text-text-muted', bg: 'bg-text-muted/20', label: 'Idle' },
@@ -31,7 +31,7 @@ export default function AgentActivity() {
           <Bot className="w-4 h-4 text-accent-purple" />
           <h3 className="text-sm font-medium">Agent Activity</h3>
         </div>
-        <Link href="/agents" className="text-xs text-accent-cyan hover:underline">
+        <Link to="/agents" className="text-xs text-accent-cyan hover:underline">
           View all →
         </Link>
       </div>

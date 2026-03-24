@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import ReactGridLayout, { verticalCompactor } from 'react-grid-layout';
