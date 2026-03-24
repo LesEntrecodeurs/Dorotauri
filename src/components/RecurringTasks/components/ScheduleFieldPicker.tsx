@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { SCHEDULE_PRESETS, DAY_OPTIONS, type ScheduleFormFields } from '../types';
 
 interface ScheduleFieldPickerProps {
@@ -43,7 +44,7 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
             max={30}
             value={value.intervalDays}
             onChange={(e) => onChange({ intervalDays: parseInt(e.target.value) || 2 })}
-            className="w-16 px-2 py-1.5 bg-secondary border border-border rounded text-sm text-center"
+            className="w-16 px-2 py-1.5 bg-secondary border border-border text-sm text-center"
           />
           <span className="text-sm text-muted-foreground">days</span>
           <div className="flex items-center gap-1 ml-1">
@@ -52,11 +53,12 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
                 key={n}
                 type="button"
                 onClick={() => onChange({ intervalDays: n })}
-                className={`px-2 py-1 text-xs rounded transition-colors ${
+                className={cn(
+                  'px-2 py-1 text-xs transition-colors',
                   value.intervalDays === n
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-secondary hover:bg-secondary/80 border border-border'
-                }`}
+                )}
               >
                 {n}d
               </button>
@@ -80,11 +82,12 @@ export function ScheduleFieldPicker({ value, onChange }: ScheduleFieldPickerProp
                       : [...value.selectedDays, day.value];
                     if (next.length > 0) onChange({ selectedDays: next });
                   }}
-                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium transition-colors',
                     isSelected
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-secondary hover:bg-secondary/80 border border-border'
-                  }`}
+                  )}
                 >
                   {day.label}
                 </button>

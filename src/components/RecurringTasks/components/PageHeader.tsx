@@ -1,4 +1,5 @@
 import { RefreshCw, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface PageHeaderProps {
   isRefreshing: boolean;
@@ -16,21 +17,22 @@ export function PageHeader({ isRefreshing, onRefresh, onCreateNew }: PageHeaderP
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary hover:bg-secondary/80 transition-colors"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           Refresh
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
           onClick={onCreateNew}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-foreground text-background hover:bg-foreground/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           New Task
-        </button>
+        </Button>
       </div>
     </div>
   );

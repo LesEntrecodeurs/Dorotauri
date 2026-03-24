@@ -36,8 +36,8 @@ export default function RecurringTasksPage() {
   if (!isElectron()) {
     return (
       <div className="pt-4 lg:pt-6">
-        <div className="bg-yellow-500/10 border border-yellow-500/20 p-4">
-          <p className="text-yellow-500">This feature is only available in the desktop app.</p>
+        <div className="bg-warning/10 border border-warning/20 p-4">
+          <p className="text-warning">This feature is only available in the desktop app.</p>
         </div>
       </div>
     );

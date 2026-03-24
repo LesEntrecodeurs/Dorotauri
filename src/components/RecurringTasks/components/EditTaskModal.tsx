@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { ScheduledTask } from '../types';
 import { ScheduleFieldPicker } from './ScheduleFieldPicker';
 import { TaskOptionsFields } from './TaskOptionsFields';
@@ -53,12 +54,14 @@ export function EditTaskModal({
           >
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h2 className="text-lg font-semibold">Edit Scheduled Task</h2>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
                 onClick={onClose}
-                className="p-1 hover:bg-secondary transition-colors"
               >
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
 
             <div className="p-6 space-y-4">
@@ -124,16 +127,15 @@ export function EditTaskModal({
             </div>
 
             <div className="p-6 border-t border-border flex items-center justify-end gap-3">
-              <button
+              <Button
+                variant="ghost"
                 onClick={onClose}
-                className="px-4 py-2 text-sm hover:bg-secondary transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={onSave}
                 disabled={isSaving || !editForm.prompt.trim()}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {isSaving ? (
                   <>
@@ -143,7 +145,7 @@ export function EditTaskModal({
                 ) : (
                   'Save Changes'
                 )}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>
