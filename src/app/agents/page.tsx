@@ -9,7 +9,7 @@ import { useSuperAgent } from '@/hooks/useSuperAgent';
 import type { AgentCharacter, AgentProvider } from '@/types/electron';
 import NewChatModal from '@/components/NewChatModal';
 import type { EditAgentData } from '@/components/NewChatModal/types';
-import AgentTerminalDialog from '@/components/AgentWorld/AgentTerminalDialog';
+import AgentTerminalDialog from '@/components/AgentTerminalDialog';
 import {
   DesktopRequiredMessage,
   AgentListHeader,
