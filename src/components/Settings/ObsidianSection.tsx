@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { FolderOpen, X, Plus } from 'lucide-react';
 import { ObsidianIcon } from './ObsidianIcon';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import type { AppSettings } from './types';
 
 interface ObsidianSectionProps {
@@ -39,57 +41,60 @@ export const ObsidianSection = ({ appSettings, onSaveAppSettings }: ObsidianSect
         </p>
       </div>
 
-      <div className="border border-border bg-card p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <ObsidianIcon className="w-5 h-5 text-[#A88BFA]" />
-          <div className="flex-1">
-            <h3 className="font-medium">Registered Vaults</h3>
-            <p className="text-xs text-muted-foreground">
-              <a href="https://obsidian.md" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Obsidian</a> is an advanced knowledge base app that stores notes as local Markdown files. Connect your vaults so agents can reference them.
-            </p>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <ObsidianIcon className="w-5 h-5 text-[#A88BFA]" />
+            <div className="flex-1">
+              <h3 className="font-medium">Registered Vaults</h3>
+              <p className="text-xs text-muted-foreground">
+                <a href="https://obsidian.md" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Obsidian</a> is an advanced knowledge base app that stores notes as local Markdown files. Connect your vaults so agents can reference them.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddVault}
+              disabled={adding}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Vault
+            </Button>
           </div>
-          <button
-            onClick={handleAddVault}
-            disabled={adding}
-            className="px-3 py-1.5 text-sm border border-border hover:border-foreground hover:text-foreground text-muted-foreground transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Vault
-          </button>
-        </div>
 
-        {vaultPaths.length === 0 ? (
-          <div className="py-8 text-center border rounded-lg border-dashed border-border">
-            <ObsidianIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-40" />
-            <p className="text-sm text-muted-foreground">No vaults registered</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Add one above, or create an agent in an Obsidian project to auto-detect.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {vaultPaths.map((vp) => (
-              <div
-                key={vp}
-                className="flex items-center gap-3 p-3 border rounded-lg border-border bg-background"
-              >
-                <ObsidianIcon className="w-4 h-4 text-[#A88BFA] shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{vp.split('/').pop()}</p>
-                  <p className="text-xs text-muted-foreground font-mono truncate">{vp}</p>
-                </div>
-                <button
-                  onClick={() => handleRemoveVault(vp)}
-                  className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
-                  title="Remove vault"
+          {vaultPaths.length === 0 ? (
+            <div className="py-8 text-center border border-dashed border-border">
+              <ObsidianIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-40" />
+              <p className="text-sm text-muted-foreground">No vaults registered</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add one above, or create an agent in an Obsidian project to auto-detect.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {vaultPaths.map((vp) => (
+                <div
+                  key={vp}
+                  className="flex items-center gap-3 p-3 border border-border bg-background"
                 >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                  <ObsidianIcon className="w-4 h-4 text-[#A88BFA] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{vp.split('/').pop()}</p>
+                    <p className="text-xs text-muted-foreground font-mono truncate">{vp}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveVault(vp)}
+                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    title="Remove vault"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

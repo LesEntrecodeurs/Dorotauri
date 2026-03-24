@@ -1,8 +1,9 @@
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, CheckCircle, XCircle, Cloud, RefreshCw, Download, KeyRound, LogIn, ShieldCheck, Mail, HardDrive, Table2, CalendarDays, FileText, Presentation, ListChecks, MessageSquare, Users, ClipboardList, Lightbulb } from 'lucide-react';
 import { Toggle } from './Toggle';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import TerminalDialog from '@/components/TerminalDialog';
 import type { AppSettings } from './types';
 
@@ -215,307 +216,332 @@ export const GoogleWorkspaceSection = ({ appSettings, onSaveAppSettings }: Googl
       </div>
 
       {/* Enable/Disable Toggle */}
-      <div className="border border-border bg-card p-6">
-        <div className="flex items-center justify-between pb-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <Cloud className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <p className="font-medium">Enable Google Workspace MCP</p>
-              <p className="text-sm text-muted-foreground">
-                Runs <code className="bg-secondary px-1 text-xs">gws mcp -s drive,gmail,calendar,sheets,docs</code> over stdio
-              </p>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between pb-4">
+            <div className="flex items-center gap-3">
+              <Cloud className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="font-medium">Enable Google Workspace MCP</p>
+                <p className="text-sm text-muted-foreground">
+                  Runs <code className="bg-secondary px-1 text-xs">gws mcp -s drive,gmail,calendar,sheets,docs</code> over stdio
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {settingUpMcp && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+              <Toggle
+                enabled={appSettings.gwsEnabled}
+                onChange={handleToggleEnabled}
+              />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {settingUpMcp && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-            <Toggle
-              enabled={appSettings.gwsEnabled}
-              onChange={handleToggleEnabled}
-            />
-          </div>
-        </div>
 
-        {/* CLI Detection Status */}
-        <div className="pt-4 space-y-3">
-          {/* gcloud status */}
-          <div className="flex items-center gap-2 text-sm">
-            {detecting ? (
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            ) : gcloudPath ? (
-              <>
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-muted-foreground">gcloud:</span>
-                <span className="font-mono text-xs">{gcloudPath}</span>
-              </>
-            ) : (
-              <>
-                <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                <span className="text-muted-foreground">gcloud: Not installed (required for auth setup)</span>
-                <button
-                  onClick={handleInstallGcloud}
-                  className="ml-2 px-3 py-1 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-                >
-                  <Download className="w-3 h-3" />
-                  Install gcloud
-                </button>
-              </>
-            )}
-          </div>
+          <Separator />
 
-          {/* gws status */}
-          <div className="flex items-center gap-2 text-sm">
-            {detecting ? (
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            ) : gwsPath ? (
-              <>
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-muted-foreground">gws:</span>
-                <span className="font-mono text-xs">{gwsPath}</span>
-              </>
-            ) : (
-              <>
-                <div className="w-2 h-2 rounded-full bg-zinc-500" />
-                <span className="text-muted-foreground">gws: Not installed</span>
-                <button
-                  onClick={handleInstallCli}
-                  className="ml-2 px-3 py-1 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-                >
-                  <Download className="w-3 h-3" />
-                  Install gws
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* MCP Registration Status */}
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${mcpConfigured ? 'bg-green-500' : 'bg-zinc-500'}`} />
-            <span className="text-muted-foreground">
-              MCP: {mcpConfigured ? 'Registered with agents (Drive, Gmail, Calendar, Sheets, Docs)' : 'Not registered — enable the toggle above'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Authentication Status — only shown when gws is detected */}
-      {gwsPath && (
-        <div className="border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium">Authentication</h3>
-            <button
-              onClick={checkAuthStatus}
-              disabled={checkingAuth}
-              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {checkingAuth ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            </button>
-          </div>
-
-          {authStatus ? (
-            <div className="space-y-4">
-              {/* User info */}
-              <div className="flex items-center gap-2 text-sm">
-                {authStatus.authenticated ? (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                    <span>Signed in as <span className="font-medium">{authStatus.user || 'unknown'}</span></span>
-                    <button
-                      onClick={() => {
-                        setInstallType('auth-login');
-                        setInstallTitle('Update Google Workspace Access');
-                        setInstallCommand(gwsCommandWithPath('auth login'));
-                        setShowInstallTerminal(true);
-                      }}
-                      className="ml-2 px-3 py-1 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-                    >
-                      <ShieldCheck className="w-3 h-3" />
-                      Update Access
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="w-4 h-4 text-zinc-500 shrink-0" />
-                    <span className="text-muted-foreground">Not authenticated</span>
-                    <button
-                      onClick={handleAuthSetup}
-                      className="ml-2 px-3 py-1 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-                    >
-                      <KeyRound className="w-3 h-3" />
-                      Auth Setup
-                    </button>
-                    <button
-                      onClick={handleAuthLogin}
-                      className="ml-2 px-3 py-1 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-                    >
-                      <LogIn className="w-3 h-3" />
-                      Auth Login
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {authStatus.authenticated && (
+          {/* CLI Detection Status */}
+          <div className="pt-4 space-y-3">
+            {/* gcloud status */}
+            <div className="flex items-center gap-2 text-sm">
+              {detecting ? (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              ) : gcloudPath ? (
                 <>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className={`w-2 h-2 rounded-full ${authStatus.tokenValid ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                    <span className="text-muted-foreground">
-                      Token: {authStatus.tokenValid ? 'Valid' : 'Expired'}
-                    </span>
-                    {!authStatus.tokenValid && (
-                      <button
-                        onClick={handleAuthLogin}
-                        className="ml-2 px-3 py-1 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-                      >
-                        <LogIn className="w-3 h-3" />
-                        Refresh Login
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Connected Services */}
-                  <div>
-                    <p className="text-sm font-medium mb-2">Connected Services</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {Object.entries(SERVICE_CONFIG).map(([key, config]) => {
-                        const access = authStatus.services[key] ?? 'none';
-                        const connected = access !== 'none';
-                        const Icon = config.icon;
-                        return (
-                          <div
-                            key={key}
-                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded text-sm transition-colors ${
-                              connected
-                                ? 'bg-secondary/60'
-                                : 'opacity-40'
-                            }`}
-                          >
-                            <Icon
-                              className="w-3.5 h-3.5 shrink-0"
-                              style={connected ? { color: config.color } : undefined}
-                            />
-                            <span className={connected ? 'text-foreground' : 'text-muted-foreground'}>
-                              {config.label}
-                            </span>
-                            {connected && (
-                              <span className={`ml-auto text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                access === 'write'
-                                  ? 'bg-amber-500/15 text-amber-400'
-                                  : 'bg-emerald-500/15 text-emerald-400'
-                              }`}>
-                                {access === 'write' ? 'R/W' : 'READ'}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-muted-foreground">gcloud:</span>
+                  <span className="font-mono text-xs">{gcloudPath}</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                  <span className="text-muted-foreground">gcloud: Not installed (required for auth setup)</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleInstallGcloud}
+                    className="ml-2"
+                  >
+                    <Download className="w-3 h-3" />
+                    Install gcloud
+                  </Button>
                 </>
               )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                {checkingAuth ? 'Checking authentication...' : 'Not authenticated yet. Run auth setup first, then login.'}
-              </p>
-              {!checkingAuth && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleAuthSetup}
-                    className="px-3 py-1.5 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
+
+            {/* gws status */}
+            <div className="flex items-center gap-2 text-sm">
+              {detecting ? (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              ) : gwsPath ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-muted-foreground">gws:</span>
+                  <span className="font-mono text-xs">{gwsPath}</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-zinc-500" />
+                  <span className="text-muted-foreground">gws: Not installed</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleInstallCli}
+                    className="ml-2"
                   >
-                    <KeyRound className="w-3 h-3" />
-                    Auth Setup
-                  </button>
-                  <button
-                    onClick={handleAuthLogin}
-                    className="px-3 py-1.5 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-                  >
-                    <LogIn className="w-3 h-3" />
-                    Auth Login
-                  </button>
-                </div>
+                    <Download className="w-3 h-3" />
+                    Install gws
+                  </Button>
+                </>
               )}
             </div>
-          )}
-        </div>
+
+            {/* MCP Registration Status */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className={`w-2 h-2 rounded-full ${mcpConfigured ? 'bg-green-500' : 'bg-zinc-500'}`} />
+              <span className="text-muted-foreground">
+                MCP: {mcpConfigured ? 'Registered with agents (Drive, Gmail, Calendar, Sheets, Docs)' : 'Not registered -- enable the toggle above'}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Authentication Status -- only shown when gws is detected */}
+      {gwsPath && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">Authentication</h3>
+              <button
+                onClick={checkAuthStatus}
+                disabled={checkingAuth}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {checkingAuth ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {authStatus ? (
+              <div className="space-y-4">
+                {/* User info */}
+                <div className="flex items-center gap-2 text-sm">
+                  {authStatus.authenticated ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                      <span>Signed in as <span className="font-medium">{authStatus.user || 'unknown'}</span></span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setInstallType('auth-login');
+                          setInstallTitle('Update Google Workspace Access');
+                          setInstallCommand(gwsCommandWithPath('auth login'));
+                          setShowInstallTerminal(true);
+                        }}
+                        className="ml-2"
+                      >
+                        <ShieldCheck className="w-3 h-3" />
+                        Update Access
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4 text-zinc-500 shrink-0" />
+                      <span className="text-muted-foreground">Not authenticated</span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleAuthSetup}
+                        className="ml-2"
+                      >
+                        <KeyRound className="w-3 h-3" />
+                        Auth Setup
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleAuthLogin}
+                        className="ml-2"
+                      >
+                        <LogIn className="w-3 h-3" />
+                        Auth Login
+                      </Button>
+                    </>
+                  )}
+                </div>
+
+                {authStatus.authenticated && (
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className={`w-2 h-2 rounded-full ${authStatus.tokenValid ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                      <span className="text-muted-foreground">
+                        Token: {authStatus.tokenValid ? 'Valid' : 'Expired'}
+                      </span>
+                      {!authStatus.tokenValid && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleAuthLogin}
+                          className="ml-2"
+                        >
+                          <LogIn className="w-3 h-3" />
+                          Refresh Login
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Connected Services */}
+                    <div>
+                      <p className="text-sm font-medium mb-2">Connected Services</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {Object.entries(SERVICE_CONFIG).map(([key, config]) => {
+                          const access = authStatus.services[key] ?? 'none';
+                          const connected = access !== 'none';
+                          const Icon = config.icon;
+                          return (
+                            <div
+                              key={key}
+                              className={`flex items-center gap-2 px-2.5 py-1.5 text-sm transition-colors ${
+                                connected
+                                  ? 'bg-secondary/60'
+                                  : 'opacity-40'
+                              }`}
+                            >
+                              <Icon
+                                className="w-3.5 h-3.5 shrink-0"
+                                style={connected ? { color: config.color } : undefined}
+                              />
+                              <span className={connected ? 'text-foreground' : 'text-muted-foreground'}>
+                                {config.label}
+                              </span>
+                              {connected && (
+                                <span className={`ml-auto text-[10px] font-medium px-1.5 py-0.5 ${
+                                  access === 'write'
+                                    ? 'bg-amber-500/15 text-amber-400'
+                                    : 'bg-emerald-500/15 text-emerald-400'
+                                }`}>
+                                  {access === 'write' ? 'R/W' : 'READ'}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {checkingAuth ? 'Checking authentication...' : 'Not authenticated yet. Run auth setup first, then login.'}
+                </p>
+                {!checkingAuth && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleAuthSetup}
+                    >
+                      <KeyRound className="w-3 h-3" />
+                      Auth Setup
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleAuthLogin}
+                    >
+                      <LogIn className="w-3 h-3" />
+                      Auth Login
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Agent Skills */}
-      <div className="border border-border bg-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium">Agent Skills</h3>
-          {gwsSkills.length === 0 && (
-            <button
-              onClick={handleInstallSkills}
-              className="px-3 py-1 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-xs flex items-center gap-1.5"
-            >
-              <Download className="w-3 h-3" />
-              Install Skills
-            </button>
-          )}
-        </div>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium">Agent Skills</h3>
+            {gwsSkills.length === 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleInstallSkills}
+              >
+                <Download className="w-3 h-3" />
+                Install Skills
+              </Button>
+            )}
+          </div>
 
-        {gwsSkills.length > 0 ? (
-          <div className="space-y-3">
+          {gwsSkills.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <span>{gwsSkills.length} skill{gwsSkills.length !== 1 ? 's' : ''} installed</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {gwsSkills.map((skill) => {
+                  // Map skill name (e.g. "gws-gmail") to service config
+                  const serviceKey = skill.replace(/^gws-/, '').split('-')[0];
+                  const config = SERVICE_CONFIG[serviceKey];
+                  const Icon = config?.icon;
+                  return (
+                    <div
+                      key={skill}
+                      className="flex items-center gap-2 px-2.5 py-1.5 text-sm bg-secondary/60"
+                    >
+                      {Icon ? (
+                        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: config.color }} />
+                      ) : (
+                        <Cloud className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="text-foreground truncate">{skill.replace(/^gws-/, '')}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                onClick={handleInstallSkills}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                + Install more skills
+              </button>
+            </div>
+          ) : (
             <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-              <span>{gwsSkills.length} skill{gwsSkills.length !== 1 ? 's' : ''} installed</span>
+              <div className="w-2 h-2 rounded-full bg-zinc-500" />
+              <span className="text-muted-foreground">No skills installed</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {gwsSkills.map((skill) => {
-                // Map skill name (e.g. "gws-gmail") to service config
-                const serviceKey = skill.replace(/^gws-/, '').split('-')[0];
-                const config = SERVICE_CONFIG[serviceKey];
-                const Icon = config?.icon;
-                return (
-                  <div
-                    key={skill}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded text-sm bg-secondary/60"
-                  >
-                    {Icon ? (
-                      <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: config.color }} />
-                    ) : (
-                      <Cloud className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="text-foreground truncate">{skill.replace(/^gws-/, '')}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <button
-              onClick={handleInstallSkills}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              + Install more skills
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 rounded-full bg-zinc-500" />
-            <span className="text-muted-foreground">No skills installed</span>
-          </div>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Setup Guide */}
-      <div className="border border-border bg-card p-6">
-        <h3 className="font-medium mb-4">Setup Guide</h3>
-        <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-          <li>Install <code className="bg-secondary px-1">gcloud</code> CLI (required for initial auth setup)</li>
-          <li>Install <code className="bg-secondary px-1">gws</code> CLI via the button above or <code className="bg-secondary px-1">npm install -g @googleworkspace/cli</code></li>
-          <li>Click <strong>Auth Setup</strong> above (creates a Google Cloud project + OAuth client)</li>
-          <li>Click <strong>Auth Login</strong> to authenticate with your Google account</li>
-          <li>Click the refresh icon above to verify your connection and see connected services</li>
-          <li>Click &quot;Install Skills&quot; to add 100+ agent skills for Google Workspace</li>
-          <li>Enable the toggle to register the MCP server — agents will be able to call Google APIs directly</li>
-        </ol>
-        <p className="text-xs text-muted-foreground mt-4">
-          The MCP server (<code className="bg-secondary px-0.5">gws mcp</code>) exposes Google Workspace APIs as tools over stdio. Default services: Drive, Gmail, Calendar, Sheets, Docs. Each service adds 10-80 tools.
-        </p>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="font-medium mb-4">Setup Guide</h3>
+          <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+            <li>Install <code className="bg-secondary px-1">gcloud</code> CLI (required for initial auth setup)</li>
+            <li>Install <code className="bg-secondary px-1">gws</code> CLI via the button above or <code className="bg-secondary px-1">npm install -g @googleworkspace/cli</code></li>
+            <li>Click <strong>Auth Setup</strong> above (creates a Google Cloud project + OAuth client)</li>
+            <li>Click <strong>Auth Login</strong> to authenticate with your Google account</li>
+            <li>Click the refresh icon above to verify your connection and see connected services</li>
+            <li>Click &quot;Install Skills&quot; to add 100+ agent skills for Google Workspace</li>
+            <li>Enable the toggle to register the MCP server -- agents will be able to call Google APIs directly</li>
+          </ol>
+          <p className="text-xs text-muted-foreground mt-4">
+            The MCP server (<code className="bg-secondary px-0.5">gws mcp</code>) exposes Google Workspace APIs as tools over stdio. Default services: Drive, Gmail, Calendar, Sheets, Docs. Each service adds 10-80 tools.
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* Install Dialog — reuses TerminalDialog in command mode */}
+      {/* Install Dialog -- reuses TerminalDialog in command mode */}
       <TerminalDialog
         open={showInstallTerminal}
         repo=""
