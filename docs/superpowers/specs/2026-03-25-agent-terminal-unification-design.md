@@ -283,11 +283,11 @@ Super Agents must be immediately identifiable:
 | Type | Terminal appearance | Tab badge |
 |---|---|---|
 | Normal agent | Standard | None |
-| Super Agent (tab) | **Bold violet** text on name | 👑👑 |
-| Super Agent (all) | **Bold violet** text on name + border | 👑👑 |
+| Super Agent (tab) | **Bold** text on name | 👑 |
+| Super Agent (all) | **Bold** text on name + border | 👑👑 |
 
-- Name rendered in **bold violet** in the tab and in agent cards
-- Double crown emoji (👑👑) next to the name
+- Name rendered in **bold** in the tab and in agent cards
+- Single crown emoji (👑) for tab-scoped Super Agent, double crown (👑👑) for inter-tab
 - Inter-tab Super Agent additionally gets a distinct border or glow to differentiate from tab-scoped ones
 
 ## Notifications
