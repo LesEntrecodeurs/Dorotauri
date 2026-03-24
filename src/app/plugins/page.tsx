@@ -560,7 +560,7 @@ export default function PluginsPage() {
         </div>
 
         {/* Claude-only banner */}
-        <div className="flex rounded-lg items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/10 text-xs text-blue-600">
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/10 text-xs text-blue-600">
           <Info className="w-3.5 h-3.5 shrink-0" />
           <span>Plugins are only available for <strong>Claude Code</strong>. Codex and Gemini CLI do not support plugins.</span>
         </div>
@@ -616,7 +616,7 @@ export default function PluginsPage() {
             value={search}
             onChange={handleSearchChange}
             placeholder="Search plugins by name, description, or tags..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-none text-sm bg-secondary border border-border focus:border-foreground focus:outline-none"
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-secondary border border-border focus:border-foreground focus:outline-none"
           />
         </div>
 
@@ -628,7 +628,7 @@ export default function PluginsPage() {
               setShowMarketplaceDropdown(false);
               setShowAuthorDropdown(false);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-none bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto sm:min-w-[160px] text-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto sm:min-w-[160px] text-sm"
           >
             <Filter className="w-4 h-4" />
             {selectedCategory || 'All Categories'}
@@ -641,7 +641,7 @@ export default function PluginsPage() {
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 5 }}
-                className="absolute top-full mt-2 right-0 w-48 bg-card border border-border rounded-none shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
+                className="absolute top-full mt-2 right-0 w-48 bg-card border border-border shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
               >
                 <button
                   onClick={() => {
@@ -683,7 +683,7 @@ export default function PluginsPage() {
               setShowCategoryDropdown(false);
               setShowAuthorDropdown(false);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-none bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto sm:min-w-[160px] text-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto sm:min-w-[160px] text-sm"
           >
             <Puzzle className="w-4 h-4" />
             {selectedMarketplace ? MARKETPLACES.find(m => m.id === selectedMarketplace)?.name : 'All Sources'}
@@ -696,7 +696,7 @@ export default function PluginsPage() {
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 5 }}
-                className="absolute top-full mt-2 right-0 w-56 bg-card border border-border rounded-none shadow-lg z-20 py-2"
+                className="absolute top-full mt-2 right-0 w-56 bg-card border border-border shadow-lg z-20 py-2"
               >
                 <button
                   onClick={() => {
@@ -735,7 +735,7 @@ export default function PluginsPage() {
               setShowCategoryDropdown(false);
               setShowMarketplaceDropdown(false);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-none bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto sm:min-w-[160px] text-sm"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border text-muted-foreground hover:text-foreground transition-colors w-full sm:w-auto sm:min-w-[160px] text-sm"
           >
             <User className="w-4 h-4" />
             {selectedAuthor || 'All Authors'}
@@ -748,7 +748,7 @@ export default function PluginsPage() {
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 5 }}
-                className="absolute top-full mt-2 right-0 w-56 bg-card border border-border rounded-none shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
+                className="absolute top-full mt-2 right-0 w-56 bg-card border border-border shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
               >
                 <button
                   onClick={() => {
@@ -833,7 +833,7 @@ export default function PluginsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg bg-card border border-border rounded-none p-6"
+              className="w-full max-w-lg bg-card border border-border p-6"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">{selectedPlugin.name}</h3>
@@ -874,7 +874,7 @@ export default function PluginsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-4xl bg-[#0D0B08] border border-border rounded-none overflow-hidden"
+              className="w-full max-w-4xl bg-[#0D0B08] border border-border overflow-hidden"
             >
               {/* Terminal Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
@@ -902,7 +902,7 @@ export default function PluginsPage() {
                   )}
                   <button
                     onClick={closeInstallTerminal}
-                    className="p-1.5 hover:bg-secondary rounded-none transition-colors"
+                    className="p-1.5 hover:bg-secondary transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>

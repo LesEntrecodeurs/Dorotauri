@@ -273,14 +273,14 @@ export default function SkillsPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-card border border-border rounded-none p-6"
+              className="w-full max-w-md bg-card border border-border p-6"
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <TerminalIcon className="w-5 h-5 text-muted-foreground" />
                   Install Custom Skill
                 </h3>
-                <button onClick={() => setShowCustomInstall(false)} className="p-1 hover:bg-secondary rounded-none">
+                <button onClick={() => setShowCustomInstall(false)} className="p-1 hover:bg-secondary">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -293,7 +293,7 @@ export default function SkillsPage() {
                     value={customRepo}
                     onChange={(e) => setCustomRepo(e.target.value)}
                     placeholder="e.g., anthropics/skills"
-                    className="w-full px-4 py-2.5 rounded-none font-mono text-sm"
+                    className="w-full px-4 py-2.5 font-mono text-sm"
                   />
                 </div>
 
@@ -304,21 +304,21 @@ export default function SkillsPage() {
                     value={customSkillName}
                     onChange={(e) => setCustomSkillName(e.target.value)}
                     placeholder="e.g., frontend-design"
-                    className="w-full px-4 py-2.5 rounded-none font-mono text-sm"
+                    className="w-full px-4 py-2.5 font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Leave empty to install all skills from the repository
                   </p>
                 </div>
 
-                <div className="p-3 rounded-none bg-secondary/50 border border-border font-mono text-xs text-muted-foreground">
+                <div className="p-3 bg-secondary/50 border border-border font-mono text-xs text-muted-foreground">
                   npx skills add https://github.com/{customRepo}{customSkillName ? ` --skill ${customSkillName}` : ''}
                 </div>
 
                 <button
                   onClick={handleCustomInstall}
                   disabled={!customRepo || installingSkill === 'custom'}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-foreground text-background font-medium rounded-none hover:bg-foreground/90 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
                 >
                   {installingSkill === 'custom' ? (
                     <>
@@ -358,7 +358,7 @@ export default function SkillsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search skills..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-none text-sm"
+            className="w-full pl-10 pr-4 py-2.5 text-sm"
           />
         </div>
       </div>
