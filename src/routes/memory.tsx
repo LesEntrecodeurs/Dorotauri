@@ -152,7 +152,7 @@ function ProjectCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-3 transition-all duration-100 border-l-2 !rounded-none group ${isSelected
+      className={`w-full text-left px-3 py-3 transition-all duration-100 border-l-2 group ${isSelected
         ? 'bg-primary/10 border-l-primary text-foreground'
         : 'border-l-transparent hover:bg-secondary/60 hover:border-l-border text-muted-foreground hover:text-foreground'
         }`}
@@ -380,7 +380,7 @@ export default function MemoryPage() {
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px !rounded-none ${activeTab === id
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === id
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
@@ -504,7 +504,7 @@ export default function MemoryPage() {
             {selectedProject ? (
               <>
                 {/* Project header */}
-                <div className="px-3 py-2 border-b !rounded-none border-border !border-t-0image.png shrink-0 bg-secondary/20">
+                <div className="px-3 py-2 border-b border-border !border-t-0image.png shrink-0 bg-secondary/20">
                   <p className="text-xs font-semibold truncate">{selectedProject.projectName}</p>
                   <p className="text-[10px] text-muted-foreground truncate mt-0.5" title={selectedProject.projectPath}>
                     {selectedProject.projectPath}

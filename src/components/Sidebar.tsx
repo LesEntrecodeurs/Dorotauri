@@ -29,6 +29,7 @@ import {
   SidebarMenuBadge,
   SidebarFooter,
   SidebarHeader,
+  SidebarRail,
 } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -81,7 +82,7 @@ export default function AppSidebar() {
   const notificationCount = undismissedNotifications.length;
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="offcanvas">
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-1">
           <div className="w-8 h-8 overflow-hidden shrink-0">
@@ -179,6 +180,7 @@ export default function AppSidebar() {
           <span>Connected</span>
         </div>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }
