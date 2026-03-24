@@ -81,6 +81,8 @@ These fields exist in the current model and are preserved as-is in the new `Agen
 - **`processState` is semi-automatic** — some transitions are automatic (PTY exit → `completed`/`error`), others are command-driven (`agent_start` → `running`). See "processState inference" section below.
 - **`businessState` is inferred** — the AI deduces semantic state from its own context. The Super Agent can enrich/correct it.
 - **`currentTask` is dropped** — the context is the terminal history. The `AgentTickItem` type used for the periodic tick system is updated to derive its display text from `businessState` + `statusLine` instead of `currentTask`.
+- **`progress` is dropped** — the `progress?: number` field and associated `AgentEvent` progress type are removed. Progress is now communicated through `businessState` semantically (e.g., "testing 3/5") rather than a numeric percentage.
+- **`ActiveTab` project variant is dropped** — the current `ActiveTab` has a `{ type: 'project'; projectPath: string }` variant for auto-grouping agents by project. Since `projectPath` no longer exists as a static field (replaced by dynamic `cwd`), this variant is removed. Users organize agents into tabs manually. A future enhancement could auto-group by `cwd` if needed.
 - **`ptyId` is nullable** — null means the agent is dormant (terminal closed, agent persisted).
 - **`secondaryPaths` is an array** — migrated from the current singular `secondaryProjectPath`. The config wheel allows adding/removing multiple paths. Existing single values are migrated into a one-element array. Note: `obsidianVaultPaths` remains a separate field because Obsidian vaults are mounted read-only with specific semantics, whereas `secondaryPaths` are general-purpose `--add-dir` paths.
 - **`createdAt` is new** — existing agents use their `lastActivity` value as the migration default.
@@ -350,7 +352,16 @@ Capabilities: receive state notifications, receive Super Agent team summaries, s
 
 ### Data migration
 
-A version field (`schemaVersion: number`) is added to `agents.json`. Current (unversioned) data is treated as version 0. Migration to version 1:
+A version field (`schemaVersion: number`) is added to `agents.json` via a wrapper object. Current (unversioned) data is a bare `HashMap<AgentId, AgentStatus>`. Migration to version 1 wraps it:
+
+```typescript
+interface AgentsFile {
+  schemaVersion: number;       // starts at 1
+  agents: Record<string, Agent>;
+}
+```
+
+On startup, deserialization tries the new `AgentsFile` wrapper first. If that fails (no `schemaVersion` key), it falls back to the bare `HashMap` and triggers migration.
 
 **Before migration**: a backup of `agents.json` is written to `agents.json.v0.backup`. If migration fails midway, the app loads the backup using the old `AgentStatus` deserializer, presents all agents as dormant with their original metadata intact, and logs the error. The user can retry migration on next restart or report the issue.
 
