@@ -4,9 +4,18 @@ import NotificationToast from './NotificationToast';
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useElectronAgents } from '@/hooks/useElectron';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 
 const MosaicTerminalView = lazy(() => import('./MosaicTerminalView'));
+
+/** Collapses sidebar when entering zen mode, restores when leaving */
+function ZenSidebarSync({ zen }: { zen: boolean }) {
+  const { setOpen } = useSidebar();
+  useEffect(() => {
+    if (zen) setOpen(false);
+  }, [zen, setOpen]);
+  return null;
+}
 
 const VAULT_READ_DOCS_KEY = 'vault-read-docs';
 
@@ -67,30 +76,21 @@ export default function ClientLayout() {
     void setVaultUnreadCount;
   }, [setVaultUnreadCount]);
 
-  // Zen mode on dashboard = fullscreen terminals, no chrome
-  if (zenMode && isOnDashboard) {
-    return (
-      <div className="h-screen w-screen">
-        <Suspense fallback={null}>
-          <MosaicTerminalView agents={agents} zenMode />
-        </Suspense>
-        <NotificationToast />
-      </div>
-    );
-  }
+  const zenDashboard = zenMode && isOnDashboard;
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={!zenDashboard}>
       <AppSidebar />
+      <ZenSidebarSync zen={zenDashboard} />
       <SidebarInset>
         <main className="flex-1 overflow-auto">
           {/* Persistent terminal layer — always mounted, hidden when not on dashboard */}
           <div
-            style={{ display: isOnDashboard ? 'block' : 'none' }}
-            className="h-screen"
+            style={{ display: isOnDashboard ? 'flex' : 'none' }}
+            className="h-svh flex-col"
           >
             <Suspense fallback={null}>
-              <MosaicTerminalView agents={agents} />
+              <MosaicTerminalView agents={agents} zenMode={zenDashboard} />
             </Suspense>
           </div>
 
