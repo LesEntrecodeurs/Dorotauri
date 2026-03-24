@@ -148,6 +148,10 @@ Five MCP servers expose 40+ tools for programmatic control:
 | `~/.dorothy/vault.db` | Vault (SQLite) |
 | `~/.claude/settings.json` | Claude Code settings |
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned features and future direction.
+
 ## Contributing
 
 Contributions welcome. Fork, branch, PR.
