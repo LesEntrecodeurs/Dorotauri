@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle, XCircle, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { isElectron } from '@/hooks/useElectron';
 import 'xterm/css/xterm.css';
 
@@ -186,11 +187,11 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl bg-card border border-border rounded-none overflow-hidden"
+            className="w-full max-w-4xl bg-card border border-border overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-none flex items-center justify-center ${
+                <div className={`w-8 h-8 flex items-center justify-center ${
                   installComplete
                     ? installExitCode === 0
                       ? 'bg-green-500/20'
@@ -220,7 +221,7 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
               </div>
               <button
                 onClick={handleClose}
-                className="p-2 hover:bg-secondary rounded-none"
+                className="p-2 hover:bg-secondary"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -232,7 +233,7 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
               </p>
               <div
                 ref={terminalRef}
-                className="bg-[#0D0B08] rounded-none overflow-hidden"
+                className="bg-[#0D0B08] overflow-hidden"
                 style={{ height: '400px' }}
               />
             </div>
@@ -243,16 +244,13 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
                   ? `Exited with code ${installExitCode}`
                   : 'Waiting for installation to complete...'}
               </p>
-              <button
+              <Button
                 onClick={handleClose}
-                className={`px-4 py-2 rounded-none font-medium ${
-                  installComplete
-                    ? 'bg-foreground text-background hover:bg-foreground/90'
-                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                }`}
+                variant={installComplete ? 'default' : 'destructive'}
+                className={!installComplete ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : ''}
               >
                 {installComplete ? 'Close' : 'Cancel'}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>

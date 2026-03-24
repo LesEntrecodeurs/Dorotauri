@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import 'xterm/css/xterm.css';
 
 interface SkillInstallTerminalProps {
@@ -34,25 +35,25 @@ export default function SkillInstallTerminal({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-3xl bg-bg-secondary border border-border-primary rounded-none overflow-hidden"
+            className="w-full max-w-3xl bg-secondary border border-border overflow-hidden"
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border-primary">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-none flex items-center justify-center ${
+                <div className={`w-8 h-8 flex items-center justify-center ${
                   installComplete
                     ? installExitCode === 0
-                      ? 'bg-accent-green/20'
-                      : 'bg-accent-red/20'
-                    : 'bg-accent-blue/20'
+                      ? 'bg-green-500/20'
+                      : 'bg-destructive/20'
+                    : 'bg-primary/20'
                 }`}>
                   {installComplete ? (
                     installExitCode === 0 ? (
-                      <CheckCircle className="w-4 h-4 text-accent-green" />
+                      <CheckCircle className="w-4 h-4 text-green-500" />
                     ) : (
-                      <XCircle className="w-4 h-4 text-accent-red" />
+                      <XCircle className="w-4 h-4 text-destructive" />
                     )
                   ) : (
-                    <Loader2 className="w-4 h-4 text-accent-blue animate-spin" />
+                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
                   )}
                 </div>
                 <div>
@@ -63,46 +64,43 @@ export default function SkillInstallTerminal({
                         : 'Installation Failed'
                       : `Installing ${installingSkill.name}...`}
                   </h3>
-                  <p className="text-xs text-text-muted font-mono">
+                  <p className="text-xs text-muted-foreground font-mono">
                     {installingSkill.repo}/{installingSkill.name}
                   </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-bg-tertiary rounded-none"
+                className="p-2 hover:bg-muted"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-4">
-              <p className="text-xs text-text-muted mb-3">
+              <p className="text-xs text-muted-foreground mb-3">
                 Interactive terminal - type your responses and press Enter when prompted.
               </p>
               <div
                 ref={terminalRef}
-                className="bg-[#0D0B08] rounded-none overflow-hidden"
+                className="bg-[#0D0B08] overflow-hidden"
                 style={{ height: '350px' }}
               />
             </div>
 
-            <div className="px-5 py-4 border-t border-border-primary flex items-center justify-between">
-              <p className="text-xs text-text-muted">
+            <div className="px-5 py-4 border-t border-border flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
                 {installComplete
                   ? `Exited with code ${installExitCode}`
                   : 'Waiting for installation to complete...'}
               </p>
-              <button
+              <Button
                 onClick={onClose}
-                className={`px-4 py-2 rounded-none font-medium ${
-                  installComplete
-                    ? 'bg-accent-blue text-bg-primary hover:bg-accent-blue/90'
-                    : 'bg-accent-red/20 text-accent-red hover:bg-accent-red/30'
-                }`}
+                variant={installComplete ? 'default' : 'destructive'}
+                className={!installComplete ? 'bg-destructive/20 text-destructive hover:bg-destructive/30' : ''}
               >
                 {installComplete ? 'Done' : 'Cancel'}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>

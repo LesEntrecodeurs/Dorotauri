@@ -5,6 +5,7 @@ import { Loader2, CheckCircle, XCircle, X, Link2 } from 'lucide-react';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { Button } from '@/components/ui/button';
 import ProviderBadge, { PROVIDER_CONFIG } from '@/components/ProviderBadge';
 import 'xterm/css/xterm.css';
 
@@ -259,11 +260,11 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl bg-card border border-border rounded-none overflow-hidden"
+            className="w-full max-w-4xl bg-card border border-border overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-none flex items-center justify-center ${
+                <div className={`w-8 h-8 flex items-center justify-center ${
                   installComplete
                     ? installExitCode === 0
                       ? 'bg-green-500/20'
@@ -293,13 +294,13 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
               </div>
               <button
                 onClick={handleClose}
-                className="p-2 hover:bg-secondary rounded-none"
+                className="p-2 hover:bg-secondary"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Provider Selector — skill mode only */}
+            {/* Provider Selector -- skill mode only */}
             {!isCommandMode && nonClaudeProviders.length > 0 && (
               <div className="px-5 py-3 border-b border-border flex items-center gap-3">
                 <span className="text-xs text-muted-foreground">Install to:</span>
@@ -315,12 +316,11 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
                       key={id}
                       onClick={() => toggleProvider(id)}
                       disabled={isClaude || installComplete}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium transition-colors rounded-sm ${
                         isSelected
                           ? 'bg-secondary text-foreground'
                           : 'bg-secondary/50 text-muted-foreground hover:text-foreground'
                       } ${isClaude ? 'opacity-90 cursor-default' : ''}`}
-                      style={{ borderRadius: 4 }}
                     >
                       {typeof icon === 'string' ? (
                         <img src={icon} alt={config.label} className="w-3 h-3 object-contain" />
@@ -349,7 +349,7 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
               </p>
               <div
                 ref={terminalRef}
-                className="bg-background rounded-none overflow-hidden"
+                className="bg-background overflow-hidden"
                 style={{ height: '400px' }}
               />
             </div>
@@ -360,16 +360,13 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
                   ? `Exited with code ${installExitCode}`
                   : 'Waiting for installation to complete...'}
               </p>
-              <button
+              <Button
                 onClick={handleClose}
-                className={`px-4 py-2 rounded-none font-medium ${
-                  installComplete
-                    ? 'bg-foreground text-background hover:bg-foreground/90'
-                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                }`}
+                variant={installComplete ? 'default' : 'destructive'}
+                className={!installComplete ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : ''}
               >
                 {installComplete ? 'Close' : 'Cancel'}
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>
