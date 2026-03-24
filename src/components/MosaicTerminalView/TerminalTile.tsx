@@ -89,11 +89,20 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
         if (agent?.projectPath) cwd = agent.projectPath;
       } catch {}
 
-      // Spawn a real PTY shell in the agent's project directory
+      // Check if there's already a PTY for this agent (shared across windows)
       let ptyId: string;
+      let isShared = false;
       try {
-        const { cols, rows } = term;
-        ptyId = await invoke<string>('pty_create', { cwd, cols, rows });
+        const existing = await invoke<string | null>('pty_lookup', { key: agentId });
+        if (existing) {
+          ptyId = existing;
+          isShared = true;
+        } else {
+          const { cols, rows } = term;
+          ptyId = await invoke<string>('pty_create', { cwd, cols, rows });
+          // Register so pop-out windows can find this PTY
+          await invoke('pty_register', { key: agentId, ptyId });
+        }
       } catch (err) {
         term.write(`\x1b[31mFailed to create PTY: ${err}\x1b[0m\r\n`);
         cleanup = () => term.dispose();
@@ -127,11 +136,14 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
       });
       resizeObserver.observe(container);
 
+      const ptyOwned = !isShared; // Only kill PTY if we created it
       cleanup = () => {
         disposed = true;
         resizeObserver.disconnect();
         unsubOutput?.();
-        invoke('pty_kill', { ptyId }).catch(() => {});
+        if (ptyOwned) {
+          invoke('pty_kill', { ptyId }).catch(() => {});
+        }
         term.dispose();
       };
     })();

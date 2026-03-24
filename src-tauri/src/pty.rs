@@ -36,12 +36,16 @@ pub struct PtyHandle {
 
 pub struct PtyManager {
     pub handles: Mutex<HashMap<PtyId, PtyHandle>>,
+    /// Maps an external key (e.g. agentId) to the ptyId that serves it.
+    /// Multiple keys can point to the same ptyId (hub + pop-out sharing).
+    pub registry: Mutex<HashMap<String, PtyId>>,
 }
 
 impl PtyManager {
     pub fn new() -> Self {
         Self {
             handles: Mutex::new(HashMap::new()),
+            registry: Mutex::new(HashMap::new()),
         }
     }
 
@@ -174,6 +178,27 @@ impl PtyManager {
         if let Some(mut handle) = handles.remove(pty_id) {
             handle.child.kill().ok();
         }
+        // Also clean up registry entries pointing to this pty
+        let mut registry = self.registry.lock().unwrap();
+        registry.retain(|_, v| v != pty_id);
         Ok(())
+    }
+
+    /// Register an external key (e.g. agentId) → ptyId mapping.
+    pub fn register(&self, key: &str, pty_id: &str) {
+        self.registry.lock().unwrap().insert(key.to_string(), pty_id.to_string());
+    }
+
+    /// Look up ptyId by external key. Returns None if not registered.
+    pub fn lookup(&self, key: &str) -> Option<PtyId> {
+        let registry = self.registry.lock().unwrap();
+        let pty_id = registry.get(key)?;
+        // Verify the PTY still exists
+        let handles = self.handles.lock().unwrap();
+        if handles.contains_key(pty_id.as_str()) {
+            Some(pty_id.clone())
+        } else {
+            None
+        }
     }
 }

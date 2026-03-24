@@ -33,3 +33,15 @@ pub fn pty_resize(pty_manager: State<'_, PtyManager>, pty_id: String, cols: u16,
 pub fn pty_kill(pty_manager: State<'_, PtyManager>, pty_id: String) -> Result<(), String> {
     pty_manager.kill(&pty_id)
 }
+
+/// Register a key (e.g. agentId) → ptyId mapping so other windows can find the PTY.
+#[tauri::command]
+pub fn pty_register(pty_manager: State<'_, PtyManager>, key: String, pty_id: String) {
+    pty_manager.register(&key, &pty_id);
+}
+
+/// Look up ptyId by key (e.g. agentId). Returns the ptyId if found and still alive.
+#[tauri::command]
+pub fn pty_lookup(pty_manager: State<'_, PtyManager>, key: String) -> Option<String> {
+    pty_manager.lookup(&key)
+}

@@ -74,12 +74,20 @@ export default function Console() {
         }
       } catch {}
 
-      // Create a PTY for this pop-out console in the agent's project dir
+      // Look up existing PTY for this agent (shared with hub)
       const cwd = agent?.projectPath || '/home'
       let ptyId: string
+      let isShared = false
       try {
-        const { cols, rows } = term
-        ptyId = await invoke<string>('pty_create', { cwd, cols, rows })
+        const existing = await invoke<string | null>('pty_lookup', { key: agentId })
+        if (existing) {
+          ptyId = existing
+          isShared = true
+        } else {
+          const { cols, rows } = term
+          ptyId = await invoke<string>('pty_create', { cwd, cols, rows })
+          await invoke('pty_register', { key: agentId, ptyId })
+        }
       } catch (err) {
         term.write(`\x1b[31mFailed to create PTY: ${err}\x1b[0m\r\n`)
         cleanup = () => term.dispose()
@@ -124,7 +132,9 @@ export default function Console() {
         resizeObserver.disconnect()
         unlistenOutput?.()
         unlistenStatus?.()
-        invoke('pty_kill', { ptyId }).catch(() => {})
+        if (!isShared) {
+          invoke('pty_kill', { ptyId }).catch(() => {})
+        }
         term.dispose()
       }
     }

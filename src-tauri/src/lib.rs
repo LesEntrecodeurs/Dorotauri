@@ -61,6 +61,8 @@ pub fn run() {
             commands::pty::pty_write,
             commands::pty::pty_resize,
             commands::pty::pty_kill,
+            commands::pty::pty_register,
+            commands::pty::pty_lookup,
             // Settings commands
             commands::settings::app_settings_get,
             commands::settings::app_settings_save,
