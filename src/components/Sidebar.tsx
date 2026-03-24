@@ -82,14 +82,12 @@ function CollapseToggle() {
   const collapsed = state === 'collapsed';
 
   return (
-    <button
-      onClick={toggleSidebar}
-      className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center"
-      aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-    >
-      {collapsed ? <PanelLeft className="size-4 shrink-0" /> : <PanelLeftClose className="size-4 shrink-0" />}
-      <span className="group-data-[collapsible=icon]:hidden">{collapsed ? 'Expand' : 'Collapse'}</span>
-    </button>
+    <SidebarMenuItem>
+      <SidebarMenuButton onClick={toggleSidebar} tooltip={collapsed ? 'Expand' : 'Collapse'}>
+        {collapsed ? <PanelLeft /> : <PanelLeftClose />}
+        <span>Collapse</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
