@@ -1,6 +1,7 @@
 use tauri::Manager;
 
 mod commands;
+mod db;
 mod notifications;
 mod pty;
 mod state;
@@ -10,11 +11,13 @@ pub fn run() {
     let app_state = state::AppState::load();
     let pty_manager = pty::PtyManager::new();
     let window_registry = windows::WindowRegistry::new();
+    let vault_db = db::VaultDb::open().expect("Failed to initialize vault database");
 
     tauri::Builder::default()
         .manage(app_state)
         .manage(pty_manager)
         .manage(window_registry)
+        .manage(vault_db)
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -82,6 +85,16 @@ pub fn run() {
             commands::window::window_focus,
             commands::window::window_list,
             commands::window::notification_navigate,
+            // Vault commands
+            commands::vault::vault_list_documents,
+            commands::vault::vault_get_document,
+            commands::vault::vault_create_document,
+            commands::vault::vault_update_document,
+            commands::vault::vault_delete_document,
+            commands::vault::vault_search,
+            commands::vault::vault_list_folders,
+            commands::vault::vault_create_folder,
+            commands::vault::vault_delete_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
