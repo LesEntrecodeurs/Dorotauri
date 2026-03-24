@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { TERMINAL_THEME, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 
 interface InstallTerminalModalProps {
   show: boolean;
@@ -31,33 +32,8 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
       const { FitAddon } = await import('xterm-addon-fit');
 
       const term = new Terminal({
-        theme: {
-          background: '#0D0B08',
-          foreground: '#e4e4e7',
-          cursor: '#3D9B94',
-          cursorAccent: '#0D0B08',
-          selectionBackground: '#3D9B9433',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#22c55e',
-          yellow: '#eab308',
-          blue: '#3b82f6',
-          magenta: '#a855f7',
-          cyan: '#3D9B94',
-          white: '#e4e4e7',
-          brightBlack: '#52525b',
-          brightRed: '#f87171',
-          brightGreen: '#4ade80',
-          brightYellow: '#facc15',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#67e8f9',
-          brightWhite: '#fafafa',
-        },
-        fontSize: 13,
-        fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-        cursorBlink: true,
-        cursorStyle: 'bar',
+        theme: TERMINAL_THEME,
+        ...TERMINAL_CONFIG,
         scrollback: 10000,
       });
 
@@ -175,7 +151,7 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
 
   return (
     <Dialog open={show} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden bg-[#0D0B08] border-border">
+      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden bg-[#1A1726] border-border">
         <DialogTitle className="sr-only">Installing Plugin</DialogTitle>
         {/* Terminal Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
@@ -209,7 +185,7 @@ export const InstallTerminalModal = ({ show, command, onClose, onComplete }: Ins
         <div
           ref={terminalRef}
           className="h-[400px]"
-          style={{ backgroundColor: '#0D0B08' }}
+          style={{ backgroundColor: '#1A1726' }}
         />
 
         {/* Terminal Footer */}

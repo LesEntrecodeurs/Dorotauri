@@ -25,7 +25,7 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
   onClose,
 }: AgentDialogHeaderProps) {
   return (
-    <div className="px-5 py-3 border-b border-border-primary flex items-center justify-between bg-bg-tertiary/30">
+    <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/30">
       <div className="flex items-center gap-3">
         <span className="text-2xl">
           {isSuperAgentMode ? '👑' : CHARACTER_FACES[character as keyof typeof CHARACTER_FACES] || '🤖'}
@@ -36,16 +36,16 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
             <span
               className={`
                 text-xs px-2 py-0.5 rounded-full
-                ${agent.status === 'running' ? 'bg-accent-cyan/20 text-accent-cyan' : ''}
-                ${agent.status === 'idle' ? 'bg-text-muted/20 text-text-muted' : ''}
-                ${agent.status === 'completed' ? 'bg-accent-green/20 text-accent-green' : ''}
-                ${agent.status === 'error' ? 'bg-accent-red/20 text-accent-red' : ''}
+                ${agent.status === 'running' ? 'bg-primary/20 text-primary' : ''}
+                ${agent.status === 'idle' ? 'bg-text-muted/20 text-muted-foreground' : ''}
+                ${agent.status === 'completed' ? 'bg-success/20 text-success' : ''}
+                ${agent.status === 'error' ? 'bg-destructive/20 text-destructive' : ''}
               `}
             >
               {agent.status}
             </span>
           </h3>
-          <div className="flex items-center gap-2 text-xs text-text-muted">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {isSuperAgentMode ? (
               <span className="text-amber-400 flex items-center gap-1">
                 <Crown className="w-3 h-3" />
@@ -57,7 +57,7 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
                   {agent.projectPath.split('/').pop()}
                 </span>
                 {agent.branchName && (
-                  <span className="text-accent-purple flex items-center gap-1">
+                  <span className="text-primary flex items-center gap-1">
                     <GitBranch className="w-3 h-3" />
                     {agent.branchName}
                   </span>
@@ -79,24 +79,24 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
           <>
             <button
               onClick={onOpenInFinder}
-              className="p-2 hover:bg-bg-tertiary rounded-none transition-colors"
+              className="p-2 hover:bg-muted rounded-none transition-colors"
               title="Open in Finder"
             >
-              <FolderOpen className="w-4 h-4 text-text-muted" />
+              <FolderOpen className="w-4 h-4 text-muted-foreground" />
             </button>
             <div className="w-px h-5 bg-border-primary mx-1" />
           </>
         )}
         <button
           onClick={onToggleFullscreen}
-          className="p-2 hover:bg-bg-tertiary rounded-none transition-colors"
+          className="p-2 hover:bg-muted rounded-none transition-colors"
           title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-bg-tertiary rounded-none transition-colors"
+          className="p-2 hover:bg-muted rounded-none transition-colors"
           title="Close"
         >
           <X className="w-5 h-5" />

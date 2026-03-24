@@ -18,7 +18,7 @@ export const AgentDialogFooter = memo(function AgentDialogFooter({
   onStop,
 }: AgentDialogFooterProps) {
   return (
-    <div className="px-5 py-3 border-t border-border-primary bg-bg-tertiary/30">
+    <div className="px-5 py-3 border-t border-border bg-muted/30">
       {agent.pathMissing && (
         <div className="flex items-center gap-2 px-3 py-2 mb-3 bg-amber-500/10 border border-amber-500/30 rounded-none text-amber-400 text-sm">
           <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -36,7 +36,7 @@ export const AgentDialogFooter = memo(function AgentDialogFooter({
             onKeyDown={(e) => e.key === 'Enter' && !agent.pathMissing && onStart()}
             placeholder={agent.pathMissing ? 'Cannot start - path not found' : 'Enter a task for this agent...'}
             disabled={agent.pathMissing}
-            className={`flex-1 px-4 py-2 bg-bg-primary border border-border-primary rounded-none text-sm focus:outline-none focus:border-accent-cyan ${
+            className={`flex-1 px-4 py-2 bg-background border border-border rounded-none text-sm focus:outline-none focus:border-accent-cyan ${
               agent.pathMissing ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             autoFocus={!agent.pathMissing}
@@ -46,8 +46,8 @@ export const AgentDialogFooter = memo(function AgentDialogFooter({
             disabled={!prompt.trim() || agent.pathMissing}
             className={`flex items-center gap-2 px-4 py-2 rounded-none transition-colors disabled:opacity-50 ${
               agent.pathMissing
-                ? 'bg-bg-tertiary text-text-muted cursor-not-allowed'
-                : 'bg-accent-green/20 text-accent-green hover:bg-accent-green/30'
+                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                : 'bg-success/20 text-success hover:bg-success/30'
             }`}
           >
             <Play className="w-4 h-4" />
@@ -56,13 +56,13 @@ export const AgentDialogFooter = memo(function AgentDialogFooter({
         </div>
       ) : (
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-accent-cyan">
+          <div className="flex items-center gap-2 text-sm text-primary">
             <TerminalIcon className="w-4 h-4" />
             <span>Agent is working: {agent.currentTask?.slice(0, 50)}...</span>
           </div>
           <button
             onClick={onStop}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-red/20 text-accent-red rounded-none hover:bg-accent-red/30 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-destructive/20 text-destructive rounded-none hover:bg-destructive/30 transition-colors"
           >
             <Square className="w-4 h-4" />
             Stop

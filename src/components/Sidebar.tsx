@@ -14,6 +14,8 @@ import {
   Settings,
   Moon,
   Sun,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -30,6 +32,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -74,6 +77,22 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function CollapseToggle() {
+  const { toggleSidebar, state } = useSidebar();
+  const collapsed = state === 'collapsed';
+
+  return (
+    <button
+      onClick={toggleSidebar}
+      className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center"
+      aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+    >
+      {collapsed ? <PanelLeft className="size-4 shrink-0" /> : <PanelLeftClose className="size-4 shrink-0" />}
+      <span className="group-data-[collapsible=icon]:hidden">{collapsed ? 'Expand' : 'Collapse'}</span>
+    </button>
+  );
+}
+
 export default function AppSidebar() {
   const pathname = useLocation().pathname;
   const { darkMode, toggleDarkMode, vaultUnreadCount } = useStore();
@@ -82,7 +101,7 @@ export default function AppSidebar() {
   const notificationCount = undismissedNotifications.length;
 
   return (
-    <Sidebar collapsible="offcanvas">
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-1">
           <div className="w-8 h-8 overflow-hidden shrink-0">
@@ -95,9 +114,10 @@ export default function AppSidebar() {
           <img
             src="/text.png"
             alt="Dorothy"
-            className="h-5 w-auto object-contain group-data-[collapsible=icon]:hidden"
+            className="h-5 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden"
           />
         </div>
+        <CollapseToggle />
       </SidebarHeader>
 
       <SidebarContent>

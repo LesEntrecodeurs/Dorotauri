@@ -332,8 +332,8 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
         </>
       )}
 
-      {/* Tab bar — hidden in zen mode */}
-      <div className={`flex items-center gap-0.5 px-2 py-1 bg-secondary/80 border-b border-border shrink-0 ${zenMode ? 'hidden' : ''}`}>
+      {/* Tab bar — compact in zen mode */}
+      <div className={`flex items-center gap-0.5 px-2 bg-secondary/80 border-b border-border shrink-0 ${zenMode ? 'py-0 h-6 text-[10px]' : 'py-1'}`}>
         {tabs.map(tab => (
           <div
             key={tab.id}

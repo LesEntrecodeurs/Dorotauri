@@ -184,7 +184,7 @@ export default function AgentTerminalDialog({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className={`bg-bg-secondary border border-border-primary rounded-none overflow-hidden shadow-2xl ${dialogClass} flex flex-col`}
+          className={`bg-secondary border border-border rounded-none overflow-hidden shadow-2xl ${dialogClass} flex flex-col`}
         >
           <AgentDialogHeader
             agent={agent}
@@ -202,13 +202,13 @@ export default function AgentTerminalDialog({
             <div className="flex-1 relative">
               <div
                 ref={terminalRef}
-                className="absolute inset-0 bg-[#1a1a2e] p-2"
+                className="absolute inset-0 bg-[#1A1726] p-2"
                 style={{ cursor: 'text', minHeight: '300px' }}
                 onClick={() => xtermRef.current?.focus()}
               />
               {!terminalReady && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[#1a1a2e]">
-                  <Loader2 className="w-6 h-6 animate-spin text-accent-cyan" />
+                <div className="absolute inset-0 flex items-center justify-center bg-[#1A1726]">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
               )}
               {/* Sidebar toggle button (bottom-right of terminal) */}
@@ -225,14 +225,14 @@ export default function AgentTerminalDialog({
 
             {/* Right sidebar — collapsible */}
             {(sidebarOpen || isSuperAgentMode) && (
-              <div className="border-l border-border-primary bg-bg-tertiary/20 flex flex-col overflow-hidden" style={{ width: '480px' }}>
+              <div className="border-l border-border bg-muted/20 flex flex-col overflow-hidden" style={{ width: '480px' }}>
                 {isSuperAgentMode ? (
                   <AgentDialogSuperAgentSidebar agents={agents} projects={projects} />
                 ) : (
                   <>
                     <button
                       onClick={() => setSidebarOpen(false)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground border-b border-border-primary transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground border-b border-border transition-colors"
                     >
                       <PanelRight className="w-3.5 h-3.5" />
                       Hide sidebar

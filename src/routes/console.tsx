@@ -146,7 +146,7 @@ export default function Console() {
   const statusColor = STATUS_COLORS[agentStatus] || STATUS_COLORS.idle
 
   return (
-    <div className="h-screen flex flex-col bg-[#1a1a2e]">
+    <div className="h-screen flex flex-col bg-[#1A1726]">
       <div className="h-10 flex items-center justify-between px-4 bg-[#16162a] border-b border-gray-800 shrink-0" data-tauri-drag-region>
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${statusColor}`} />

@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Button } from '@/components/ui/button';
 import ProviderBadge, { PROVIDER_CONFIG } from '@/components/ProviderBadge';
+import { TERMINAL_THEME, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 import 'xterm/css/xterm.css';
 
 interface TerminalDialogProps {
@@ -50,34 +51,8 @@ export default function TerminalDialog({ open, repo, title, onClose, availablePr
       const { FitAddon } = await import('xterm-addon-fit');
 
       const term = new Terminal({
-        theme: {
-          background: '#1A1714',
-          foreground: '#E8DEC8',
-          cursor: '#4DB8B0',
-          cursorAccent: '#1A1714',
-          selectionBackground: '#4DB8B033',
-          black: '#1A1714',
-          red: '#D4634D',
-          green: '#5AAF62',
-          yellow: '#CD7F4A',
-          blue: '#4DB8B0',
-          magenta: '#A080B2',
-          cyan: '#4DB8B0',
-          white: '#E8DEC8',
-          brightBlack: '#7A6E58',
-          brightRed: '#D4634D',
-          brightGreen: '#5AAF62',
-          brightYellow: '#CD7F4A',
-          brightBlue: '#4DB8B0',
-          brightMagenta: '#A080B2',
-          brightCyan: '#4DB8B0',
-          brightWhite: '#FAF4EA',
-        },
-        fontSize: 13,
-        fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-        cursorBlink: true,
-        cursorStyle: 'bar',
-        scrollback: 10000,
+        theme: TERMINAL_THEME,
+        ...TERMINAL_CONFIG,
       });
 
       const fitAddon = new FitAddon();

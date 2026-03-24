@@ -10,15 +10,15 @@ interface AgentDialogSuperAgentSidebarProps {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  running: 'text-accent-cyan',
-  completed: 'text-accent-green',
-  error: 'text-accent-red',
+  running: 'text-primary',
+  completed: 'text-success',
+  error: 'text-destructive',
 };
 
 const STATUS_BG_COLOR: Record<string, string> = {
-  running: 'bg-accent-cyan/20',
-  completed: 'bg-accent-green/20',
-  error: 'bg-accent-red/20',
+  running: 'bg-primary/20',
+  completed: 'bg-success/20',
+  error: 'bg-destructive/20',
 };
 
 export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentSidebar({
@@ -36,28 +36,28 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
   return (
     <div className="h-full overflow-y-auto">
       {/* Agents Section */}
-      <div className="border-b border-border-primary">
-        <div className="px-3 py-2.5 flex items-center gap-2 bg-bg-tertiary/30">
-          <Users className="w-4 h-4 text-accent-cyan" />
+      <div className="border-b border-border">
+        <div className="px-3 py-2.5 flex items-center gap-2 bg-muted/30">
+          <Users className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">Agents</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-cyan/20 text-accent-cyan">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">
             {otherAgents.length}
           </span>
         </div>
         <div className="p-3 space-y-3">
           {runningAgents.length > 0 && (
             <div>
-              <p className="text-[10px] text-accent-cyan mb-1.5 uppercase tracking-wide flex items-center gap-1">
+              <p className="text-[10px] text-primary mb-1.5 uppercase tracking-wide flex items-center gap-1">
                 <Circle className="w-2 h-2 fill-accent-cyan animate-pulse" />
                 Running ({runningAgents.length})
               </p>
               <div className="space-y-1">
                 {runningAgents.map((agent) => (
-                  <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-accent-cyan/10 border border-accent-cyan/20">
+                  <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-primary/10 border border-accent-cyan/20">
                     <span className="text-lg">{face(agent)}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{agent.name}</p>
-                      <p className="text-[10px] text-text-muted truncate">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         {agent.currentTask?.slice(0, 40) || agent.projectPath.split('/').pop()}
                       </p>
                     </div>
@@ -69,17 +69,17 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
 
           {errorAgents.length > 0 && (
             <div>
-              <p className="text-[10px] text-accent-red mb-1.5 uppercase tracking-wide flex items-center gap-1">
+              <p className="text-[10px] text-destructive mb-1.5 uppercase tracking-wide flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" />
                 Error ({errorAgents.length})
               </p>
               <div className="space-y-1">
                 {errorAgents.map((agent) => (
-                  <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-accent-red/10 border border-accent-red/20">
+                  <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-destructive/10 border border-accent-red/20">
                     <span className="text-lg">{face(agent)}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{agent.name}</p>
-                      <p className="text-[10px] text-text-muted truncate">{agent.projectPath.split('/').pop()}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{agent.projectPath.split('/').pop()}</p>
                     </div>
                   </div>
                 ))}
@@ -89,18 +89,18 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
 
           {idleAgents.length > 0 && (
             <div>
-              <p className="text-[10px] text-text-muted mb-1.5 uppercase tracking-wide">
+              <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wide">
                 Idle ({idleAgents.length})
               </p>
               <div className="space-y-1">
                 {idleAgents.map((agent) => (
-                  <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none hover:bg-bg-tertiary/50">
+                  <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none hover:bg-muted/50">
                     <span className="text-lg opacity-60">{face(agent)}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-text-secondary truncate">{agent.name}</p>
-                      <p className="text-[10px] text-text-muted truncate">{agent.projectPath.split('/').pop()}</p>
+                      <p className="text-xs font-medium text-muted-foreground truncate">{agent.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{agent.projectPath.split('/').pop()}</p>
                     </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${STATUS_BG_COLOR[agent.status] || 'bg-text-muted/20'} ${STATUS_COLOR[agent.status] || 'text-text-muted'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${STATUS_BG_COLOR[agent.status] || 'bg-text-muted/20'} ${STATUS_COLOR[agent.status] || 'text-muted-foreground'}`}>
                       {agent.status}
                     </span>
                   </div>
@@ -110,17 +110,17 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
           )}
 
           {otherAgents.length === 0 && (
-            <p className="text-xs text-text-muted text-center py-4">No agents created yet</p>
+            <p className="text-xs text-muted-foreground text-center py-4">No agents created yet</p>
           )}
         </div>
       </div>
 
       {/* Projects Section */}
-      <div className="border-b border-border-primary">
-        <div className="px-3 py-2.5 flex items-center gap-2 bg-bg-tertiary/30">
-          <Folder className="w-4 h-4 text-accent-purple" />
+      <div className="border-b border-border">
+        <div className="px-3 py-2.5 flex items-center gap-2 bg-muted/30">
+          <Folder className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium">Projects</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent-purple/20 text-accent-purple">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary">
             {projects.length}
           </span>
         </div>
@@ -133,20 +133,20 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
                 );
                 const runningCount = projectAgents.filter(a => a.status === 'running').length;
                 return (
-                  <div key={project.path} className="flex items-center gap-2 px-2 py-1.5 rounded-none hover:bg-bg-tertiary/50">
-                    <Folder className="w-4 h-4 text-accent-purple shrink-0" />
+                  <div key={project.path} className="flex items-center gap-2 px-2 py-1.5 rounded-none hover:bg-muted/50">
+                    <Folder className="w-4 h-4 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{project.name}</p>
-                      <p className="text-[10px] text-text-muted font-mono truncate">
+                      <p className="text-[10px] text-muted-foreground font-mono truncate">
                         {project.path.split('/').slice(-2).join('/')}
                       </p>
                     </div>
                     {projectAgents.length > 0 && (
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                           {projectAgents.length} agent{projectAgents.length !== 1 ? 's' : ''}
                         </span>
-                        {runningCount > 0 && <span className="w-2 h-2 bg-accent-cyan rounded-full animate-pulse" />}
+                        {runningCount > 0 && <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />}
                       </div>
                     )}
                   </div>
@@ -154,7 +154,7 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
               })}
             </div>
           ) : (
-            <p className="text-xs text-text-muted text-center py-4">No projects added yet</p>
+            <p className="text-xs text-muted-foreground text-center py-4">No projects added yet</p>
           )}
         </div>
       </div>
@@ -166,7 +166,7 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
             <Crown className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-medium text-amber-400">Orchestrator Mode</p>
-              <p className="text-[10px] text-text-muted mt-1">
+              <p className="text-[10px] text-muted-foreground mt-1">
                 Use MCP tools to manage agents: create_agent, start_agent, stop_agent, list_agents, send_prompt
               </p>
             </div>

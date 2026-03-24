@@ -159,7 +159,7 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden"
-      style={{ backgroundColor: '#1a1a2e' }}
+      style={{ backgroundColor: '#1A1726' }}
     />
   );
 }

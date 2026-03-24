@@ -26,7 +26,7 @@ export const AgentDialogSecondaryProject = memo(function AgentDialogSecondaryPro
     <div className="p-3 space-y-3">
       {agent.secondaryProjectPath && (
         <div>
-          <p className="text-[10px] text-text-muted mb-1.5 uppercase tracking-wide">Active Context</p>
+          <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wide">Active Context</p>
           <button
             onClick={() => onSetSecondaryProject(null)}
             className="w-full text-left px-2 py-1.5 rounded-none text-xs transition-colors flex items-center justify-between bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
@@ -42,14 +42,14 @@ export const AgentDialogSecondaryProject = memo(function AgentDialogSecondaryPro
 
       {unselectedProjects.length > 0 && (
         <div>
-          <p className="text-[10px] text-text-muted mb-1.5 uppercase tracking-wide">Available Projects</p>
+          <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wide">Available Projects</p>
           <div className="space-y-1">
             {unselectedProjects.slice(0, 6).map((project) => (
               <div
                 key={project.path}
-                className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-none text-xs hover:bg-bg-tertiary/50"
+                className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-none text-xs hover:bg-muted/50"
               >
-                <div className="flex items-center gap-2 min-w-0 text-text-secondary">
+                <div className="flex items-center gap-2 min-w-0 text-muted-foreground">
                   <FolderPlus className="w-3 h-3 shrink-0" />
                   <span className="truncate">{project.name}</span>
                 </div>
@@ -70,14 +70,14 @@ export const AgentDialogSecondaryProject = memo(function AgentDialogSecondaryPro
       )}
 
       <div>
-        <p className="text-[10px] text-text-muted mb-1.5 uppercase tracking-wide">Custom Path</p>
+        <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wide">Custom Path</p>
         <div className="flex gap-1.5">
           <input
             type="text"
             value={customSecondaryPath}
             onChange={(e) => onCustomPathChange(e.target.value)}
             placeholder="/path/to/project..."
-            className="flex-1 px-2 py-1 rounded text-xs bg-bg-primary border border-border-primary focus:border-amber-500 focus:outline-none font-mono"
+            className="flex-1 px-2 py-1 rounded text-xs bg-background border border-border focus:border-amber-500 focus:outline-none font-mono"
           />
           {onBrowseFolder && (
             <button
@@ -85,7 +85,7 @@ export const AgentDialogSecondaryProject = memo(function AgentDialogSecondaryPro
                 const path = await onBrowseFolder();
                 if (path) onCustomPathChange(path);
               }}
-              className="p-1 rounded bg-bg-tertiary border border-border-primary hover:border-amber-500/50"
+              className="p-1 rounded bg-muted border border-border hover:border-amber-500/50"
               title="Browse"
             >
               <FolderOpen className="w-3.5 h-3.5 text-amber-400" />

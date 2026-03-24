@@ -91,7 +91,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Code */}
-      <div className="border-b border-border-primary">
+      <div className="border-b border-border">
         <AgentDialogPanelHeader
           icon={Code2}
           title="Code"
@@ -107,7 +107,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
       </div>
 
       {/* Git */}
-      <div className="border-b border-border-primary">
+      <div className="border-b border-border">
         <AgentDialogPanelHeader
           icon={GitBranch}
           title="Git"
@@ -130,7 +130,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
       </div>
 
       {/* Shell */}
-      <div className="border-b border-border-primary">
+      <div className="border-b border-border">
         <AgentDialogPanelHeader
           icon={TerminalSquare}
           title="Shell"
@@ -147,7 +147,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
           <div className="absolute top-1 right-1 z-10">
             <button
               onClick={onCloseQuickTerminal}
-              className="p-1 hover:bg-bg-tertiary rounded text-text-muted hover:text-accent-red transition-colors"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive transition-colors"
               title="Close terminal (kills process)"
             >
               <X className="w-3 h-3" />
@@ -168,7 +168,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
       </div>
 
       {/* Context */}
-      <div className="border-b border-border-primary">
+      <div className="border-b border-border">
         <AgentDialogPanelHeader
           icon={Layers}
           title="Context"
@@ -194,7 +194,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
       </div>
 
       {/* Settings */}
-      <div className="border-b border-border-primary">
+      <div className="border-b border-border">
         <AgentDialogPanelHeader
           icon={Settings2}
           title="Settings"
@@ -229,7 +229,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
                     <Zap className="w-4 h-4 text-amber-500" />
                     <span className="font-medium text-sm">Skip Permissions</span>
                   </div>
-                  <p className="text-xs text-text-muted mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Run without asking for permission on each action. Changes take effect on next task.
                   </p>
                 </div>
@@ -238,17 +238,17 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-text-muted">Skills:</span>
+                <span className="text-muted-foreground">Skills:</span>
                 <span>{agent.skills.length > 0 ? agent.skills.join(', ') : 'None'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-text-muted">Character:</span>
+                <span className="text-muted-foreground">Character:</span>
                 <span>{agent.character || 'robot'}</span>
               </div>
               {agent.branchName && (
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Branch:</span>
-                  <span className="font-mono text-accent-purple">{agent.branchName}</span>
+                  <span className="text-muted-foreground">Branch:</span>
+                  <span className="font-mono text-primary">{agent.branchName}</span>
                 </div>
               )}
             </div>

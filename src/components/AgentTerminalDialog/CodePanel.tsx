@@ -54,7 +54,7 @@ const FileTreeNode = memo(function FileTreeNode({
             <div
               className={`
                 flex items-center gap-1 px-2 py-0.5 rounded cursor-pointer text-xs group
-                ${isSelected ? 'bg-purple-500/20 text-purple-300' : 'hover:bg-bg-tertiary text-text-secondary'}
+                ${isSelected ? 'bg-purple-500/20 text-purple-300' : 'hover:bg-muted text-muted-foreground'}
               `}
               style={{ paddingLeft: `${depth * 12 + 8}px` }}
               onClick={() => {
@@ -68,16 +68,16 @@ const FileTreeNode = memo(function FileTreeNode({
               {node.type === 'directory' ? (
                 <>
                   {node.isExpanded ? (
-                    <ChevronDown className="w-3 h-3 text-text-muted shrink-0" />
+                    <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
                   ) : (
-                    <ChevronRight className="w-3 h-3 text-text-muted shrink-0" />
+                    <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
                   )}
                   <Folder className="w-3 h-3 text-amber-400 shrink-0" />
                 </>
               ) : (
                 <>
                   <span className="w-3" />
-                  <FileText className="w-3 h-3 text-text-muted shrink-0" />
+                  <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
                 </>
               )}
               <span className={`truncate ${isModified ? 'text-amber-400' : ''}`}>{node.name}</span>
@@ -87,13 +87,13 @@ const FileTreeNode = memo(function FileTreeNode({
                   e.stopPropagation();
                   copyPath(node.path);
                 }}
-                className="ml-auto p-0.5 opacity-0 group-hover:opacity-100 hover:bg-bg-primary rounded transition-opacity"
+                className="ml-auto p-0.5 opacity-0 group-hover:opacity-100 hover:bg-background rounded transition-opacity"
                 title="Copy path"
               >
                 {copiedPath === node.path ? (
                   <Check className="w-2.5 h-2.5 text-green-400" />
                 ) : (
-                  <Copy className="w-2.5 h-2.5 text-text-muted" />
+                  <Copy className="w-2.5 h-2.5 text-muted-foreground" />
                 )}
               </button>
             </div>
@@ -377,13 +377,13 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
   return (
     <div className={`flex flex-col bg-[#0d0d14] ${className}`}>
       {/* Search Bar */}
-      <div className="px-2 py-2 border-b border-border-primary bg-bg-tertiary/30 shrink-0">
+      <div className="px-2 py-2 border-b border-border bg-muted/30 shrink-0">
         <div className="flex items-center gap-1">
-          <div className="flex-1 flex items-center gap-1 bg-bg-primary rounded-none px-2 py-1">
+          <div className="flex-1 flex items-center gap-1 bg-background rounded-none px-2 py-1">
             {searchMode === 'file' ? (
-              <Search className="w-3 h-3 text-text-muted shrink-0" />
+              <Search className="w-3 h-3 text-muted-foreground shrink-0" />
             ) : (
-              <FileSearch className="w-3 h-3 text-text-muted shrink-0" />
+              <FileSearch className="w-3 h-3 text-muted-foreground shrink-0" />
             )}
             <input
               type="text"
@@ -391,16 +391,16 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder={searchMode === 'file' ? 'Search files...' : 'Search in files...'}
-              className="flex-1 bg-transparent text-xs outline-none text-text-primary placeholder:text-text-muted"
+              className="flex-1 bg-transparent text-xs outline-none text-foreground placeholder:text-muted-foreground"
             />
-            {isSearching && <Loader2 className="w-3 h-3 animate-spin text-text-muted" />}
+            {isSearching && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
           </div>
           <button
             onClick={() => setSearchMode(searchMode === 'file' ? 'content' : 'file')}
             className={`p-1.5 rounded transition-colors ${
               searchMode === 'content'
                 ? 'bg-purple-500/20 text-purple-400'
-                : 'hover:bg-bg-tertiary text-text-muted'
+                : 'hover:bg-muted text-muted-foreground'
             }`}
             title={searchMode === 'file' ? 'Switch to search in files' : 'Switch to search files'}
           >
@@ -408,10 +408,10 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
           </button>
           <button
             onClick={loadFileTree}
-            className="p-1.5 hover:bg-bg-tertiary rounded transition-colors"
+            className="p-1.5 hover:bg-muted rounded transition-colors"
             title="Refresh"
           >
-            <RefreshCw className={`w-3 h-3 text-text-muted ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3 h-3 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -419,10 +419,10 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
       {/* Split: File Tree + File Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* File Tree / Search Results */}
-        <div className="w-2/5 border-r border-border-primary overflow-y-auto">
+        <div className="w-2/5 border-r border-border overflow-y-auto">
           {searchResults.length > 0 ? (
             <div className="p-1">
-              <div className="px-2 py-1 text-[10px] text-text-muted uppercase tracking-wide">
+              <div className="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wide">
                 {searchResults.length} results
               </div>
               {searchResults.map((result, idx) => (
@@ -431,18 +431,18 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
                   onClick={() => loadFileContent(result.path)}
                   className={`
                     flex flex-col gap-0.5 px-2 py-1 rounded cursor-pointer text-xs
-                    ${selectedFile === result.path ? 'bg-purple-500/20 text-purple-300' : 'hover:bg-bg-tertiary text-text-secondary'}
+                    ${selectedFile === result.path ? 'bg-purple-500/20 text-purple-300' : 'hover:bg-muted text-muted-foreground'}
                   `}
                 >
                   <div className="flex items-center gap-1">
-                    <FileText className="w-3 h-3 text-text-muted shrink-0" />
+                    <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="truncate">{result.path.split('/').pop()}</span>
                     {result.line && (
                       <span className="text-[10px] text-cyan-400 shrink-0">:{result.line}</span>
                     )}
                   </div>
                   {result.match && (
-                    <div className="text-[10px] text-text-muted truncate pl-4 font-mono">
+                    <div className="text-[10px] text-muted-foreground truncate pl-4 font-mono">
                       {result.match}
                     </div>
                   )}
@@ -453,17 +453,17 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
                   setSearchResults([]);
                   setSearchQuery('');
                 }}
-                className="w-full mt-2 px-2 py-1 text-[10px] text-text-muted hover:text-text-secondary"
+                className="w-full mt-2 px-2 py-1 text-[10px] text-muted-foreground hover:text-muted-foreground"
               >
                 Clear results
               </button>
             </div>
           ) : loading ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-5 h-5 animate-spin text-text-muted" />
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : fileTree.length === 0 ? (
-            <div className="p-3 text-xs text-text-muted text-center">No files found</div>
+            <div className="p-3 text-xs text-muted-foreground text-center">No files found</div>
           ) : (
             <div className="p-1">
               <FileTreeNode
@@ -483,34 +483,34 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
         <div className="flex-1 flex flex-col overflow-hidden">
           {selectedFile ? (
             <>
-              <div className="px-3 py-1.5 border-b border-border-primary bg-bg-tertiary/20 flex items-center justify-between shrink-0">
-                <span className="text-xs text-text-muted truncate font-mono">
+              <div className="px-3 py-1.5 border-b border-border bg-muted/20 flex items-center justify-between shrink-0">
+                <span className="text-xs text-muted-foreground truncate font-mono">
                   {selectedFile.split('/').pop()}
                 </span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={copyCodeWithContext}
-                    className="p-1 hover:bg-bg-tertiary rounded transition-colors flex items-center gap-1"
+                    className="p-1 hover:bg-muted rounded transition-colors flex items-center gap-1"
                     title="Copy code with file path"
                   >
                     {copiedCode ? (
                       <Check className="w-3 h-3 text-green-400" />
                     ) : (
                       <>
-                        <Code2 className="w-3 h-3 text-text-muted" />
-                        <span className="text-[10px] text-text-muted">Copy</span>
+                        <Code2 className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground">Copy</span>
                       </>
                     )}
                   </button>
                   <button
                     onClick={() => copyPath(selectedFile)}
-                    className="p-1 hover:bg-bg-tertiary rounded transition-colors"
+                    className="p-1 hover:bg-muted rounded transition-colors"
                     title="Copy path"
                   >
                     {copiedPath === selectedFile ? (
                       <Check className="w-3 h-3 text-green-400" />
                     ) : (
-                      <Copy className="w-3 h-3 text-text-muted" />
+                      <Copy className="w-3 h-3 text-muted-foreground" />
                     )}
                   </button>
                 </div>
@@ -518,7 +518,7 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
               <div className="flex-1 overflow-auto bg-[#0d0d14]">
                 {fileContent === 'Loading...' ? (
                   <div className="flex items-center justify-center h-full">
-                    <Loader2 className="w-5 h-5 animate-spin text-text-muted" />
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
                   <Highlight theme={themes.nightOwl} code={fileContent} language={highlightLanguage}>
@@ -534,7 +534,7 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
                             data-line={i + 1}
                             className="leading-relaxed hover:bg-white/5"
                           >
-                            <span className="inline-block w-8 text-text-muted/40 select-none text-right pr-3">
+                            <span className="inline-block w-8 text-muted-foreground/40 select-none text-right pr-3">
                               {i + 1}
                             </span>
                             {line.map((token, key) => (
@@ -549,7 +549,7 @@ export default function CodePanel({ projectPath, className = '' }: CodePanelProp
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-text-muted text-xs">
+            <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">
               Select a file to view
             </div>
           )}
