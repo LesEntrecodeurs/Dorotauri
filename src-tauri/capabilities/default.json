@@ -1,0 +1,28 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for Dorothy",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "core:window:default",
+    "core:window:allow-create",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:webview:default",
+    "core:webview:allow-create-webview-window",
+    "shell:default",
+    "shell:allow-open",
+    "dialog:default",
+    "dialog:allow-open",
+    "notification:default",
+    "notification:allow-notify",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission"
+  ]
+}
