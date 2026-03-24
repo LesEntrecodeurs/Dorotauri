@@ -2,7 +2,9 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { Bot, Loader2, Search, ArrowUpDown } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
+import { isTauri } from '@/hooks/useTauri';
 import { useClaude } from '@/hooks/useClaude';
 import { useAgentFiltering } from '@/hooks/useAgentFiltering';
 import { useSuperAgent } from '@/hooks/useSuperAgent';
@@ -253,7 +255,11 @@ export default function AgentsPage() {
               <AgentManagementCard
                 key={agent.id}
                 agent={agent}
-                onClick={() => setViewAgentId(agent.id)}
+                onClick={() => {
+                  if (isTauri()) {
+                    invoke('window_popout', { agentId: agent.id }).catch(console.error);
+                  }
+                }}
                 onEdit={() => setEditAgentId(agent.id)}
                 onStart={() => handleStartAgent(agent.id)}
                 onStop={() => stopAgent(agent.id)}
