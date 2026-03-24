@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { FolderKanban, MessageSquare, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router';
 import type { ClaudeProject } from '@/lib/claude-code';
 
@@ -12,7 +13,8 @@ interface ProjectsOverviewProps {
 // Generate consistent colors for projects based on name
 const getProjectColor = (name: string) => {
   const colors = [
-    '#3D9B94', '#a78bfa', '#4ade80', '#fbbf24', '#f87171', '#60a5fa', '#f472b6', '#34d399',
+    'hsl(265 75% 54%)', 'hsl(290 60% 50%)', 'hsl(160 60% 45%)', 'hsl(45 80% 50%)',
+    'hsl(0 84% 60%)', 'hsl(200 80% 50%)', 'hsl(330 70% 55%)', 'hsl(160 60% 52%)',
   ];
   const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return colors[hash % colors.length];
@@ -32,20 +34,20 @@ export default function ProjectsOverview({ projects }: ProjectsOverviewProps) {
   };
 
   return (
-    <div className="rounded-none border border-border-primary bg-bg-secondary overflow-hidden">
+    <Card className="overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
+      <CardHeader className="px-5 py-4 border-b border-border flex flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-2">
-          <FolderKanban className="w-4 h-4 text-accent-amber" />
-          <h3 className="text-sm font-medium">Projects</h3>
+          <FolderKanban className="w-4 h-4 text-warning" />
+          <CardTitle className="text-sm font-medium">Projects</CardTitle>
         </div>
-        <Link to="/projects" className="text-xs text-accent-cyan hover:underline">
-          View all →
+        <Link to="/projects" className="text-xs text-primary hover:underline">
+          View all &rarr;
         </Link>
-      </div>
+      </CardHeader>
 
       {/* Projects List */}
-      <div className="divide-y divide-border-primary max-h-80 overflow-y-auto">
+      <CardContent className="p-0 divide-y divide-border max-h-80 overflow-y-auto">
         {projects.slice(0, 6).map((project, index) => {
           const color = getProjectColor(project.name);
 
@@ -55,7 +57,7 @@ export default function ProjectsOverview({ projects }: ProjectsOverviewProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="relative px-5 py-4 hover:bg-bg-tertiary/50 transition-colors cursor-pointer"
+              className="relative px-5 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
             >
               {/* Color indicator */}
               <div
@@ -67,14 +69,14 @@ export default function ProjectsOverview({ projects }: ProjectsOverviewProps) {
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
                     <h4 className="font-medium text-sm truncate">{project.name}</h4>
-                    <p className="text-xs text-text-muted mt-0.5 truncate font-mono">
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate font-mono">
                       {project.path}
                     </p>
                   </div>
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 mt-2 text-xs text-text-muted">
+                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <MessageSquare className="w-3 h-3" />
                     <span>{project.sessions.length} sessions</span>
@@ -90,12 +92,12 @@ export default function ProjectsOverview({ projects }: ProjectsOverviewProps) {
         })}
 
         {projects.length === 0 && (
-          <div className="py-8 text-center text-text-muted">
+          <div className="py-8 text-center text-muted-foreground">
             <FolderKanban className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No projects found</p>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
