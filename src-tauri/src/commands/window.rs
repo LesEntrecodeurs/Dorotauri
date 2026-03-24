@@ -1,4 +1,4 @@
-use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use uuid::Uuid;
 
 use crate::windows::{WindowInfo, WindowRegistry, WindowType};
@@ -40,10 +40,30 @@ pub fn window_dock(
     registry: State<'_, WindowRegistry>,
     window_id: String,
 ) -> Result<(), String> {
+    // Find the agent_id before closing (so hub can re-add it to the tab)
+    let agent_id = {
+        let windows = registry.windows.lock().unwrap();
+        windows.get(&window_id).and_then(|info| {
+            if let WindowType::Console { agent_id } = &info.window_type {
+                Some(agent_id.clone())
+            } else {
+                None
+            }
+        })
+    };
+
     if let Some(window) = app_handle.get_webview_window(&window_id) {
         window.close().map_err(|e| e.to_string())?;
     }
     registry.unregister(&window_id);
+
+    // Notify hub to re-add the agent to its tab
+    if let Some(agent_id) = agent_id {
+        let _ = app_handle.emit("window:redocked", serde_json::json!({
+            "agentId": agent_id
+        }));
+    }
+
     Ok(())
 }
 

@@ -3,6 +3,7 @@ import { Mosaic, MosaicWindow, MosaicNode, getLeaves } from 'react-mosaic-compon
 import 'react-mosaic-component/react-mosaic-component.css';
 import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import { ExternalLink, Maximize2, Minimize2, Plus, X, Edit3, Check } from 'lucide-react';
 import type { AgentStatus as AgentStatusType } from '@/types/electron';
@@ -32,7 +33,7 @@ function loadTabs(): WorkspaceTab[] {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return JSON.parse(saved);
   } catch {}
-  return [{ id: crypto.randomUUID(), name: 'Main', agentIds: [], layout: null }];
+  return [{ id: Math.random().toString(36).slice(2) + Date.now().toString(36), name: 'Main', agentIds: [], layout: null }];
 }
 
 function saveTabs(tabs: WorkspaceTab[]) {
@@ -113,12 +114,39 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
     });
   }, [agents]);
 
+  // Track which tab an agent was popped out from (for re-dock)
+  const popoutSourceRef = useMemo(() => new Map<string, string>(), []); // agentId → tabId
+
+  // Listen for window:redocked events to re-add agent to its source tab
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agentId: string }>('window:redocked', (event) => {
+      const { agentId } = event.payload;
+      const sourceTabId = popoutSourceRef.get(agentId) || activeTabId;
+      popoutSourceRef.delete(agentId);
+
+      // Add agent back to the source tab
+      setTabs(prev => prev.map(tab => {
+        if (tab.id !== sourceTabId || tab.agentIds.includes(agentId)) return tab;
+        const newIds = [...tab.agentIds, agentId];
+        const newLayout = tab.layout
+          ? { direction: 'row' as const, first: tab.layout, second: agentId, splitPercentage: 70 }
+          : agentId as MosaicNode<string>;
+        return { ...tab, agentIds: newIds, layout: newLayout };
+      }));
+    }).then(fn => { unlisten = fn; });
+
+    return () => { unlisten?.(); };
+  }, [activeTabId, popoutSourceRef]);
+
   // --- Tab CRUD ---
 
   const createTab = useCallback(() => {
     if (tabs.length >= MAX_TABS) return;
     const newTab: WorkspaceTab = {
-      id: crypto.randomUUID(),
+      id: Math.random().toString(36).slice(2) + Date.now().toString(36),
       name: `Tab ${tabs.length + 1}`,
       agentIds: [],
       layout: null,
@@ -181,12 +209,15 @@ export default function MosaicTerminalView({ agents }: MosaicTerminalViewProps) 
   const handlePopout = useCallback(async (agentId: string) => {
     if (!isTauri()) return;
     try {
+      // Remember which tab this agent came from
+      popoutSourceRef.set(agentId, activeTabId);
       await invoke('window_popout', { agentId });
       removeAgentFromTab(agentId);
     } catch (err) {
       console.error('Failed to pop out:', err);
+      popoutSourceRef.delete(agentId);
     }
-  }, [removeAgentFromTab]);
+  }, [removeAgentFromTab, activeTabId, popoutSourceRef]);
 
   const handleMaximize = useCallback((agentId: string) => {
     setMaximizedAgent(prev => prev === agentId ? null : agentId);
