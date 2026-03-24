@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Check, AlertCircle, Plus, X, FolderOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import type { AppSettings, CLIPaths } from './types';
 
 interface CLIPathsSectionProps {
@@ -94,10 +99,10 @@ export const CLIPathsSection = ({ appSettings, onSaveAppSettings }: CLIPathsSect
     const isUsingDetected = detected && current === detected;
 
     return (
-      <div className="py-4 border-b border-border">
+      <div className="py-4">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <label className="text-sm font-medium">{label}</label>
+            <Label>{label}</Label>
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
           {detected && (
@@ -107,12 +112,12 @@ export const CLIPathsSection = ({ appSettings, onSaveAppSettings }: CLIPathsSect
             </span>
           )}
         </div>
-        <input
+        <Input
           type="text"
           value={current}
           onChange={(e) => handlePathChange(key, e.target.value)}
           placeholder={placeholder}
-          className="w-full px-3 py-2 bg-secondary border border-border text-sm font-mono focus:outline-none focus:border-foreground"
+          className="font-mono"
         />
         {isUsingDetected && (
           <p className="text-xs text-muted-foreground mt-1">Using auto-detected path</p>
@@ -131,176 +136,134 @@ export const CLIPathsSection = ({ appSettings, onSaveAppSettings }: CLIPathsSect
       </div>
 
       {/* Auto-detect button */}
-      <div className="border border-border bg-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-md font-medium">Auto-detect Paths</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Automatically find CLI tools installed on your system
-            </p>
-          </div>
-          <button
-            onClick={handleDetectPaths}
-            disabled={detecting}
-            className="px-4 py-2 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-sm flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${detecting ? 'animate-spin' : ''}`} />
-            {detecting ? 'Detecting...' : 'Detect Paths'}
-          </button>
-        </div>
-
-        {detectedPaths && (
-          <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <Check className="w-4 h-4" />
-              <span className="font-medium">Paths detected successfully</span>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-md font-medium">Auto-detect Paths</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Automatically find CLI tools installed on your system
+              </p>
             </div>
-            <ul className="text-xs space-y-1 ml-6">
-              {detectedPaths.claude && <li>Claude: {detectedPaths.claude}</li>}
-              {detectedPaths.codex && <li>Codex: {detectedPaths.codex}</li>}
-              {detectedPaths.gemini && <li>Gemini: {detectedPaths.gemini}</li>}
-              {detectedPaths.opencode && <li>OpenCode: {detectedPaths.opencode}</li>}
-              {detectedPaths.pi && <li>Pi Terminal: {detectedPaths.pi}</li>}
-              {detectedPaths.gws && <li>GWS: {detectedPaths.gws}</li>}
-              {detectedPaths.gcloud && <li>gcloud: {detectedPaths.gcloud}</li>}
-              {detectedPaths.gh && <li>GitHub CLI: {detectedPaths.gh}</li>}
-              {detectedPaths.node && <li>Node.js: {detectedPaths.node}</li>}
-              {!detectedPaths.claude && !detectedPaths.codex && !detectedPaths.gemini && !detectedPaths.opencode && !detectedPaths.pi && !detectedPaths.gws && !detectedPaths.gcloud && !detectedPaths.gh && !detectedPaths.node && (
-                <li className="text-yellow-400">No CLI tools found in common locations</li>
-              )}
-            </ul>
+            <Button
+              variant="secondary"
+              onClick={handleDetectPaths}
+              disabled={detecting}
+            >
+              <RefreshCw className={`w-4 h-4 ${detecting ? 'animate-spin' : ''}`} />
+              {detecting ? 'Detecting...' : 'Detect Paths'}
+            </Button>
           </div>
-        )}
-      </div>
+
+          {detectedPaths && (
+            <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <Check className="w-4 h-4" />
+                <span className="font-medium">Paths detected successfully</span>
+              </div>
+              <ul className="text-xs space-y-1 ml-6">
+                {detectedPaths.claude && <li>Claude: {detectedPaths.claude}</li>}
+                {detectedPaths.codex && <li>Codex: {detectedPaths.codex}</li>}
+                {detectedPaths.gemini && <li>Gemini: {detectedPaths.gemini}</li>}
+                {detectedPaths.opencode && <li>OpenCode: {detectedPaths.opencode}</li>}
+                {detectedPaths.pi && <li>Pi Terminal: {detectedPaths.pi}</li>}
+                {detectedPaths.gws && <li>GWS: {detectedPaths.gws}</li>}
+                {detectedPaths.gcloud && <li>gcloud: {detectedPaths.gcloud}</li>}
+                {detectedPaths.gh && <li>GitHub CLI: {detectedPaths.gh}</li>}
+                {detectedPaths.node && <li>Node.js: {detectedPaths.node}</li>}
+                {!detectedPaths.claude && !detectedPaths.codex && !detectedPaths.gemini && !detectedPaths.opencode && !detectedPaths.pi && !detectedPaths.gws && !detectedPaths.gcloud && !detectedPaths.gh && !detectedPaths.node && (
+                  <li className="text-yellow-400">No CLI tools found in common locations</li>
+                )}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Path inputs */}
-      <div className="border border-border bg-card p-6">
-        <h3 className="text-md font-medium mb-2">CLI Tool Paths</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          Leave empty to use auto-detected paths. Specify full paths if tools are in non-standard locations.
-        </p>
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-md font-medium mb-2">CLI Tool Paths</h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Leave empty to use auto-detected paths. Specify full paths if tools are in non-standard locations.
+          </p>
 
-        {renderPathInput(
-          'Claude CLI',
-          'Path to the Claude CLI executable',
-          'claude',
-          '/usr/local/bin/claude or ~/.nvm/versions/node/v20/bin/claude'
-        )}
-
-        {renderPathInput(
-          'Codex CLI',
-          'Path to the OpenAI Codex CLI executable',
-          'codex',
-          '/usr/local/bin/codex or ~/.nvm/versions/node/v20/bin/codex'
-        )}
-
-        {renderPathInput(
-          'Gemini CLI',
-          'Path to the Google Gemini CLI executable',
-          'gemini',
-          '/usr/local/bin/gemini or ~/.nvm/versions/node/v20/bin/gemini'
-        )}
-
-        {renderPathInput(
-          'OpenCode CLI',
-          'Path to the OpenCode CLI executable (opencode.ai)',
-          'opencode',
-          '/usr/local/bin/opencode or ~/.local/bin/opencode'
-        )}
-
-        {renderPathInput(
-          'Pi Terminal',
-          'Path to the Pi coding agent CLI executable',
-          'pi',
-          '/usr/local/bin/pi or ~/.nvm/versions/node/v20/bin/pi'
-        )}
-
-        {renderPathInput(
-          'Google Workspace CLI (gws)',
-          'Path to the gws CLI executable',
-          'gws',
-          '/usr/local/bin/gws or ~/.nvm/versions/node/v20/bin/gws'
-        )}
-
-        {renderPathInput(
-          'Google Cloud SDK (gcloud)',
-          'Path to the gcloud CLI executable (required for gws auth setup)',
-          'gcloud',
-          '/opt/homebrew/bin/gcloud or ~/google-cloud-sdk/bin/gcloud'
-        )}
-
-        {renderPathInput(
-          'GitHub CLI (gh)',
-          'Path to the GitHub CLI executable for automations',
-          'gh',
-          '/opt/homebrew/bin/gh or /usr/local/bin/gh'
-        )}
-
-        {renderPathInput(
-          'Node.js',
-          'Path to the Node.js executable',
-          'node',
-          '/usr/local/bin/node or ~/.nvm/versions/node/v20/bin/node'
-        )}
-      </div>
+          {renderPathInput('Claude CLI', 'Path to the Claude CLI executable', 'claude', '/usr/local/bin/claude or ~/.nvm/versions/node/v20/bin/claude')}
+          <Separator />
+          {renderPathInput('Codex CLI', 'Path to the OpenAI Codex CLI executable', 'codex', '/usr/local/bin/codex or ~/.nvm/versions/node/v20/bin/codex')}
+          <Separator />
+          {renderPathInput('Gemini CLI', 'Path to the Google Gemini CLI executable', 'gemini', '/usr/local/bin/gemini or ~/.nvm/versions/node/v20/bin/gemini')}
+          <Separator />
+          {renderPathInput('OpenCode CLI', 'Path to the OpenCode CLI executable (opencode.ai)', 'opencode', '/usr/local/bin/opencode or ~/.local/bin/opencode')}
+          <Separator />
+          {renderPathInput('Pi Terminal', 'Path to the Pi coding agent CLI executable', 'pi', '/usr/local/bin/pi or ~/.nvm/versions/node/v20/bin/pi')}
+          <Separator />
+          {renderPathInput('Google Workspace CLI (gws)', 'Path to the gws CLI executable', 'gws', '/usr/local/bin/gws or ~/.nvm/versions/node/v20/bin/gws')}
+          <Separator />
+          {renderPathInput('Google Cloud SDK (gcloud)', 'Path to the gcloud CLI executable (required for gws auth setup)', 'gcloud', '/opt/homebrew/bin/gcloud or ~/google-cloud-sdk/bin/gcloud')}
+          <Separator />
+          {renderPathInput('GitHub CLI (gh)', 'Path to the GitHub CLI executable for automations', 'gh', '/opt/homebrew/bin/gh or /usr/local/bin/gh')}
+          <Separator />
+          {renderPathInput('Node.js', 'Path to the Node.js executable', 'node', '/usr/local/bin/node or ~/.nvm/versions/node/v20/bin/node')}
+        </CardContent>
+      </Card>
 
       {/* Additional PATH directories */}
-      <div className="border border-border bg-card p-6">
-        <h3 className="text-md font-medium mb-2">Additional PATH Directories</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          Add directories to include in PATH when running automations and agents
-        </p>
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-md font-medium mb-2">Additional PATH Directories</h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Add directories to include in PATH when running automations and agents
+          </p>
 
-        <div className="space-y-2 mb-4">
-          {localPaths.additionalPaths.map((path, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <div className="flex-1 px-3 py-2 bg-secondary border border-border text-sm font-mono">
-                {path}
+          <div className="space-y-2 mb-4">
+            {localPaths.additionalPaths.map((path, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className="flex-1 px-3 py-2 bg-secondary border border-border text-sm font-mono">
+                  {path}
+                </div>
+                <button
+                  onClick={() => handleRemoveAdditionalPath(path)}
+                  className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => handleRemoveAdditionalPath(path)}
-                className="p-2 text-muted-foreground hover:text-red-400 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newPath}
-            onChange={(e) => setNewPath(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddAdditionalPath()}
-            placeholder="/path/to/directory"
-            className="flex-1 px-3 py-2 bg-secondary border border-border text-sm font-mono focus:outline-none focus:border-foreground"
-          />
-          <button
-            onClick={handleAddAdditionalPath}
-            disabled={!newPath.trim()}
-            className="px-4 py-2 bg-secondary text-foreground hover:bg-secondary/80 transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
-          >
-            <Plus className="w-4 h-4" />
-            Add
-          </button>
-        </div>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              value={newPath}
+              onChange={(e) => setNewPath(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddAdditionalPath()}
+              placeholder="/path/to/directory"
+              className="flex-1 font-mono"
+            />
+            <Button
+              variant="secondary"
+              onClick={handleAddAdditionalPath}
+              disabled={!newPath.trim()}
+            >
+              <Plus className="w-4 h-4" />
+              Add
+            </Button>
+          </div>
 
-        <p className="text-xs text-muted-foreground mt-3">
-          Common paths like /opt/homebrew/bin, /usr/local/bin, and ~/.nvm are included by default
-        </p>
-      </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Common paths like /opt/homebrew/bin, /usr/local/bin, and ~/.nvm are included by default
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Save button */}
       {hasChanges && (
         <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-foreground text-background hover:bg-foreground/90 transition-colors text-sm flex items-center gap-2"
-          >
+          <Button onClick={handleSave}>
             <Check className="w-4 h-4" />
             Save CLI Paths
-          </button>
+          </Button>
         </div>
       )}
     </div>

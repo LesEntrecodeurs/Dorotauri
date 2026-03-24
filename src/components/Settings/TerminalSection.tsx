@@ -1,4 +1,6 @@
 import { Terminal, Minus, Plus, RotateCcw, Moon, Sun } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import type { AppSettings } from './types';
 
 const MIN_FONT_SIZE = 8;
@@ -33,103 +35,113 @@ export const TerminalSection = ({ appSettings, onSaveAppSettings }: TerminalSect
       </div>
 
       {/* Theme */}
-      <div className="border border-border bg-card p-6">
-        <h3 className="font-medium mb-4">Theme</h3>
-        <div className="grid grid-cols-2 gap-4 max-w-md">
-          {/* Dark theme card */}
-          <button
-            onClick={() => onSaveAppSettings({ terminalTheme: 'dark' })}
-            className={`relative p-4 border text-left transition-all ${
-              currentTheme === 'dark'
-                ? 'border-foreground bg-secondary'
-                : 'border-border hover:border-muted-foreground'
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Moon className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Dark</span>
-            </div>
-            {/* Mini preview */}
-            <div className="rounded-sm overflow-hidden border border-border">
-              <div className="bg-[#1a1a2e] p-2 h-16 font-mono text-[9px] leading-relaxed">
-                <span className="text-[#22c55e]">$</span>{' '}
-                <span className="text-[#e4e4e7]">npm start</span>
-                <br />
-                <span className="text-[#3D9B94]">ready</span>{' '}
-                <span className="text-[#e4e4e7]">on port 3000</span>
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="font-medium mb-4">Theme</h3>
+          <div className="grid grid-cols-2 gap-4 max-w-md">
+            {/* Dark theme card */}
+            <button
+              onClick={() => onSaveAppSettings({ terminalTheme: 'dark' })}
+              className={`relative p-4 border text-left transition-all ${
+                currentTheme === 'dark'
+                  ? 'border-foreground bg-secondary'
+                  : 'border-border hover:border-muted-foreground'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Moon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Dark</span>
               </div>
-            </div>
-            {currentTheme === 'dark' && (
-              <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-foreground" />
-            )}
-          </button>
+              {/* Mini preview */}
+              <div className="overflow-hidden border border-border">
+                <div className="bg-[#1a1a2e] p-2 h-16 font-mono text-[9px] leading-relaxed">
+                  <span className="text-[#22c55e]">$</span>{' '}
+                  <span className="text-[#e4e4e7]">npm start</span>
+                  <br />
+                  <span className="text-[#3D9B94]">ready</span>{' '}
+                  <span className="text-[#e4e4e7]">on port 3000</span>
+                </div>
+              </div>
+              {currentTheme === 'dark' && (
+                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-foreground" />
+              )}
+            </button>
 
-          {/* Light theme card */}
-          <button
-            onClick={() => onSaveAppSettings({ terminalTheme: 'light' })}
-            className={`relative p-4 border text-left transition-all ${
-              currentTheme === 'light'
-                ? 'border-foreground bg-secondary'
-                : 'border-border hover:border-muted-foreground'
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Sun className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Light</span>
-            </div>
-            {/* Mini preview */}
-            <div className="rounded-sm overflow-hidden border border-border">
-              <div className="bg-[#FFFFFF] p-2 h-16 font-mono text-[9px] leading-relaxed">
-                <span className="text-[#16a34a]">$</span>{' '}
-                <span className="text-[#1a1a2e]">npm start</span>
-                <br />
-                <span className="text-[#0d7377]">ready</span>{' '}
-                <span className="text-[#1a1a2e]">on port 3000</span>
+            {/* Light theme card */}
+            <button
+              onClick={() => onSaveAppSettings({ terminalTheme: 'light' })}
+              className={`relative p-4 border text-left transition-all ${
+                currentTheme === 'light'
+                  ? 'border-foreground bg-secondary'
+                  : 'border-border hover:border-muted-foreground'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Sun className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Light</span>
               </div>
-            </div>
-            {currentTheme === 'light' && (
-              <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-foreground" />
-            )}
-          </button>
-        </div>
-      </div>
+              {/* Mini preview */}
+              <div className="overflow-hidden border border-border">
+                <div className="bg-[#FFFFFF] p-2 h-16 font-mono text-[9px] leading-relaxed">
+                  <span className="text-[#16a34a]">$</span>{' '}
+                  <span className="text-[#1a1a2e]">npm start</span>
+                  <br />
+                  <span className="text-[#0d7377]">ready</span>{' '}
+                  <span className="text-[#1a1a2e]">on port 3000</span>
+                </div>
+              </div>
+              {currentTheme === 'light' && (
+                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-foreground" />
+              )}
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Font Size */}
-      <div className="border border-border bg-card p-6">
-        <h3 className="font-medium mb-1">Font Size</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          Controls font size on the Terminals page. Persisted across sessions.
-        </p>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => handleFontSizeChange(-1)}
-            disabled={currentFontSize <= MIN_FONT_SIZE}
-            className="p-1.5 border border-border hover:border-foreground hover:text-foreground text-muted-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Minus className="w-4 h-4" />
-          </button>
-          <div className="flex items-center gap-1.5">
-            <Terminal className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-mono w-8 text-center">{currentFontSize}</span>
-            <span className="text-xs text-muted-foreground">px</span>
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="font-medium mb-1">Font Size</h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Controls font size on the Terminals page. Persisted across sessions.
+          </p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleFontSizeChange(-1)}
+              disabled={currentFontSize <= MIN_FONT_SIZE}
+              className="h-8 w-8"
+            >
+              <Minus className="w-4 h-4" />
+            </Button>
+            <div className="flex items-center gap-1.5">
+              <Terminal className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-mono w-8 text-center">{currentFontSize}</span>
+              <span className="text-xs text-muted-foreground">px</span>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => handleFontSizeChange(1)}
+              disabled={currentFontSize >= MAX_FONT_SIZE}
+              className="h-8 w-8"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleFontSizeReset}
+              disabled={currentFontSize === DEFAULT_FONT_SIZE}
+              className="ml-2"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </Button>
           </div>
-          <button
-            onClick={() => handleFontSizeChange(1)}
-            disabled={currentFontSize >= MAX_FONT_SIZE}
-            className="p-1.5 border border-border hover:border-foreground hover:text-foreground text-muted-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleFontSizeReset}
-            disabled={currentFontSize === DEFAULT_FONT_SIZE}
-            className="ml-2 px-2.5 py-1.5 text-xs border border-border hover:border-foreground hover:text-foreground text-muted-foreground transition-colors flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <RotateCcw className="w-3 h-3" />
-            Reset
-          </button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
