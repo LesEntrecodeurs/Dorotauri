@@ -3,8 +3,11 @@ import Sidebar from './Sidebar';
 import NotificationToast from './NotificationToast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Outlet } from 'react-router';
+import { useEffect, useState, lazy, Suspense } from 'react';
+import { Outlet, useLocation } from 'react-router';
+import { useElectronAgents } from '@/hooks/useElectron';
+
+const MosaicTerminalView = lazy(() => import('./MosaicTerminalView'));
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -34,6 +37,9 @@ function loadVaultReadDocs(): Set<string> {
 export default function ClientLayout() {
   const { sidebarCollapsed, mobileMenuOpen, setMobileMenuOpen, darkMode, setDarkMode, setVaultUnreadCount } = useStore();
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const { agents } = useElectronAgents();
+  const isOnDashboard = location.pathname === '/';
 
   // Initialize dark mode from localStorage on mount
   useEffect(() => {
@@ -111,9 +117,24 @@ export default function ClientLayout() {
         initial={false}
         animate={{ marginLeft: mainMarginLeft }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="min-h-screen pt-16 lg:pt-0 p-4 lg:p-6 pb-6"
+        className="min-h-screen pt-16 lg:pt-0"
       >
-        <Outlet />
+        {/* Persistent terminal layer — always mounted, hidden when not on dashboard */}
+        <div
+          style={{ display: isOnDashboard ? 'block' : 'none' }}
+          className="h-[calc(100vh-28px)] lg:h-screen"
+        >
+          <Suspense fallback={null}>
+            <MosaicTerminalView agents={agents} />
+          </Suspense>
+        </div>
+
+        {/* Route content — shown when NOT on dashboard */}
+        {!isOnDashboard && (
+          <div className="p-4 lg:p-6 pb-6">
+            <Outlet />
+          </div>
+        )}
       </motion.main>
 
       <NotificationToast />
