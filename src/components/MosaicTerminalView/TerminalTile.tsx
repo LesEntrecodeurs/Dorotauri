@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect } from 'react';
 import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
 import { isTauri } from '@/hooks/useTauri';
@@ -6,7 +6,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { AgentStatus } from '@/types/electron';
 import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentWorld/constants';
-import { attachShiftEnterHandler } from '@/lib/terminal';
 
 interface TerminalTileProps {
   agentId: string;
@@ -14,200 +13,133 @@ interface TerminalTileProps {
 
 /**
  * A single terminal tile for the mosaic layout.
- * Each tile creates its own xterm.js instance, subscribes to agent:output,
- * and forwards input to the agent PTY.
+ * Spawns a real PTY shell so the user can type immediately.
+ * Output streams via Tauri events, input goes via pty_write.
  */
 export default function TerminalTile({ agentId }: TerminalTileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<{ terminal: Terminal; fitAddon: FitAddon; disposed: boolean } | null>(null);
   const initRef = useRef(false);
-  const ptyIdRef = useRef<string | null>(null);
 
-  // Initialize xterm in this tile
   useEffect(() => {
     const container = containerRef.current;
     if (!container || initRef.current) return;
     initRef.current = true;
 
     let cancelled = false;
+    let cleanup: (() => void) | undefined;
 
     (async () => {
+      // Dynamic import xterm
       const [{ Terminal }, { FitAddon }] = await Promise.all([
         import('xterm'),
         import('xterm-addon-fit'),
       ]);
-
       if (cancelled) return;
 
-      // Wait for layout to settle so container has real dimensions
+      // Wait for container to have dimensions
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
       const rect = container.getBoundingClientRect();
       if (rect.width < 10 || rect.height < 10) {
         const ready = await new Promise<boolean>(resolve => {
           let resolved = false;
           const observer = new ResizeObserver((entries) => {
             if (resolved) return;
-            for (const entry of entries) {
-              const { width, height } = entry.contentRect;
-              if (width >= 10 && height >= 10) {
+            for (const e of entries) {
+              if (e.contentRect.width >= 10 && e.contentRect.height >= 10) {
                 resolved = true;
                 observer.disconnect();
                 resolve(true);
-                return;
               }
             }
           });
           observer.observe(container);
-          setTimeout(() => {
-            if (!resolved) {
-              resolved = true;
-              observer.disconnect();
-              resolve(false);
-            }
-          }, 3000);
+          setTimeout(() => { if (!resolved) { resolved = true; observer.disconnect(); resolve(false); } }, 3000);
         });
         if (!ready || cancelled) return;
       }
 
+      // Create xterm instance
       const term = new Terminal({
         theme: getTerminalTheme('dark'),
-        fontSize: TERMINAL_CONFIG.fontSize || 11,
+        fontSize: TERMINAL_CONFIG.fontSize || 13,
         fontFamily: TERMINAL_CONFIG.fontFamily,
-        cursorBlink: TERMINAL_CONFIG.cursorBlink,
-        cursorStyle: TERMINAL_CONFIG.cursorStyle,
-        scrollback: TERMINAL_CONFIG.scrollback,
-        convertEol: TERMINAL_CONFIG.convertEol,
+        cursorBlink: true,
+        cursorStyle: 'block',
+        scrollback: 10000,
+        convertEol: true,
         allowProposedApi: true,
       });
-
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
       term.open(container);
 
-      const entry = { terminal: term, fitAddon, disposed: false };
-      termRef.current = entry;
+      // Initial fit
+      try { fitAddon.fit(); } catch {}
 
-      // Fetch agent to get ptyId and status
-      let agent: AgentStatus | null = null;
-      if (isTauri()) {
-        try {
-          agent = await invoke<AgentStatus | null>('agent_get', { id: agentId });
-          if (agent?.ptyId) {
-            ptyIdRef.current = agent.ptyId;
-          }
-        } catch {}
+      if (!isTauri()) {
+        term.write('Not running in Tauri — terminal unavailable.\r\n');
+        cleanup = () => term.dispose();
+        return;
       }
 
-      // Initial fit — use ptyId if available
+      // Get agent info to determine project directory
+      let cwd = '/home';
       try {
-        fitAddon.fit();
-        const { cols, rows } = term;
-        if (isTauri() && ptyIdRef.current) {
-          invoke('pty_resize', { ptyId: ptyIdRef.current, cols, rows }).catch(() => {});
-        }
+        const agent = await invoke<AgentStatus | null>('agent_get', { id: agentId });
+        if (agent?.projectPath) cwd = agent.projectPath;
       } catch {}
 
-      // Show status message or replay output
-      if (agent?.status === 'idle' || agent?.status === 'completed' || agent?.status === 'error') {
-        term.write(`\x1b[90m\u2014 Session ${agent.status} \u2014\x1b[0m\r\n`);
-        if (agent.status === 'idle') {
-          term.write(`\x1b[90mStart this agent from the Agents page or NewChat modal.\x1b[0m\r\n`);
-        }
-      } else if (agent?.output?.length) {
-        term.write(agent.output.join(''));
+      // Spawn a real PTY shell in the agent's project directory
+      let ptyId: string;
+      try {
+        const { cols, rows } = term;
+        ptyId = await invoke<string>('pty_create', { cwd, cols, rows });
+      } catch (err) {
+        term.write(`\x1b[31mFailed to create PTY: ${err}\x1b[0m\r\n`);
+        cleanup = () => term.dispose();
+        return;
       }
 
-      // Fit after content
-      setTimeout(() => {
-        if (!entry.disposed) {
-          try { fitAddon.fit(); } catch {}
-        }
-      }, 50);
-
-      // Shift+Enter handler
-      attachShiftEnterHandler(term, (data) => {
-        if (isTauri()) {
-          invoke('agent_send_input', { id: agentId, input: data }).catch(() => {});
-        }
-      });
-
-      // Forward keyboard input
-      term.onData((data) => {
-        if (/^(\x1b\[\?[\d;]*c|\d+;\d+c)+$/.test(data)) return;
-        const cleaned = data
-          .replace(/\x1b\[\?[\d;]*c/g, '')
-          .replace(/\x1b\[\d+;\d+R/g, '')
-          .replace(/\x1b\[(?:I|O)/g, '')
-          .replace(/\d+;\d+c/g, '');
-        if (!cleaned) return;
-        if (isTauri()) {
-          invoke('agent_send_input', { id: agentId, input: cleaned }).catch(() => {});
-        }
-      });
-
-      // ResizeObserver for auto-fit
-      const resizeObserver = new ResizeObserver(() => {
-        if (!entry.disposed) {
-          try {
-            fitAddon.fit();
-            const { cols, rows } = term;
-            if (isTauri() && ptyIdRef.current) {
-              invoke('pty_resize', { ptyId: ptyIdRef.current, cols, rows }).catch(() => {});
-            }
-          } catch {}
-        }
-      });
-      resizeObserver.observe(container);
-
-      // Subscribe to agent output
+      // Subscribe to PTY output — filter by pty_id (pty_create uses ptyId as agent_id)
       let unsubOutput: (() => void) | undefined;
-      let unsubError: (() => void) | undefined;
-      let unsubStatus: (() => void) | undefined;
+      let disposed = false;
 
       listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
-        if (event.payload.agent_id === agentId && !entry.disposed) {
-          // Track the ptyId from output events
-          if (event.payload.pty_id && !ptyIdRef.current) {
-            ptyIdRef.current = event.payload.pty_id;
-          }
+        if ((event.payload.agent_id === ptyId || event.payload.pty_id === ptyId) && !disposed) {
           term.write(new Uint8Array(event.payload.data));
         }
       }).then(fn => { unsubOutput = fn; });
 
-      listen<{ agentId: string; data: string }>('agent:error', (event) => {
-        if (event.payload.agentId === agentId && !entry.disposed) {
-          term.write(`\x1b[31m${event.payload.data}\x1b[0m`);
-        }
-      }).then(fn => { unsubError = fn; });
+      // Forward keyboard input to PTY
+      term.onData((data) => {
+        // Filter terminal query responses
+        if (/^(\x1b\[\?[\d;]*c|\d+;\d+c)+$/.test(data)) return;
+        invoke('pty_write', { ptyId, data }).catch(() => {});
+      });
 
-      // Listen for status changes to update ptyId when agent starts
-      listen<AgentStatus>('agent:status', (event) => {
-        if (event.payload.id === agentId && event.payload.ptyId) {
-          ptyIdRef.current = event.payload.ptyId;
-        }
-      }).then(fn => { unsubStatus = fn; });
+      // ResizeObserver
+      const resizeObserver = new ResizeObserver(() => {
+        if (disposed) return;
+        try {
+          fitAddon.fit();
+          const { cols, rows } = term;
+          invoke('pty_resize', { ptyId, cols, rows }).catch(() => {});
+        } catch {}
+      });
+      resizeObserver.observe(container);
 
-      // Cleanup
-      const cleanup = () => {
-        entry.disposed = true;
+      cleanup = () => {
+        disposed = true;
         resizeObserver.disconnect();
         unsubOutput?.();
-        unsubError?.();
-        unsubStatus?.();
+        invoke('pty_kill', { ptyId }).catch(() => {});
         term.dispose();
       };
-      (entry as Record<string, unknown>)._cleanup = cleanup;
     })();
 
     return () => {
       cancelled = true;
-      const entry = termRef.current;
-      if (entry) {
-        const cleanup = (entry as Record<string, unknown>)._cleanup as (() => void) | undefined;
-        cleanup?.();
-        termRef.current = null;
-      }
+      cleanup?.();
       initRef.current = false;
     };
   }, [agentId]);
