@@ -197,16 +197,16 @@ export default function AppSidebar() {
       {/* macOS traffic light spacer */}
       <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
       <SidebarHeader className="group-data-[collapsible=icon]:p-0">
-        <div className="flex items-center px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div className="flex items-center justify-center px-2 py-2 group-data-[collapsible=icon]:px-0">
           <img
             src="/dorotoring-large.svg"
             alt="Dorotoring"
-            className="w-full object-contain dark:invert group-data-[collapsible=icon]:hidden"
+            className="h-6 w-auto dark:invert group-data-[collapsible=icon]:hidden"
           />
           <img
             src="/dorotoing.svg"
             alt="Dorotoring"
-            className="w-7 h-7 dark:invert hidden group-data-[collapsible=icon]:block"
+            className="w-6 h-6 dark:invert hidden group-data-[collapsible=icon]:block"
           />
         </div>
         <CollapseToggle />
