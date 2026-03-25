@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings, Crown } from 'lucide-react';
 import type { Agent, AgentCharacter, AgentProvider } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,12 +21,15 @@ interface ConfigWheelProps {
   agent: Agent;
   onUpdate: (id: string, updates: Partial<Agent>) => void;
   availableSkills?: string[];
+  /** Whether another agent in the same tab is already a Super Agent */
+  tabHasSuperAgent?: boolean;
 }
 
 export const ConfigWheel = memo(function ConfigWheel({
   agent,
   onUpdate,
   availableSkills = [],
+  tabHasSuperAgent = false,
 }: ConfigWheelProps) {
   const update = useCallback(
     (updates: Partial<Agent>) => onUpdate(agent.id, updates),
@@ -161,13 +164,20 @@ export const ConfigWheel = memo(function ConfigWheel({
           />
         </div>
 
-        {/* Super Agent */}
+        {/* Super Agent — disabled if another agent in the tab is already Super Agent */}
         <div className="border-t border-border pt-2">
-          <SuperAgentToggle
-            isSuperAgent={agent.isSuperAgent}
-            scope={agent.superAgentScope}
-            onChange={(isSuperAgent, scope) => update({ isSuperAgent, superAgentScope: scope })}
-          />
+          {tabHasSuperAgent && !agent.isSuperAgent ? (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Crown className="w-3 h-3" />
+              <span>A Super Agent already exists in this tab</span>
+            </div>
+          ) : (
+            <SuperAgentToggle
+              isSuperAgent={agent.isSuperAgent}
+              scope={agent.superAgentScope}
+              onChange={(isSuperAgent, scope) => update({ isSuperAgent, superAgentScope: scope })}
+            />
+          )}
         </div>
       </PopoverContent>
     </Popover>

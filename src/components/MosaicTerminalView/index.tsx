@@ -7,7 +7,8 @@ import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical, ArrowRightFromLine, ChevronRight } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical, ArrowRightFromLine, ChevronRight } from 'lucide-react';
+import { ConfigWheel } from '@/components/ConfigWheel';
 import type { Agent, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import { useElectronAgents, useElectronSkills } from '@/hooks/useElectron';
@@ -136,6 +137,20 @@ function splitNodeInTree(
     first: splitNodeInTree(tree.first, targetId, newId, direction),
     second: splitNodeInTree(tree.second, targetId, newId, direction),
   };
+}
+
+// --- Random agent names ---
+
+const AGENT_NAMES = [
+  'Atlas', 'Nova', 'Pixel', 'Echo', 'Spark', 'Flux', 'Orbit', 'Neon', 'Blaze', 'Drift',
+  'Cipher', 'Prism', 'Helix', 'Glitch', 'Vortex', 'Pulse', 'Quasar', 'Nebula', 'Onyx', 'Zen',
+  'Bolt', 'Rune', 'Jade', 'Cosmo', 'Byte', 'Dusk', 'Lumen', 'Pyro', 'Wraith', 'Sage',
+  'Ash', 'Cinder', 'Storm', 'Frost', 'Ember', 'Thorn', 'Shade', 'Flint', 'Vale', 'Wren',
+  'Aero', 'Lynx', 'Titan', 'Zephyr', 'Mako', 'Koda', 'Sable', 'Dune', 'Haze', 'Rift',
+];
+
+function randomAgentName(): string {
+  return AGENT_NAMES[Math.floor(Math.random() * AGENT_NAMES.length)];
 }
 
 // --- Status colors ---
@@ -385,15 +400,10 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const addQuickTerminal = useCallback(async () => {
     if (!isTauri()) return;
     try {
-      const home = await invoke<{ path: string }[]>('projects_list').then(
-        projects => projects[0]?.path || '/home'
-      ).catch(() => '/home');
-
       const agent = await invoke<Agent>('agent_create', {
         config: {
-          cwd: typeof home === 'string' ? home : '/home',
           skills: [],
-          name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+          name: randomAgentName(),
           character: 'robot',
         }
       });
@@ -403,19 +413,19 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     }
   }, [addAgentToTab]);
 
-  // Split terminal: create a new terminal next to a target agent
+  // Split terminal: create a new terminal next to a target agent (inherits cwd)
   const handleSplitTerminal = useCallback(async (targetAgentId: string, direction: 'row' | 'column') => {
     if (!isTauri()) return;
     try {
-      const home = await invoke<{ path: string }[]>('projects_list').then(
-        projects => projects[0]?.path || '/home'
-      ).catch(() => '/home');
+      // Inherit cwd from the source agent
+      const sourceAgent = agentMap.get(targetAgentId);
+      const cwd = sourceAgent?.cwd || undefined;
 
       const agent = await invoke<Agent>('agent_create', {
         config: {
-          cwd: typeof home === 'string' ? home : '/home',
+          ...(cwd ? { cwd } : {}),
           skills: [],
-          name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+          name: randomAgentName(),
           character: 'robot',
         }
       });
@@ -431,7 +441,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     } catch (err) {
       console.error('Failed to split terminal:', err);
     }
-  }, [activeTabId]);
+  }, [activeTabId, agentMap]);
 
   // Keyboard shortcut: Ctrl/Cmd+T for quick terminal
   useEffect(() => {
@@ -482,6 +492,15 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     }
   }, [updateAgent]);
 
+  // ConfigWheel inline update (no modal close)
+  const handleConfigUpdate = useCallback(async (id: string, updates: Partial<Agent>) => {
+    try {
+      await updateAgent({ id, ...updates });
+    } catch (err) {
+      console.error('Failed to update agent config:', err);
+    }
+  }, [updateAgent]);
+
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
     if (!agent) return `Agent ${id.slice(0, 6)}`;
@@ -500,6 +519,12 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   }, [agents, activeTab]);
 
   const layout = activeTab?.layout || null;
+
+  // Check if the current tab already has a Super Agent
+  const tabHasSuperAgent = useMemo(() => {
+    const ids = activeTab?.agentIds || [];
+    return ids.some(id => agentMap.get(id)?.isSuperAgent);
+  }, [activeTab, agentMap]);
 
   // Right-click context menu handler (works in both zen and normal mode)
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -811,9 +836,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                         <div className={`absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border rounded px-1 py-0.5 z-10 backdrop-blur-sm ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'border-amber-500/50' : 'border-border/50'}`}>
                           {getSuperAgentBadge(agent) && <span className="text-[10px] px-0.5">{getSuperAgentBadge(agent)}</span>}
                           <span className={`text-[10px] px-1 ${agent?.isSuperAgent ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>{getAgentTitle(id)}</span>
-                          <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Settings">
-                            <Settings className="w-3 h-3" />
-                          </button>
+                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} />}
                           <button onClick={(e) => { e.stopPropagation(); handlePopout(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                             <ExternalLink className="w-3 h-3" />
                           </button>
@@ -830,9 +853,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                         {getSuperAgentBadge(agent) && <span className="text-xs shrink-0">{getSuperAgentBadge(agent)}</span>}
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
                         <div className="flex-1" />
-                        <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Agent settings">
-                          <Settings className="w-3 h-3" />
-                        </button>
+                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} />}
                         <button onClick={(e) => { e.stopPropagation(); handleMaximize(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Maximize">
                           <Maximize2 className="w-3 h-3" />
                         </button>
