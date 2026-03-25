@@ -142,11 +142,18 @@ function splitNodeInTree(
 // --- Random agent names ---
 
 const AGENT_NAMES = [
-  'Atlas', 'Nova', 'Pixel', 'Echo', 'Spark', 'Flux', 'Orbit', 'Neon', 'Blaze', 'Drift',
-  'Cipher', 'Prism', 'Helix', 'Glitch', 'Vortex', 'Pulse', 'Quasar', 'Nebula', 'Onyx', 'Zen',
-  'Bolt', 'Rune', 'Jade', 'Cosmo', 'Byte', 'Dusk', 'Lumen', 'Pyro', 'Wraith', 'Sage',
-  'Ash', 'Cinder', 'Storm', 'Frost', 'Ember', 'Thorn', 'Shade', 'Flint', 'Vale', 'Wren',
-  'Aero', 'Lynx', 'Titan', 'Zephyr', 'Mako', 'Koda', 'Sable', 'Dune', 'Haze', 'Rift',
+  'Aatrox', 'Ahri', 'Akali', 'Akshan', 'Alistar', 'Amumu', 'Anivia', 'Annie', 'Aphelios', 'Ashe',
+  'Azir', 'Bard', 'Blitzcrank', 'Brand', 'Braum', 'Caitlyn', 'Camille', 'Darius', 'Diana', 'Draven',
+  'Ekko', 'Elise', 'Evelynn', 'Ezreal', 'Fiora', 'Fizz', 'Galio', 'Garen', 'Gnar', 'Gragas',
+  'Graves', 'Gwen', 'Hecarim', 'Heimerdinger', 'Illaoi', 'Irelia', 'Ivern', 'Janna', 'Jarvan', 'Jax',
+  'Jayce', 'Jhin', 'Jinx', 'Kaisa', 'Karma', 'Kassadin', 'Katarina', 'Kayn', 'Kennen', 'Khazix',
+  'Kindred', 'Kled', 'Leblanc', 'Leona', 'Lillia', 'Lissandra', 'Lucian', 'Lulu', 'Lux', 'Malphite',
+  'Morgana', 'Nami', 'Nasus', 'Nautilus', 'Nidalee', 'Orianna', 'Ornn', 'Pantheon', 'Pyke', 'Qiyana',
+  'Quinn', 'Rakan', 'Rammus', 'Renata', 'Renekton', 'Riven', 'Rumble', 'Ryze', 'Samira', 'Senna',
+  'Seraphine', 'Sett', 'Shen', 'Shyvana', 'Singed', 'Sion', 'Sivir', 'Sona', 'Soraka', 'Swain',
+  'Syndra', 'Taliyah', 'Talon', 'Taric', 'Thresh', 'Tristana', 'Twisted Fate', 'Twitch', 'Varus', 'Vayne',
+  'Veigar', 'Vex', 'Vi', 'Viego', 'Viktor', 'Vladimir', 'Warwick', 'Xayah', 'Yasuo', 'Yone',
+  'Yorick', 'Yuumi', 'Zed', 'Zeri', 'Ziggs', 'Zilean', 'Zoe', 'Zyra',
 ];
 
 function randomAgentName(): string {
