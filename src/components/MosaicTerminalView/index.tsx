@@ -139,25 +139,65 @@ function splitNodeInTree(
   };
 }
 
-// --- Random agent names ---
+// --- LoL champion names + Data Dragon icon keys ---
 
-const AGENT_NAMES = [
-  'Aatrox', 'Ahri', 'Akali', 'Akshan', 'Alistar', 'Amumu', 'Anivia', 'Annie', 'Aphelios', 'Ashe',
-  'Azir', 'Bard', 'Blitzcrank', 'Brand', 'Braum', 'Caitlyn', 'Camille', 'Darius', 'Diana', 'Draven',
-  'Ekko', 'Elise', 'Evelynn', 'Ezreal', 'Fiora', 'Fizz', 'Galio', 'Garen', 'Gnar', 'Gragas',
-  'Graves', 'Gwen', 'Hecarim', 'Heimerdinger', 'Illaoi', 'Irelia', 'Ivern', 'Janna', 'Jarvan', 'Jax',
-  'Jayce', 'Jhin', 'Jinx', 'Kaisa', 'Karma', 'Kassadin', 'Katarina', 'Kayn', 'Kennen', 'Khazix',
-  'Kindred', 'Kled', 'Leblanc', 'Leona', 'Lillia', 'Lissandra', 'Lucian', 'Lulu', 'Lux', 'Malphite',
-  'Morgana', 'Nami', 'Nasus', 'Nautilus', 'Nidalee', 'Orianna', 'Ornn', 'Pantheon', 'Pyke', 'Qiyana',
-  'Quinn', 'Rakan', 'Rammus', 'Renata', 'Renekton', 'Riven', 'Rumble', 'Ryze', 'Samira', 'Senna',
-  'Seraphine', 'Sett', 'Shen', 'Shyvana', 'Singed', 'Sion', 'Sivir', 'Sona', 'Soraka', 'Swain',
-  'Syndra', 'Taliyah', 'Talon', 'Taric', 'Thresh', 'Tristana', 'Twisted Fate', 'Twitch', 'Varus', 'Vayne',
-  'Veigar', 'Vex', 'Vi', 'Viego', 'Viktor', 'Vladimir', 'Warwick', 'Xayah', 'Yasuo', 'Yone',
-  'Yorick', 'Yuumi', 'Zed', 'Zeri', 'Ziggs', 'Zilean', 'Zoe', 'Zyra',
+const CHAMPIONS: { name: string; key: string }[] = [
+  { name: 'Aatrox', key: 'Aatrox' }, { name: 'Ahri', key: 'Ahri' }, { name: 'Akali', key: 'Akali' },
+  { name: 'Akshan', key: 'Akshan' }, { name: 'Alistar', key: 'Alistar' }, { name: 'Amumu', key: 'Amumu' },
+  { name: 'Anivia', key: 'Anivia' }, { name: 'Annie', key: 'Annie' }, { name: 'Aphelios', key: 'Aphelios' },
+  { name: 'Ashe', key: 'Ashe' }, { name: 'Azir', key: 'Azir' }, { name: 'Bard', key: 'Bard' },
+  { name: 'Blitzcrank', key: 'Blitzcrank' }, { name: 'Brand', key: 'Brand' }, { name: 'Braum', key: 'Braum' },
+  { name: 'Caitlyn', key: 'Caitlyn' }, { name: 'Camille', key: 'Camille' }, { name: 'Darius', key: 'Darius' },
+  { name: 'Diana', key: 'Diana' }, { name: 'Draven', key: 'Draven' }, { name: 'Ekko', key: 'Ekko' },
+  { name: 'Elise', key: 'Elise' }, { name: 'Evelynn', key: 'Evelynn' }, { name: 'Ezreal', key: 'Ezreal' },
+  { name: 'Fiora', key: 'Fiora' }, { name: 'Fizz', key: 'Fizz' }, { name: 'Galio', key: 'Galio' },
+  { name: 'Garen', key: 'Garen' }, { name: 'Gnar', key: 'Gnar' }, { name: 'Gragas', key: 'Gragas' },
+  { name: 'Graves', key: 'Graves' }, { name: 'Gwen', key: 'Gwen' }, { name: 'Hecarim', key: 'Hecarim' },
+  { name: 'Heimerdinger', key: 'Heimerdinger' }, { name: 'Illaoi', key: 'Illaoi' }, { name: 'Irelia', key: 'Irelia' },
+  { name: 'Ivern', key: 'Ivern' }, { name: 'Janna', key: 'Janna' }, { name: 'Jarvan IV', key: 'JarvanIV' },
+  { name: 'Jax', key: 'Jax' }, { name: 'Jayce', key: 'Jayce' }, { name: 'Jhin', key: 'Jhin' },
+  { name: 'Jinx', key: 'Jinx' }, { name: "Kai'Sa", key: 'Kaisa' }, { name: 'Karma', key: 'Karma' },
+  { name: 'Kassadin', key: 'Kassadin' }, { name: 'Katarina', key: 'Katarina' }, { name: 'Kayn', key: 'Kayn' },
+  { name: 'Kennen', key: 'Kennen' }, { name: "Kha'Zix", key: 'Khazix' }, { name: 'Kindred', key: 'Kindred' },
+  { name: 'Kled', key: 'Kled' }, { name: 'LeBlanc', key: 'Leblanc' }, { name: 'Leona', key: 'Leona' },
+  { name: 'Lillia', key: 'Lillia' }, { name: 'Lissandra', key: 'Lissandra' }, { name: 'Lucian', key: 'Lucian' },
+  { name: 'Lulu', key: 'Lulu' }, { name: 'Lux', key: 'Lux' }, { name: 'Malphite', key: 'Malphite' },
+  { name: 'Morgana', key: 'Morgana' }, { name: 'Nami', key: 'Nami' }, { name: 'Nasus', key: 'Nasus' },
+  { name: 'Nautilus', key: 'Nautilus' }, { name: 'Nidalee', key: 'Nidalee' }, { name: 'Orianna', key: 'Orianna' },
+  { name: 'Ornn', key: 'Ornn' }, { name: 'Pantheon', key: 'Pantheon' }, { name: 'Pyke', key: 'Pyke' },
+  { name: 'Qiyana', key: 'Qiyana' }, { name: 'Quinn', key: 'Quinn' }, { name: 'Rakan', key: 'Rakan' },
+  { name: 'Rammus', key: 'Rammus' }, { name: 'Renata Glasc', key: 'Renata' }, { name: 'Renekton', key: 'Renekton' },
+  { name: 'Riven', key: 'Riven' }, { name: 'Rumble', key: 'Rumble' }, { name: 'Ryze', key: 'Ryze' },
+  { name: 'Samira', key: 'Samira' }, { name: 'Senna', key: 'Senna' }, { name: 'Seraphine', key: 'Seraphine' },
+  { name: 'Sett', key: 'Sett' }, { name: 'Shen', key: 'Shen' }, { name: 'Shyvana', key: 'Shyvana' },
+  { name: 'Singed', key: 'Singed' }, { name: 'Sion', key: 'Sion' }, { name: 'Sivir', key: 'Sivir' },
+  { name: 'Sona', key: 'Sona' }, { name: 'Soraka', key: 'Soraka' }, { name: 'Swain', key: 'Swain' },
+  { name: 'Syndra', key: 'Syndra' }, { name: 'Taliyah', key: 'Taliyah' }, { name: 'Talon', key: 'Talon' },
+  { name: 'Taric', key: 'Taric' }, { name: 'Thresh', key: 'Thresh' }, { name: 'Tristana', key: 'Tristana' },
+  { name: 'Twisted Fate', key: 'TwistedFate' }, { name: 'Twitch', key: 'Twitch' }, { name: 'Varus', key: 'Varus' },
+  { name: 'Vayne', key: 'Vayne' }, { name: 'Veigar', key: 'Veigar' }, { name: 'Vex', key: 'Vex' },
+  { name: 'Vi', key: 'Vi' }, { name: 'Viego', key: 'Viego' }, { name: 'Viktor', key: 'Viktor' },
+  { name: 'Vladimir', key: 'Vladimir' }, { name: 'Warwick', key: 'Warwick' }, { name: 'Xayah', key: 'Xayah' },
+  { name: 'Yasuo', key: 'Yasuo' }, { name: 'Yone', key: 'Yone' }, { name: 'Yorick', key: 'Yorick' },
+  { name: 'Yuumi', key: 'Yuumi' }, { name: 'Zed', key: 'Zed' }, { name: 'Zeri', key: 'Zeri' },
+  { name: 'Ziggs', key: 'Ziggs' }, { name: 'Zilean', key: 'Zilean' }, { name: 'Zoe', key: 'Zoe' },
+  { name: 'Zyra', key: 'Zyra' },
 ];
 
+// Lookup: agent name → Data Dragon icon key
+const CHAMPION_KEYS = new Map(CHAMPIONS.map(c => [c.name, c.key]));
+
+const DDRAGON_VERSION = '15.6.1';
+
+function getChampionIconUrl(name: string): string | null {
+  const key = CHAMPION_KEYS.get(name);
+  if (!key) return null;
+  return `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}/img/champion/${key}.png`;
+}
+
 function randomAgentName(): string {
-  return AGENT_NAMES[Math.floor(Math.random() * AGENT_NAMES.length)];
+  const champ = CHAMPIONS[Math.floor(Math.random() * CHAMPIONS.length)];
+  return champ.name;
 }
 
 // --- Status colors ---
@@ -519,6 +559,13 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     return CHARACTER_FACES[agent?.character || 'robot'] || '\uD83E\uDD16';
   }, [agentMap]);
 
+  /** Returns champion icon URL or null (falls back to emoji) */
+  const getAgentIconUrl = useCallback((id: string): string | null => {
+    const agent = agentMap.get(id);
+    if (!agent?.name) return null;
+    return getChampionIconUrl(agent.name);
+  }, [agentMap]);
+
   // Agents not in the current tab (for the picker)
   const availableAgents = useMemo(() => {
     const inTab = new Set(activeTab?.agentIds || []);
@@ -765,7 +812,11 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                     className={`flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0 ${agent.isSuperAgent && agent.superAgentScope === 'all' ? 'bg-amber-500/5' : ''}`}
                   >
                     <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOTS[agent.processState] || STATUS_DOTS.inactive}`} />
-                    <span className="text-sm">{getAgentEmoji(agent.id)}</span>
+                    {getAgentIconUrl(agent.id) ? (
+                      <img src={getAgentIconUrl(agent.id)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
+                    ) : (
+                      <span className="text-sm">{getAgentEmoji(agent.id)}</span>
+                    )}
                     <div className="flex flex-col min-w-0">
                       <span className={`truncate ${agent.isSuperAgent ? 'font-bold' : 'font-medium'}`}>
                         {getSuperAgentBadge(agent) && <span className="mr-1">{getSuperAgentBadge(agent)}</span>}
@@ -811,7 +862,11 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
         ) : maximizedAgent && activeTab?.agentIds.includes(maximizedAgent) ? (
           <div className={`w-full h-full flex flex-col ${agentMap.get(maximizedAgent)?.isSuperAgent && agentMap.get(maximizedAgent)?.superAgentScope === 'all' ? 'ring-2 ring-amber-500/50 rounded' : ''}`}>
             <div className={`flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0 ${agentMap.get(maximizedAgent)?.isSuperAgent && agentMap.get(maximizedAgent)?.superAgentScope === 'all' ? 'bg-amber-500/5' : ''}`}>
-              <span className="text-sm">{getAgentEmoji(maximizedAgent)}</span>
+              {getAgentIconUrl(maximizedAgent) ? (
+                <img src={getAgentIconUrl(maximizedAgent)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
+              ) : (
+                <span className="text-sm">{getAgentEmoji(maximizedAgent)}</span>
+              )}
               <span className={`text-xs text-foreground truncate ${agentMap.get(maximizedAgent)?.isSuperAgent ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(maximizedAgent)}</span>
               {getSuperAgentBadge(agentMap.get(maximizedAgent)) && <span className="text-xs shrink-0">{getSuperAgentBadge(agentMap.get(maximizedAgent))}</span>}
               <div className="flex-1" />
@@ -855,7 +910,11 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                     ) : (
                       /* Normal mode: fixed toolbar */
                       <div className={`flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b select-none mosaic-custom-toolbar ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'border-amber-500/50 bg-amber-500/5' : 'border-border'}`} data-agent-id={id}>
-                        <span className="text-sm">{getAgentEmoji(id)}</span>
+                        {getAgentIconUrl(id) ? (
+                          <img src={getAgentIconUrl(id)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
+                        ) : (
+                          <span className="text-sm">{getAgentEmoji(id)}</span>
+                        )}
                         <span className={`text-xs text-foreground truncate max-w-[120px] ${agent?.isSuperAgent ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(id)}</span>
                         {getSuperAgentBadge(agent) && <span className="text-xs shrink-0">{getSuperAgentBadge(agent)}</span>}
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
