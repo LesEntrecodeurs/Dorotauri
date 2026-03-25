@@ -7,6 +7,7 @@ import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { attachKeyHandler, stripCursorSequences } from '@/lib/terminal';
+import { TerminalWriteManager } from '@/lib/terminal-write';
 import { TERMINAL_THEME } from './constants';
 
 // Clean xterm query/focus escape sequences out of user input before forwarding.
@@ -127,7 +128,10 @@ export function useAgentDialogTerminal({
           }
         });
 
-        if (!cancelled) setTerminalReady(true);
+        if (!cancelled) {
+          setTerminalReady(true);
+          TerminalWriteManager.subscribe(agent.id, term, agent.ptyId || agent.id);
+        }
 
         term.writeln(`\x1b[36m● Connected to ${agent.name || 'Agent'}\x1b[0m`);
         term.writeln('');
@@ -160,6 +164,7 @@ export function useAgentDialogTerminal({
 
     return () => {
       cancelled = true;
+      if (agent?.id) TerminalWriteManager.unsubscribe(agent.id);
       if (xtermRef.current) {
         xtermRef.current.dispose();
         xtermRef.current = null;
@@ -178,9 +183,12 @@ export function useAgentDialogTerminal({
 
     listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
       const { agent_id, data } = event.payload;
-      if (agent_id === agent.id && xtermRef.current) {
-        const bytes = new Uint8Array(data);
-        xtermRef.current.write(bytes);
+      if (agent_id === agent.id) {
+        if (TerminalWriteManager.has(agent_id)) {
+          TerminalWriteManager.write(agent_id, new Uint8Array(data));
+        } else if (xtermRef.current) {
+          xtermRef.current.write(new Uint8Array(data));
+        }
       }
     }).then(fn => { unlisten = fn; });
 

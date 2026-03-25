@@ -6,6 +6,7 @@ import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { attachKeyHandler } from '@/lib/terminal';
+import { TerminalWriteManager } from '@/lib/terminal-write';
 import { TERMINAL_THEME } from '@/components/AgentTerminalDialog/constants';
 import type { Agent } from '@/types/electron';
 
@@ -106,6 +107,8 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
         } catch { /* ignore */ }
       }, 400);
 
+      TerminalWriteManager.subscribe(agentId, term, agentId);
+
       attachKeyHandler(term, (data) => {
         if (isTauri()) {
           invoke('agent_send_input', { id: agentIdRef.current, input: data }).catch(() => {});
@@ -133,9 +136,8 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
       if (isTauri()) {
         listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
           const { agent_id, data } = event.payload;
-          if (agent_id === agentIdRef.current && xtermRef.current) {
-            const bytes = new Uint8Array(data);
-            xtermRef.current.write(bytes);
+          if (agent_id === agentIdRef.current) {
+            TerminalWriteManager.write(agent_id, new Uint8Array(data));
           }
         }).then(fn => { unsubOutput = fn; });
       }
@@ -148,6 +150,7 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
       fitTimers.forEach(clearTimeout);
       unsubOutput?.();
       resizeObserver?.disconnect();
+      TerminalWriteManager.unsubscribe(agentId);
       if (xtermRef.current) {
         xtermRef.current.dispose();
         xtermRef.current = null;

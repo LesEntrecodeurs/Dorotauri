@@ -7,6 +7,7 @@ import { listen } from '@tauri-apps/api/event';
 import type { Agent } from '@/types/electron';
 import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
+import { TerminalWriteManager } from '@/lib/terminal-write';
 
 interface TerminalTileProps {
   agentId: string;
@@ -115,9 +116,11 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
       let unsubOutput: (() => void) | undefined;
       let disposed = false;
 
+      TerminalWriteManager.subscribe(ptyId, term, ptyId);
+
       listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
         if ((event.payload.agent_id === ptyId || event.payload.pty_id === ptyId) && !disposed) {
-          term.write(new Uint8Array(event.payload.data));
+          TerminalWriteManager.write(ptyId, new Uint8Array(event.payload.data));
         }
       }).then(fn => { unsubOutput = fn; });
 
@@ -149,6 +152,7 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
         disposed = true;
         resizeObserver.disconnect();
         unsubOutput?.();
+        TerminalWriteManager.unsubscribe(ptyId);
         disposeWebGL(term);
         term.dispose();
       };

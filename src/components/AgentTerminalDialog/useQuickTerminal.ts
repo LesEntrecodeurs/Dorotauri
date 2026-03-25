@@ -6,6 +6,7 @@ import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
+import { TerminalWriteManager } from '@/lib/terminal-write';
 import { QUICK_TERMINAL_THEME } from './constants';
 import type { PanelType } from './AgentDialogTypes';
 
@@ -90,12 +91,14 @@ export function useQuickTerminal({
             invoke('pty_resize', { ptyId: existing.ptyId, cols: term.cols, rows: term.rows }).catch(() => {});
           }
           setQuickTerminalReady(true);
+          TerminalWriteManager.subscribe(existing.ptyId, term, existing.ptyId);
         } else if (isTauri()) {
           const ptyId = await invoke<string>('pty_create', { cwd: projectPath, cols: term.cols, rows: term.rows });
           if (!cancelled) {
             quickPtyIdRef.current = ptyId;
             persistentTerminals.set(agentId, { ptyId, outputBuffer: [] });
             setQuickTerminalReady(true);
+            TerminalWriteManager.subscribe(ptyId, term, ptyId);
           }
         }
 
@@ -145,6 +148,10 @@ export function useQuickTerminal({
   // Dispose xterm UI when dialog closes (keep PTY alive in persistentTerminals)
   useEffect(() => {
     if (!open) {
+      if (agentId) {
+        const existing = persistentTerminals.get(agentId);
+        if (existing) TerminalWriteManager.unsubscribe(existing.ptyId);
+      }
       if (quickXtermRef.current) {
         disposeWebGL(quickXtermRef.current);
         quickXtermRef.current.dispose();
@@ -169,7 +176,12 @@ export function useQuickTerminal({
       const bytes = new Uint8Array(event.payload.data);
       existing.outputBuffer.push(bytes);
       if (existing.outputBuffer.length > 1000) existing.outputBuffer.shift();
-      quickXtermRef.current?.write(bytes);
+      // Route through flow control if subscribed, else direct write
+      if (TerminalWriteManager.has(existing.ptyId)) {
+        TerminalWriteManager.write(existing.ptyId, bytes);
+      } else {
+        quickXtermRef.current?.write(bytes);
+      }
     }).then(fn => { unlisten = fn; });
 
     return () => { unlisten?.(); };
@@ -179,6 +191,7 @@ export function useQuickTerminal({
     if (agentId) {
       const existing = persistentTerminals.get(agentId);
       if (existing && isTauri()) {
+        TerminalWriteManager.unsubscribe(existing.ptyId);
         invoke('pty_kill', { ptyId: existing.ptyId }).catch(() => {});
         persistentTerminals.delete(agentId);
       }
