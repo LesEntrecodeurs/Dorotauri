@@ -14,9 +14,11 @@ import {
   Settings,
   Moon,
   Sun,
-  PanelLeftClose,
   PanelLeft,
+  PanelLeftClose,
+  X,
   Container,
+  type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -25,22 +27,52 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuBadge,
   SidebarFooter,
   SidebarHeader,
-  SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 import { LATEST_RELEASE, WHATS_NEW_STORAGE_KEY } from '@/data/changelog';
 import { useStore } from '@/store';
 import { useNotifications } from '@/hooks/useNotifications';
+
+// --- Types ---
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+// --- Constants ---
+
+const NAV_ITEMS: NavItem[] = [
+  { href: '/', icon: LayoutDashboard, label: 'Hub' },
+  { href: '/agents', icon: Bot, label: 'Agents' },
+  { href: '/kanban', icon: Columns3, label: 'Kanban' },
+  { href: '/memory', icon: Brain, label: 'Memory' },
+  { href: '/vault', icon: Archive, label: 'Vault' },
+  { href: '/skills', icon: Sparkles, label: 'Skills' },
+  { href: '/automations', icon: Zap, label: 'Automations' },
+  { href: '/plugins', icon: Puzzle, label: 'Plugins' },
+  { href: '/projects', icon: FolderGit2, label: 'Projects' },
+  { href: '/recurring-tasks', icon: Clock, label: 'Recurring Tasks' },
+  { href: '/docker', icon: Container, label: 'Docker' },
+  { href: '/usage', icon: BarChart3, label: 'Usage' },
+  { href: '/whats-new', icon: Megaphone, label: "What's New" },
+];
+
+// --- Helpers ---
+
+function isActive(href: string, pathname: string) {
+  if (href === '/') return pathname === '/';
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function formatSessionReset(resetsAt: number): string {
   const diff = resetsAt - Math.floor(Date.now() / 1000);
@@ -71,84 +103,10 @@ function barColor(pct: number): string {
 function barTrackColor(pct: number): string {
   if (pct >= 80) return 'bg-red-500/20';
   if (pct >= 50) return 'bg-yellow-500/20';
-  return 'bg-secondary';
+  return 'bg-sidebar-accent';
 }
 
-function textColor(pct: number): string {
-  if (pct >= 80) return 'text-red-400';
-  if (pct >= 50) return 'text-yellow-400';
-  return 'text-muted-foreground';
-}
-
-function UsageBars() {
-  const rateLimits = useStore((s) => s.rateLimits);
-  if (!rateLimits) return null;
-  const { fiveHour, sevenDay } = rateLimits;
-  if (!fiveHour && !sevenDay) return null;
-
-  return (
-    <div className="px-2 py-1.5 space-y-2 group-data-[collapsible=icon]/sidebar:hidden border-t border-border pt-2">
-      {fiveHour && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-muted-foreground">Session 5h</span>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-medium ${textColor(fiveHour.usedPercentage)}`}>
-                {Math.round(fiveHour.usedPercentage)}%
-              </span>
-              <span className="text-[9px] text-muted-foreground/60">
-                {formatSessionReset(fiveHour.resetsAt)}
-              </span>
-            </div>
-          </div>
-          <div className={`h-1 w-full rounded-full overflow-hidden ${barTrackColor(fiveHour.usedPercentage)}`}>
-            <div
-              className={`h-full rounded-full transition-all ${barColor(fiveHour.usedPercentage)}`}
-              style={{ width: `${Math.min(100, fiveHour.usedPercentage)}%` }}
-            />
-          </div>
-        </div>
-      )}
-      {sevenDay && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-muted-foreground">Week</span>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-medium ${textColor(sevenDay.usedPercentage)}`}>
-                {Math.round(sevenDay.usedPercentage)}%
-              </span>
-              <span className="text-[9px] text-muted-foreground/60">
-                {formatWeekReset(sevenDay.resetsAt)}
-              </span>
-            </div>
-          </div>
-          <div className={`h-1 w-full rounded-full overflow-hidden ${barTrackColor(sevenDay.usedPercentage)}`}>
-            <div
-              className={`h-full rounded-full transition-all ${barColor(sevenDay.usedPercentage)}`}
-              style={{ width: `${Math.min(100, sevenDay.usedPercentage)}%` }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const navItems = [
-  { href: '/', icon: LayoutDashboard, label: 'Hub' },
-  { href: '/agents', icon: Bot, label: 'Agents' },
-  { href: '/kanban', icon: Columns3, label: 'Kanban' },
-  { href: '/memory', icon: Brain, label: 'Memory' },
-  { href: '/vault', icon: Archive, label: 'Vault' },
-  { href: '/skills', icon: Sparkles, label: 'Skills' },
-  { href: '/automations', icon: Zap, label: 'Automations' },
-  { href: '/plugins', icon: Puzzle, label: 'Plugins' },
-  { href: '/projects', icon: FolderGit2, label: 'Projects' },
-  { href: '/recurring-tasks', icon: Clock, label: 'Recurring Tasks' },
-  { href: '/docker', icon: Container, label: 'Docker' },
-  { href: '/usage', icon: BarChart3, label: 'Usage' },
-  { href: '/whats-new', icon: Megaphone, label: "What's New" },
-];
+// --- Hooks ---
 
 function useWhatsNewBadge() {
   const [hasNew, setHasNew] = useState(false);
@@ -166,94 +124,192 @@ function useWhatsNewBadge() {
   return hasNew;
 }
 
-function isActive(href: string, pathname: string) {
-  if (href === '/') return pathname === '/';
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
+// --- Sub-components ---
 
-function CollapseToggle() {
-  const { toggleSidebar, state } = useSidebar();
+function NavBadge({ href }: { href: string }) {
+  const { vaultUnreadCount } = useStore();
+  const { undismissed } = useNotifications();
+  const whatsNewHasNew = useWhatsNewBadge();
+  const { state } = useSidebar();
   const collapsed = state === 'collapsed';
 
+  // Expanded mode: pill badges via SidebarMenuBadge
+  if (!collapsed) {
+    if (href === '/vault' && vaultUnreadCount > 0) {
+      return (
+        <SidebarMenuBadge>
+          <Badge variant="default" className="h-5 min-w-5 px-1 text-[10px] bg-red-500">
+            {vaultUnreadCount}
+          </Badge>
+        </SidebarMenuBadge>
+      );
+    }
+    if (href === '/agents' && undismissed.length > 0) {
+      return (
+        <SidebarMenuBadge>
+          <Badge variant="destructive" className="h-5 min-w-5 px-1 text-[10px] bg-orange-500">
+            {undismissed.length}
+          </Badge>
+        </SidebarMenuBadge>
+      );
+    }
+    if (href === '/whats-new' && whatsNewHasNew) {
+      return (
+        <SidebarMenuBadge>
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+        </SidebarMenuBadge>
+      );
+    }
+    return null;
+  }
+
+  // Collapsed mode: absolute-positioned dots on the icon
+  const showDot =
+    (href === '/vault' && vaultUnreadCount > 0) ||
+    (href === '/agents' && undismissed.length > 0) ||
+    (href === '/whats-new' && whatsNewHasNew);
+
+  if (!showDot) return null;
+
+  const dotColor = href === '/agents' ? 'bg-orange-500' : 'bg-red-500';
+
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton onClick={toggleSidebar} tooltip={collapsed ? 'Expand' : 'Collapse'}>
-        {collapsed ? <PanelLeft /> : <PanelLeftClose />}
-        <span>Collapse</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <span className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${dotColor} z-10`} />
   );
 }
 
+function UsageBars() {
+  const rateLimits = useStore((s) => s.rateLimits);
+  if (!rateLimits) return null;
+  const { fiveHour, sevenDay } = rateLimits;
+  if (!fiveHour && !sevenDay) return null;
+
+  return (
+    <div className="px-2 py-1.5 space-y-1.5 group-data-[collapsible=icon]/sidebar:hidden border-t border-sidebar-border pt-2">
+      {fiveHour && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[9px] text-sidebar-foreground-faint">Session 5h</span>
+            <span className="text-[9px] text-sidebar-foreground-faint">
+              {formatSessionReset(fiveHour.resetsAt)}
+            </span>
+          </div>
+          <div className={`h-[3px] w-full rounded-full overflow-hidden ${barTrackColor(fiveHour.usedPercentage)}`}>
+            <div
+              className={`h-full rounded-full transition-all ${barColor(fiveHour.usedPercentage)}`}
+              style={{ width: `${Math.min(100, fiveHour.usedPercentage)}%` }}
+            />
+          </div>
+        </div>
+      )}
+      {sevenDay && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[9px] text-sidebar-foreground-faint">Week</span>
+            <span className="text-[9px] text-sidebar-foreground-faint">
+              {formatWeekReset(sevenDay.resetsAt)}
+            </span>
+          </div>
+          <div className={`h-[3px] w-full rounded-full overflow-hidden ${barTrackColor(sevenDay.usedPercentage)}`}>
+            <div
+              className={`h-full rounded-full transition-all ${barColor(sevenDay.usedPercentage)}`}
+              style={{ width: `${Math.min(100, sevenDay.usedPercentage)}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConnectionIndicator() {
+  return (
+    <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-sidebar-foreground-faint group-data-[collapsible=icon]/sidebar:hidden">
+      <span className="relative flex h-1.5 w-1.5">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+      </span>
+      <span>Connected</span>
+    </div>
+  );
+}
+
+// --- Main Component ---
+
 export default function AppSidebar() {
   const pathname = useLocation().pathname;
-  const { darkMode, toggleDarkMode, vaultUnreadCount } = useStore();
-  const whatsNewHasNew = useWhatsNewBadge();
-  const { undismissed: undismissedNotifications } = useNotifications();
-  const notificationCount = undismissedNotifications.length;
+  const { darkMode, toggleDarkMode } = useStore();
+  const { toggleSidebar, state } = useSidebar();
+  const collapsed = state === 'collapsed';
 
   return (
     <Sidebar collapsible="icon">
       {/* macOS traffic light spacer */}
       <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
-      <SidebarHeader className="group-data-[collapsible=icon]/sidebar:p-0">
-        <div className="flex items-center justify-center px-2 py-2 group-data-[collapsible=icon]/sidebar:px-0">
+
+      {/* Header: logo + hover-reveal collapse buttons */}
+      <SidebarHeader className="group/header group-data-[collapsible=icon]/sidebar:p-1">
+        <div className="flex items-center px-2 py-2 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
           <img
             src="/dorotoring-large.svg"
-            alt="Dorotoring"
+            alt="Dorothy"
             className="h-6 w-auto dark:invert group-data-[collapsible=icon]/sidebar:hidden"
           />
           <img
             src="/dorotoing.svg"
-            alt="Dorotoring"
+            alt="Dorothy"
             className="w-6 h-6 dark:invert hidden group-data-[collapsible=icon]/sidebar:block"
           />
+          {/* Collapse buttons — visible on hover of header */}
+          <div className="ml-auto flex gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity duration-150 group-data-[collapsible=icon]/sidebar:hidden">
+            <button
+              onClick={toggleSidebar}
+              className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              title="Collapse to icons (⌘B)"
+            >
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('sidebar-hide'))}
+              className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              title="Hide sidebar (⌘⇧B)"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-        <CollapseToggle />
+        {/* When collapsed: show expand button */}
+        {collapsed && (
+          <button
+            onClick={toggleSidebar}
+            className="p-1 mx-auto rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            title="Expand sidebar (⌘B)"
+          >
+            <PanelLeft className="w-3.5 h-3.5" />
+          </button>
+        )}
       </SidebarHeader>
 
+      {/* Navigation */}
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarMenu>
-            {navItems.map((item) => {
+        <SidebarGroup className="group-data-[collapsible=icon]/sidebar:px-1">
+          <SidebarMenu className="gap-px">
+            {NAV_ITEMS.map((item) => {
               const active = isActive(item.href, pathname);
-              const showVaultBadge = item.href === '/vault' && vaultUnreadCount > 0;
-              const showNotifBadge = item.href === '/agents' && notificationCount > 0;
-              const showWhatsNewBadge = item.href === '/whats-new' && whatsNewHasNew;
-
               return (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                <SidebarMenuItem key={item.href} className="relative">
+                  <SidebarMenuButton
+                    asChild
+                    isActive={active}
+                    tooltip={item.label}
+                    className="rounded-[6px] text-[12.5px] text-sidebar-foreground-muted data-[active=true]:text-sidebar-foreground data-[active=true]:bg-sidebar-accent hover:bg-sidebar-accent/60 transition-colors duration-150"
+                  >
                     <Link to={item.href}>
-                      <item.icon />
+                      <item.icon className={active ? 'opacity-70' : 'opacity-45'} />
                       <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
-                  {showVaultBadge && (
-                    <SidebarMenuBadge>
-                      <Badge variant="default" className="h-5 min-w-5 px-1 text-[10px]">
-                        {vaultUnreadCount}
-                      </Badge>
-                    </SidebarMenuBadge>
-                  )}
-                  {showNotifBadge && (
-                    <SidebarMenuBadge>
-                      <Badge
-                        variant="destructive"
-                        className="h-5 min-w-5 px-1 text-[10px] bg-orange-500"
-                      >
-                        {notificationCount}
-                      </Badge>
-                    </SidebarMenuBadge>
-                  )}
-                  {showWhatsNewBadge && (
-                    <SidebarMenuBadge>
-                      <Badge variant="destructive" className="h-5 min-w-5 px-1 text-[10px]">
-                        1
-                      </Badge>
-                    </SidebarMenuBadge>
-                  )}
+                  <NavBadge href={item.href} />
                 </SidebarMenuItem>
               );
             })}
@@ -261,39 +317,32 @@ export default function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
+      {/* Footer */}
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive('/settings', pathname)}
-              tooltip="Settings"
-            >
-              <Link to="/settings">
-                <Settings />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip={darkMode ? 'Light Mode' : 'Dark Mode'}>
-              <Button variant="ghost" className="w-full justify-start" onClick={toggleDarkMode}>
-                {darkMode ? <Sun /> : <Moon />}
-                <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-              </Button>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <UsageBars />
-        <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]/sidebar:hidden">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-          </span>
-          <span>Connected</span>
+        <ConnectionIndicator />
+        {/* Settings + Dark mode: same line when expanded, stacked in icon mode */}
+        <div className="flex items-center gap-1 px-2 group-data-[collapsible=icon]/sidebar:flex-col group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:gap-1">
+          <SidebarMenuButton
+            asChild
+            isActive={isActive('/settings', pathname)}
+            tooltip="Settings"
+            className="rounded-[6px] text-[12.5px] text-sidebar-foreground-muted data-[active=true]:text-sidebar-foreground flex-1"
+          >
+            <Link to="/settings">
+              <Settings className="opacity-45" />
+              <span className="group-data-[collapsible=icon]/sidebar:hidden">Settings</span>
+            </Link>
+          </SidebarMenuButton>
+          <button
+            onClick={toggleDarkMode}
+            className="p-2 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+            title={darkMode ? 'Light Mode' : 'Dark Mode'}
+          >
+            {darkMode ? <Sun className="w-4 h-4 opacity-45" /> : <Moon className="w-4 h-4 opacity-45" />}
+          </button>
         </div>
+        <UsageBars />
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   );
 }
