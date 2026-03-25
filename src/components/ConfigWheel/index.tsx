@@ -58,7 +58,7 @@ export const ConfigWheel = memo(function ConfigWheel({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" side="bottom" className="w-72 p-3 space-y-3">
+      <PopoverContent align="end" side="bottom" className="w-72 p-3 space-y-3" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
         {/* Name */}
         <div className="space-y-1">
           <Label htmlFor="cw-name" className="text-xs">Name</Label>

@@ -72,11 +72,7 @@ export function useElectronAgents() {
   // Update an agent
   const updateAgent = useCallback(async (params: {
     id: string;
-    skills?: string[];
-    secondaryPaths?: string[] | null;
-    skipPermissions?: boolean;
-    name?: string;
-    character?: AgentCharacter;
+    [key: string]: unknown;
   }) => {
     if (!isTauri()) {
       throw new Error('Tauri API not available');
