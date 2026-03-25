@@ -22,6 +22,8 @@
 | `src/components/TerminalsView/hooks/useMultiTerminal.ts` | Modify | Use unified key handler, use TerminalWriteManager, attach WebGL with tab lifecycle |
 | `src/components/MosaicTerminalView/TerminalTile.tsx` | Modify | Use unified key handler, use TerminalWriteManager, attach WebGL |
 | `src/components/AgentTerminalDialog/useQuickTerminal.ts` | Modify | Use unified key handler, use TerminalWriteManager, attach WebGL |
+| `src/components/AgentTerminalDialog/useAgentDialogTerminal.ts` | Modify | Use unified key handler, use TerminalWriteManager |
+| `src/components/TrayPanel/useTrayTerminal.ts` | Modify | Use unified key handler, use TerminalWriteManager |
 | `src-tauri/src/pty.rs` | Modify | Add `paused: AtomicBool` to `PtyHandle`, check in reader loop |
 | `src-tauri/src/commands/pty.rs` | Modify | Add `pty_pause` and `pty_resume` commands |
 | `src-tauri/src/lib.rs` | Modify | Register `pty_pause` and `pty_resume` |
@@ -132,8 +134,10 @@ git commit -m "feat(terminal): unified key handler with Ctrl+C copy and Ctrl+V p
 - Modify: `src/hooks/useAgentTerminal.ts` (line 7 import, line 127 call)
 - Modify: `src/components/TerminalsView/hooks/useMultiTerminal.ts` (line 13 import, line 203 call)
 - Modify: `src/components/AgentTerminalDialog/useQuickTerminal.ts` (line 8 import, line 101 call)
+- Modify: `src/components/AgentTerminalDialog/useAgentDialogTerminal.ts` (line 9 import, line 109 call)
+- Modify: `src/components/TrayPanel/useTrayTerminal.ts` (line 8 import, line 109 call)
 
-- [ ] **Step 1: Update imports and calls in all three files**
+- [ ] **Step 1: Update imports and calls in all five files**
 
 In each file, change:
 ```typescript
@@ -150,10 +154,12 @@ import { attachKeyHandler } from '@/lib/terminal';
 attachKeyHandler(term, (data) => { ... });
 ```
 
-Files and lines:
+Files:
 - `src/hooks/useAgentTerminal.ts`: import line 7, call line 127
 - `src/components/TerminalsView/hooks/useMultiTerminal.ts`: import line 13, call line 203
 - `src/components/AgentTerminalDialog/useQuickTerminal.ts`: import line 8, call line 101
+- `src/components/AgentTerminalDialog/useAgentDialogTerminal.ts`: import line 9 (also imports `stripCursorSequences` — keep that), call line 109
+- `src/components/TrayPanel/useTrayTerminal.ts`: import line 8, call line 109
 
 - [ ] **Step 2: Add `attachKeyHandler` to `TerminalTile.tsx`**
 
@@ -164,16 +170,12 @@ In `src/components/MosaicTerminalView/TerminalTile.tsx`, add import at top:
 import { attachKeyHandler } from '@/lib/terminal';
 ```
 
-Then after `term.open(container)` (around line 74), before the `if (!isTauri())` check, add:
+Then after `ptyId` is resolved (after line 110), just before the `term.onData()` call (line 123), add:
 ```typescript
       attachKeyHandler(term, (data) => {
-        if (ptyId && isTauri()) {
-          invoke('pty_write', { ptyId, data }).catch(() => {});
-        }
+        invoke('pty_write', { ptyId, data }).catch(() => {});
       });
 ```
-
-Note: `ptyId` is declared later in the function. Move the `attachKeyHandler` call to after `ptyId` is resolved (after line 110), just before the `term.onData()` call (line 123).
 
 - [ ] **Step 3: Remove deprecated alias from terminal.ts**
 
@@ -183,15 +185,23 @@ Once all call sites are updated, remove the deprecated alias from `src/lib/termi
 export const attachShiftEnterHandler = attachKeyHandler;
 ```
 
-- [ ] **Step 4: Verify build compiles**
+- [ ] **Step 4: Also remove duplicate `stripCursorSequences` from `useAgentTerminal.ts`**
+
+`useAgentTerminal.ts` has a local copy of `stripCursorSequences` (lines 23-39) that duplicates `src/lib/terminal.ts`. Add the import:
+```typescript
+import { attachKeyHandler, stripCursorSequences } from '@/lib/terminal';
+```
+Then delete the local `stripCursorSequences` function (lines 23-39).
+
+- [ ] **Step 5: Verify build compiles**
 
 Run: `npm run build 2>&1 | head -30`
 Expected: No errors
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/hooks/useAgentTerminal.ts src/components/TerminalsView/hooks/useMultiTerminal.ts src/components/AgentTerminalDialog/useQuickTerminal.ts src/components/MosaicTerminalView/TerminalTile.tsx src/lib/terminal.ts
+git add src/hooks/useAgentTerminal.ts src/components/TerminalsView/hooks/useMultiTerminal.ts src/components/AgentTerminalDialog/useQuickTerminal.ts src/components/AgentTerminalDialog/useAgentDialogTerminal.ts src/components/TrayPanel/useTrayTerminal.ts src/components/MosaicTerminalView/TerminalTile.tsx src/lib/terminal.ts
 git commit -m "refactor(terminal): migrate all call sites to unified attachKeyHandler"
 ```
 
@@ -275,7 +285,7 @@ git commit -m "feat(terminal): add WebGL renderer utilities with context loss fa
 
 ---
 
-## Task 4: Attach WebGL in Terminal Consumers
+## Task 4: Attach WebGL in Terminal Consumers with Tab-Aware Lifecycle
 
 **Files:**
 - Modify: `src/hooks/useAgentTerminal.ts`
@@ -283,11 +293,13 @@ git commit -m "feat(terminal): add WebGL renderer utilities with context loss fa
 - Modify: `src/components/AgentTerminalDialog/useQuickTerminal.ts`
 - Modify: `src/components/MosaicTerminalView/TerminalTile.tsx`
 
+**Key constraint:** Terminals survive tab switches but WebGL contexts are limited (~16). Only active-tab terminals should hold WebGL contexts.
+
 - [ ] **Step 1: useAgentTerminal — attach WebGL after `term.open()`**
 
-In `src/hooks/useAgentTerminal.ts`, add import:
+In `src/hooks/useAgentTerminal.ts`, update import:
 ```typescript
-import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
+import { attachKeyHandler, stripCursorSequences, attachWebGL, disposeWebGL } from '@/lib/terminal';
 ```
 
 After `term.open(container)` (line 97), add:
@@ -301,9 +313,9 @@ In the cleanup function (around line 233), before `xtermRef.current.dispose()`, 
         disposeWebGL(xtermRef.current);
 ```
 
-- [ ] **Step 2: useMultiTerminal — attach WebGL after `term.open()` with tab-aware lifecycle**
+- [ ] **Step 2: useMultiTerminal — attach WebGL with tab-aware lifecycle**
 
-In `src/components/TerminalsView/hooks/useMultiTerminal.ts`, add import:
+In `src/components/TerminalsView/hooks/useMultiTerminal.ts`, update import:
 ```typescript
 import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
 ```
@@ -314,19 +326,41 @@ After `term.open(container)` (line 158), add:
       attachWebGL(term);
 ```
 
-In the `unregisterContainer` function (around line 266), before `entry.terminal.dispose()`, add:
+Add two new methods to manage WebGL lifecycle across tab switches. These will be called by the parent component when tabs change:
+
+```typescript
+  // Dispose WebGL on all terminals (call when tab becomes inactive)
+  const suspendWebGL = useCallback(() => {
+    terminalsRef.current.forEach((entry) => {
+      if (!entry.disposed) disposeWebGL(entry.terminal);
+    });
+  }, []);
+
+  // Reattach WebGL on all terminals (call when tab becomes active)
+  const resumeWebGL = useCallback(() => {
+    terminalsRef.current.forEach((entry) => {
+      if (!entry.disposed) attachWebGL(entry.terminal);
+    });
+  }, []);
+```
+
+Add `suspendWebGL` and `resumeWebGL` to the return object.
+
+In `unregisterContainer`, before `entry.terminal.dispose()`:
 ```typescript
         disposeWebGL(entry.terminal);
 ```
 
-In the global cleanup (around line 421), before `entry.terminal.dispose()`, add:
+In global cleanup, before `entry.terminal.dispose()`:
 ```typescript
           disposeWebGL(entry.terminal);
 ```
 
+The parent component (`TerminalsView/index.tsx` or whoever manages tabs) should call `suspendWebGL()` when a tab becomes inactive and `resumeWebGL()` when a tab becomes active. This is wired up via the existing tab change handler.
+
 - [ ] **Step 3: useQuickTerminal — attach WebGL after `term.open()`**
 
-In `src/components/AgentTerminalDialog/useQuickTerminal.ts`, add import:
+In `src/components/AgentTerminalDialog/useQuickTerminal.ts`, update import:
 ```typescript
 import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
 ```
@@ -336,19 +370,14 @@ After `term.open(quickTerminalRef.current)` (line 73), add:
         attachWebGL(term);
 ```
 
-In the cleanup (line 134), before dispose:
-```typescript
-        disposeWebGL(quickXtermRef.current);
-```
-
-And in the dialog close effect (line 146), before dispose:
+In both cleanup paths (effect cleanup line 134, dialog close effect line 147), before dispose:
 ```typescript
         disposeWebGL(quickXtermRef.current);
 ```
 
 - [ ] **Step 4: TerminalTile — attach WebGL after `term.open()`**
 
-In `src/components/MosaicTerminalView/TerminalTile.tsx`, add import:
+In `src/components/MosaicTerminalView/TerminalTile.tsx`, update import:
 ```typescript
 import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
 ```
@@ -358,7 +387,7 @@ After `term.open(container)` (line 74), add:
       attachWebGL(term);
 ```
 
-In the cleanup (line 143), before `term.dispose()`, add:
+In cleanup (line 142), before `term.dispose()`:
 ```typescript
         disposeWebGL(term);
 ```
@@ -372,7 +401,7 @@ Expected: No errors
 
 ```bash
 git add src/hooks/useAgentTerminal.ts src/components/TerminalsView/hooks/useMultiTerminal.ts src/components/AgentTerminalDialog/useQuickTerminal.ts src/components/MosaicTerminalView/TerminalTile.tsx
-git commit -m "feat(terminal): attach WebGL renderer in all terminal consumers"
+git commit -m "feat(terminal): attach WebGL renderer with tab-aware lifecycle in all consumers"
 ```
 
 ---
@@ -460,7 +489,26 @@ Update the `PtyHandle` construction:
         };
 ```
 
-- [ ] **Step 3: Add `pause` and `resume` methods to `PtyManager`**
+- [ ] **Step 3: Update `kill()` to reset `paused` flag**
+
+In `src-tauri/src/pty.rs`, update the `kill` method to reset `paused` before killing the child. This prevents the reader thread from sleeping up to 5s after the PTY is destroyed:
+
+```rust
+    pub fn kill(&self, pty_id: &str) -> Result<(), String> {
+        let mut handles = self.handles.lock().unwrap();
+        if let Some(mut handle) = handles.remove(pty_id) {
+            // Resume reader thread immediately so it can exit cleanly
+            handle.paused.store(false, Ordering::Relaxed);
+            handle.child.kill().ok();
+        }
+        // Also clean up registry entries pointing to this pty
+        let mut registry = self.registry.lock().unwrap();
+        registry.retain(|_, v| v != pty_id);
+        Ok(())
+    }
+```
+
+- [ ] **Step 4: Add `pause` and `resume` methods to `PtyManager`**
 
 In `src-tauri/src/pty.rs`, add after the `kill` method:
 
@@ -486,7 +534,7 @@ In `src-tauri/src/pty.rs`, add after the `kill` method:
     }
 ```
 
-- [ ] **Step 4: Add IPC commands**
+- [ ] **Step 5: Add IPC commands**
 
 In `src-tauri/src/commands/pty.rs`, add:
 
@@ -502,7 +550,7 @@ pub fn pty_resume(pty_manager: State<'_, Arc<PtyManager>>, pty_id: String) -> Re
 }
 ```
 
-- [ ] **Step 5: Register commands in `lib.rs`**
+- [ ] **Step 6: Register commands in `lib.rs`**
 
 In `src-tauri/src/lib.rs`, add to the `invoke_handler` block after `commands::pty::pty_lookup`:
 
@@ -511,12 +559,12 @@ In `src-tauri/src/lib.rs`, add to the `invoke_handler` block after `commands::pt
             commands::pty::pty_resume,
 ```
 
-- [ ] **Step 6: Verify Rust build**
+- [ ] **Step 7: Verify Rust build**
 
 Run: `cd src-tauri && cargo check 2>&1 | tail -5`
 Expected: No errors
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src-tauri/src/pty.rs src-tauri/src/commands/pty.rs src-tauri/src/lib.rs
@@ -876,7 +924,99 @@ git commit -m "feat(terminal): migrate TerminalTile and useQuickTerminal to Term
 
 ---
 
-## Task 10: Manual Verification
+## Task 10: Migrate `useTrayTerminal` and `useAgentDialogTerminal` to TerminalWriteManager
+
+**Files:**
+- Modify: `src/components/TrayPanel/useTrayTerminal.ts`
+- Modify: `src/components/AgentTerminalDialog/useAgentDialogTerminal.ts`
+
+- [ ] **Step 1: Migrate useTrayTerminal**
+
+Add import:
+```typescript
+import { attachKeyHandler } from '@/lib/terminal';
+import { TerminalWriteManager } from '@/lib/terminal-write';
+```
+
+Replace the `agent:output` listener (lines 133-141). After it subscribes to TerminalWriteManager:
+
+After `doFitAndResize()` calls and output replay (around line 107), subscribe:
+```typescript
+      TerminalWriteManager.subscribe(agentId, term, agentId);
+```
+
+Replace the inline listener (lines 133-141):
+```typescript
+      if (isTauri()) {
+        listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+          const { agent_id, data } = event.payload;
+          if (agent_id === agentIdRef.current) {
+            TerminalWriteManager.write(agent_id, new Uint8Array(data));
+          }
+        }).then(fn => { unsubOutput = fn; });
+      }
+```
+
+In cleanup (line 146), before dispose:
+```typescript
+      TerminalWriteManager.unsubscribe(agentId);
+```
+
+- [ ] **Step 2: Migrate useAgentDialogTerminal**
+
+Add import:
+```typescript
+import { TerminalWriteManager } from '@/lib/terminal-write';
+```
+
+After `setTerminalReady(true)` (line 130), subscribe:
+```typescript
+        TerminalWriteManager.subscribe(agent.id, term, agent.ptyId || agent.id);
+```
+
+Replace the `agent:output` listener effect (lines 172-188):
+```typescript
+  useEffect(() => {
+    if (!isTauri() || !terminalReady || !agent?.id) return;
+    agentIdRef.current = agent.id;
+
+    let unlisten: (() => void) | undefined;
+
+    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      const { agent_id, data } = event.payload;
+      if (agent_id === agent.id) {
+        if (TerminalWriteManager.has(agent_id)) {
+          TerminalWriteManager.write(agent_id, new Uint8Array(data));
+        } else if (xtermRef.current) {
+          xtermRef.current.write(new Uint8Array(data));
+        }
+      }
+    }).then(fn => { unlisten = fn; });
+
+    return () => { unlisten?.(); };
+  }, [terminalReady, agent?.id]);
+```
+
+In cleanup (line 161), before dispose:
+```typescript
+      if (agent?.id) TerminalWriteManager.unsubscribe(agent.id);
+```
+
+- [ ] **Step 3: Verify build**
+
+Run: `npm run build 2>&1 | head -30`
+Expected: No errors
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/components/TrayPanel/useTrayTerminal.ts src/components/AgentTerminalDialog/useAgentDialogTerminal.ts
+git commit -m "feat(terminal): migrate useTrayTerminal and useAgentDialogTerminal to TerminalWriteManager"
+```
+
+---
+
+## Task 11: Manual Verification
 
 - [ ] **Step 1: Full build check**
 
