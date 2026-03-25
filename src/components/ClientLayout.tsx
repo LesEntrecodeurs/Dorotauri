@@ -5,9 +5,40 @@ import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useElectronAgents } from '@/hooks/useElectron';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
-import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import HoverTitlebar from './HoverTitlebar';
+
+const isMacOS = document.documentElement.classList.contains('macos-titlebar');
 
 const MosaicTerminalView = lazy(() => import('./MosaicTerminalView'));
+
+/** Cmd+B keyboard handler — cycles through 3 sidebar states: expanded → collapsed → hidden → expanded */
+function SidebarKeyboardCycler({ sidebarHidden, setSidebarHidden }: { sidebarHidden: boolean; setSidebarHidden: React.Dispatch<React.SetStateAction<boolean>> }) {
+  const { state, toggleSidebar } = useSidebar();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.code === 'KeyB') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (sidebarHidden) {
+          // Hidden → Full menu
+          setSidebarHidden(false);
+        } else if (state === 'expanded') {
+          // Full menu → Icons
+          toggleSidebar();
+        } else {
+          // Icons → Hidden
+          setSidebarHidden(true);
+        }
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [sidebarHidden, setSidebarHidden, state, toggleSidebar]);
+
+  return null;
+}
 
 /** Overlay sidebar — slides in from left edge on hover, dismisses on mouse leave or nav click */
 function SidebarOverlay({ children }: { children: React.ReactNode }) {
@@ -63,9 +94,6 @@ export default function ClientLayout() {
   useUsageLimits();
   const isOnDashboard = location.pathname === '/';
 
-  // --- Zen mode ---
-  const [zenMode, setZenMode] = useState(false);
-
   // --- Sidebar hidden mode (persisted) ---
   const [sidebarHidden, setSidebarHidden] = useState(() => {
     return localStorage.getItem('sidebar_hidden') === 'true';
@@ -76,45 +104,31 @@ export default function ClientLayout() {
     localStorage.setItem('sidebar_hidden', String(sidebarHidden));
   }, [sidebarHidden]);
 
-  // Listen for sidebar-hide event from Sidebar.tsx X button
+  // Listen for sidebar-toggle-hidden event from Sidebar.tsx fullscreen button
   useEffect(() => {
-    const handleHide = () => setSidebarHidden(true);
-    window.addEventListener('sidebar-hide', handleHide);
-    return () => window.removeEventListener('sidebar-hide', handleHide);
+    const handleToggle = () => setSidebarHidden(prev => !prev);
+    window.addEventListener('sidebar-toggle-hidden', handleToggle);
+    return () => window.removeEventListener('sidebar-toggle-hidden', handleToggle);
   }, []);
 
-  // Toggle zen mode with F11 or Ctrl+Shift+F
-  const toggleZen = useCallback(() => setZenMode(prev => !prev), []);
+  // F11: toggle sidebar hidden (fullscreen mode)
+  // Uses event.code for cross-platform reliability (WebKitGTK on Linux).
+  // Uses capture phase to intercept before xterm or other handlers consume the event.
+  const toggleHidden = useCallback(() => setSidebarHidden(prev => !prev), []);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'F11') {
+      if (e.code === 'F11') {
         e.preventDefault();
-        toggleZen();
-      }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
-        e.preventDefault();
-        toggleZen();
+        toggleHidden();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [toggleZen]);
-
-  // Cmd+Shift+B: toggle hidden mode
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'b') {
-        e.preventDefault();
-        setSidebarHidden(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
+  }, [toggleHidden]);
 
   // Initialize dark mode from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('dorotauri-dark-mode');
+    const saved = localStorage.getItem('dorotoring-dark-mode');
     if (saved === 'true') {
       setDarkMode(true);
     }
@@ -123,7 +137,7 @@ export default function ClientLayout() {
   // Sync dark class on <html> and persist to localStorage
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
-    localStorage.setItem('dorotauri-dark-mode', String(darkMode));
+    localStorage.setItem('dorotoring-dark-mode', String(darkMode));
   }, [darkMode]);
 
   // Global vault unread badge
@@ -135,23 +149,26 @@ export default function ClientLayout() {
     void setVaultUnreadCount;
   }, [setVaultUnreadCount]);
 
-  // Zen mode on dashboard → use overlay
-  const zenDashboard = zenMode && isOnDashboard;
-  const showOverlay = zenDashboard || sidebarHidden;
+  const showOverlay = sidebarHidden;
 
   return (
-    <SidebarProvider
-      key={showOverlay ? 'overlay' : 'normal'}
-      defaultOpen={!showOverlay}
-    >
+    <>
+      {!isMacOS && <HoverTitlebar />}
+      <SidebarProvider
+        key={showOverlay ? 'overlay' : 'normal'}
+        defaultOpen={!showOverlay}
+      >
+      <SidebarKeyboardCycler sidebarHidden={sidebarHidden} setSidebarHidden={setSidebarHidden} />
       {showOverlay ? (
         <SidebarOverlay>
-          <AppSidebar />
+          <AppSidebar sidebarHidden={sidebarHidden} />
         </SidebarOverlay>
       ) : (
-        <AppSidebar />
+        <AppSidebar sidebarHidden={sidebarHidden} />
       )}
-      <SidebarInset className="h-svh overflow-hidden">
+      <SidebarInset className="h-svh overflow-hidden relative">
+        {/* Floating sidebar toggle — always accessible */}
+        <SidebarTrigger className="absolute top-2 left-2 z-40 opacity-30 hover:opacity-100 transition-opacity" />
         <main className="flex-1 overflow-auto h-full">
           {/* Persistent terminal layer — always mounted, hidden when not on dashboard */}
           <div
@@ -159,7 +176,7 @@ export default function ClientLayout() {
             className="h-svh flex-col"
           >
             <Suspense fallback={null}>
-              <MosaicTerminalView agents={agents} zenMode={zenDashboard} createAgent={createAgent} updateAgent={updateAgent} />
+              <MosaicTerminalView agents={agents} zenMode={sidebarHidden} createAgent={createAgent} updateAgent={updateAgent} />
             </Suspense>
           </div>
 
@@ -172,6 +189,7 @@ export default function ClientLayout() {
         </main>
       </SidebarInset>
       <NotificationToast />
-    </SidebarProvider>
+      </SidebarProvider>
+    </>
   );
 }
