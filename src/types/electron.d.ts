@@ -1,14 +1,14 @@
-export type DisplayStatus = 'working' | 'waiting' | 'done' | 'ready' | 'stopped' | 'error';
+export type DisplayStatus = 'working' | 'waiting' | 'done' | 'ready' | 'sleeping' | 'error';
 
 export interface AgentTickItem {
   id: string;
   name: string;
   character: string;
-  status: 'idle' | 'running' | 'completed' | 'error' | 'waiting';
+  processState: ProcessState;
   displayStatus: DisplayStatus;
   statusLine: string;
-  currentTask: string;
-  projectName: string;
+  businessState: string;
+  cwd: string;
   lastActivity: string;
   provider: string;
 }
@@ -123,31 +123,50 @@ export interface WorktreeConfig {
   branchName: string;
 }
 
+export type ProcessState = 'inactive' | 'running' | 'waiting' | 'error' | 'completed' | 'dormant';
+
 export type AgentCharacter = 'robot' | 'ninja' | 'wizard' | 'astronaut' | 'knight' | 'pirate' | 'alien' | 'viking' | 'frog';
 
 export type AgentProvider = 'claude' | 'codex' | 'gemini' | 'opencode' | 'pi' | 'local';
 
-export interface AgentStatus {
+export interface Agent {
   id: string;
-  status: 'idle' | 'running' | 'completed' | 'error' | 'waiting';
-  projectPath: string;
-  secondaryProjectPath?: string; // Secondary project added via --add-dir
-  worktreePath?: string;
-  branchName?: string;
+  name?: string;
+  role?: string;
+  character?: AgentCharacter;
   skills: string[];
-  currentTask?: string;
+  cwd: string;
+  secondaryPaths: string[];
+  ptyId?: string;
+  provider?: AgentProvider;
+  localModel?: string;
+  skipPermissions: boolean;
+  processState: ProcessState;
+  businessState?: string;
+  businessStateUpdatedBy?: 'inference' | 'super_agent';
+  businessStateUpdatedAt?: string;
+  statusLine?: string;
+  tabId: string;
+  isSuperAgent: boolean;
+  superAgentScope?: 'tab' | 'all';
+  scheduledTaskIds: string[];
+  automationIds: string[];
   output: string[];
   lastActivity: string;
+  createdAt: string;
+  worktreePath?: string;
+  branchName?: string;
   error?: string;
-  ptyId?: string;
-  character?: AgentCharacter;
-  name?: string;
-  statusLine?: string;    // ANSI-stripped last meaningful output line
-  pathMissing?: boolean; // True if project path no longer exists
-  skipPermissions?: boolean; // If true, use --dangerously-skip-permissions flag
-  provider?: AgentProvider;   // 'claude' (default) or 'local' (Tasmania)
-  localModel?: string;        // Tasmania model name when provider is 'local'
-  obsidianVaultPaths?: string[]; // Obsidian vault paths to mount via --add-dir (read-only)
+  obsidianVaultPaths?: string[];
+  pathMissing?: boolean;
+  kanbanTaskId?: string;
+  currentSessionId?: string;
+}
+
+export interface Tab {
+  id: string;
+  name: string;
+  layout?: unknown;
 }
 
 export interface PtyDataEvent {
@@ -179,39 +198,63 @@ export interface ElectronAPI {
   // Agent management
   agent: {
     create: (config: {
-      projectPath: string;
-      skills: string[];
+      cwd?: string;
+      skills?: string[];
       worktree?: WorktreeConfig;
       character?: AgentCharacter;
       name?: string;
-      secondaryProjectPath?: string;
+      role?: string;
+      secondaryPaths?: string[];
       skipPermissions?: boolean;
       provider?: AgentProvider;
       localModel?: string;
       obsidianVaultPaths?: string[];
-    }) => Promise<AgentStatus & { ptyId: string }>;
+      tabId?: string;
+    }) => Promise<Agent>;
     update: (params: {
       id: string;
-      skills?: string[];
-      secondaryProjectPath?: string | null;
-      skipPermissions?: boolean;
       name?: string;
+      role?: string;
       character?: AgentCharacter;
-    }) => Promise<{ success: boolean; error?: string; agent?: AgentStatus }>;
+      skills?: string[];
+      cwd?: string;
+      secondaryPaths?: string[] | null;
+      skipPermissions?: boolean;
+      provider?: AgentProvider;
+      localModel?: string;
+      tabId?: string;
+      isSuperAgent?: boolean;
+      superAgentScope?: 'tab' | 'all';
+      businessState?: string;
+      statusLine?: string;
+      obsidianVaultPaths?: string[];
+    }) => Promise<{ success: boolean; error?: string; agent?: Agent }>;
     start: (params: { id: string; prompt: string; options?: { model?: string; resume?: boolean; provider?: AgentProvider; localModel?: string } }) => Promise<{ success: boolean }>;
-    get: (id: string) => Promise<AgentStatus | null>;
-    list: () => Promise<AgentStatus[]>;
+    get: (id: string) => Promise<Agent | null>;
+    list: () => Promise<Agent[]>;
     stop: (id: string) => Promise<{ success: boolean }>;
     remove: (id: string) => Promise<{ success: boolean }>;
     sendInput: (params: { id: string; input: string }) => Promise<{ success: boolean }>;
     resize: (params: { id: string; cols: number; rows: number }) => Promise<{ success: boolean }>;
-    setSecondaryProject: (params: { id: string; secondaryProjectPath: string | null }) => Promise<{ success: boolean; error?: string; agent?: AgentStatus }>;
+    setDormant: (id: string) => Promise<void>;
+    reanimate: (id: string) => Promise<Agent>;
+    updateBusinessState: (params: { id: string; businessState: string }) => Promise<void>;
     onOutput: (callback: (event: AgentEvent) => void) => () => void;
     onError: (callback: (event: AgentEvent) => void) => () => void;
     onComplete: (callback: (event: AgentEvent) => void) => () => void;
     onToolUse: (callback: (event: AgentEvent) => void) => () => void;
-    onStatus?: (callback: (event: { type: string; agentId: string; status: string; timestamp: string }) => void) => () => void;
+    onStatus?: (callback: (event: { type: string; agentId: string; processState: ProcessState; timestamp: string }) => void) => () => void;
     onTick?: (callback: (agents: AgentTickItem[]) => void) => () => void;
+    onCwdChanged?: (callback: (event: { agentId: string; cwd: string }) => void) => () => void;
+  };
+
+  // Tab management
+  tab: {
+    list: () => Promise<Tab[]>;
+    create: (name: string) => Promise<Tab>;
+    update: (params: { id: string; name?: string; layout?: unknown }) => Promise<void>;
+    delete: (id: string) => Promise<void>;
+    reorder: (tabIds: string[]) => Promise<void>;
   };
 
   // Skills management
