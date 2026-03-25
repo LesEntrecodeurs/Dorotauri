@@ -386,6 +386,27 @@ pub fn agent_update(
         if let Some(bs) = params.get("businessState").and_then(|v| v.as_str()) {
             agent.business_state = Some(bs.to_string());
         }
+        if let Some(sl) = params.get("statusLine").and_then(|v| v.as_str()) {
+            agent.status_line = Some(sl.to_string());
+
+            // Only infer if Super Agent hasn't set a value in the last 60s
+            let should_infer = match (&agent.business_state_updated_by, &agent.business_state_updated_at) {
+                (Some(by), Some(at)) if by == "super_agent" => {
+                    chrono::DateTime::parse_from_rfc3339(at)
+                        .map(|t| chrono::Utc::now().signed_duration_since(t).num_seconds() > 60)
+                        .unwrap_or(true)
+                }
+                _ => true,
+            };
+
+            if should_infer {
+                if let Some(inferred) = crate::business_state::infer_business_state(sl) {
+                    agent.business_state = Some(inferred);
+                    agent.business_state_updated_by = Some("inference".to_string());
+                    agent.business_state_updated_at = Some(chrono::Utc::now().to_rfc3339());
+                }
+            }
+        }
 
         agent.last_activity = now;
         agent.clone()
@@ -490,6 +511,28 @@ pub fn agent_reanimate(
     state.save_agents();
     app_handle.emit("agent:status", &updated).ok();
     Ok(updated)
+}
+
+// ---------------------------------------------------------------------------
+// agent_update_business_state — Super Agent sets businessState explicitly
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn agent_update_business_state(
+    id: AgentId,
+    business_state: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let now = chrono::Utc::now().to_rfc3339();
+    {
+        let mut agents = state.agents.lock().unwrap();
+        let agent = agents.get_mut(&id).ok_or_else(|| format!("agent not found: {id}"))?;
+        agent.business_state = Some(business_state);
+        agent.business_state_updated_by = Some("super_agent".to_string());
+        agent.business_state_updated_at = Some(now);
+    }
+    state.save_agents();
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
