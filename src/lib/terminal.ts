@@ -65,3 +65,52 @@ export function attachKeyHandler(
   });
 }
 
+
+// ---------------------------------------------------------------------------
+// WebGL Renderer — attach/dispose with context loss fallback
+// ---------------------------------------------------------------------------
+
+// Track WebGL addon per terminal instance (WeakMap avoids memory leaks)
+const webglAddons = new WeakMap<Terminal, import('xterm-addon-webgl').WebglAddon>();
+
+/**
+ * Attach WebGL renderer to a terminal for GPU-accelerated rendering.
+ * Falls back silently to DOM renderer if WebGL2 is unavailable or context is lost.
+ *
+ * @param term - The xterm Terminal instance (must already be opened)
+ * @returns true if WebGL was attached, false if it fell back to DOM
+ */
+export async function attachWebGL(term: Terminal): Promise<boolean> {
+  // Don't double-attach
+  if (webglAddons.has(term)) return true;
+
+  try {
+    const { WebglAddon } = await import('xterm-addon-webgl');
+    const addon = new WebglAddon();
+
+    // On context loss, dispose and fall back to DOM renderer
+    addon.onContextLoss(() => {
+      disposeWebGL(term);
+    });
+
+    term.loadAddon(addon);
+    webglAddons.set(term, addon);
+    return true;
+  } catch {
+    // WebGL2 not available — DOM renderer stays active
+    return false;
+  }
+}
+
+/**
+ * Dispose the WebGL renderer addon. Terminal falls back to DOM renderer.
+ * Safe to call even if WebGL was never attached.
+ */
+export function disposeWebGL(term: Terminal): void {
+  const addon = webglAddons.get(term);
+  if (addon) {
+    try { addon.dispose(); } catch {}
+    webglAddons.delete(term);
+  }
+}
+
