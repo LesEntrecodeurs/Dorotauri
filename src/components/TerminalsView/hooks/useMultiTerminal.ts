@@ -10,7 +10,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { TERMINAL_CONFIG } from '../constants';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
-import { attachKeyHandler } from '@/lib/terminal';
+import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
+import { TerminalWriteManager } from '@/lib/terminal-write';
 
 interface TerminalEntry {
   terminal: Terminal;
@@ -156,6 +157,7 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       const fitAddon = new modules.FitAddon();
       term.loadAddon(fitAddon);
       term.open(container);
+      attachWebGL(term);
 
       const entry: TerminalEntry = {
         terminal: term,
@@ -234,6 +236,9 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       // Notify caller that this terminal is ready to receive output
       onTerminalReadyRef.current?.(agentId);
 
+      // Subscribe to PTY output via centralized write manager (flow control)
+      TerminalWriteManager.subscribe(agentId, term, agentId);
+
     } finally {
       initializingRef.current.delete(agentId);
     }
@@ -251,6 +256,7 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
     // Dispose old terminal if switching containers
     if (existing && !existing.disposed) {
       existing.resizeObserver?.disconnect();
+      disposeWebGL(existing.terminal);
       existing.terminal.dispose();
       existing.disposed = true;
     }
@@ -264,6 +270,8 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
     if (entry) {
       entry.resizeObserver?.disconnect();
       if (!entry.disposed) {
+        TerminalWriteManager.unsubscribe(agentId);
+        disposeWebGL(entry.terminal);
         entry.terminal.dispose();
         entry.disposed = true;
       }
@@ -321,6 +329,20 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
     if (entry && !entry.disposed) {
       safeFit(agentId, entry);
     }
+  }, []);
+
+  // Dispose WebGL on all terminals (call when tab becomes inactive)
+  const suspendWebGL = useCallback(() => {
+    terminalsRef.current.forEach((entry) => {
+      if (!entry.disposed) disposeWebGL(entry.terminal);
+    });
+  }, []);
+
+  // Reattach WebGL on all terminals (call when tab becomes active)
+  const resumeWebGL = useCallback(() => {
+    terminalsRef.current.forEach((entry) => {
+      if (!entry.disposed) attachWebGL(entry.terminal);
+    });
   }, []);
 
   // Fit all terminals
@@ -399,7 +421,13 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
     listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
       const { agent_id, data } = event.payload;
       const bytes = new Uint8Array(data);
-      writeToTerminal(agent_id, bytes);
+      // Route through TerminalWriteManager for flow control
+      if (TerminalWriteManager.has(agent_id)) {
+        TerminalWriteManager.write(agent_id, bytes);
+      } else {
+        // Fallback: direct write for terminals not yet subscribed
+        writeToTerminal(agent_id, bytes);
+      }
     }).then(fn => { unsubOutput = fn; });
 
     listen<{ agentId: string; data: string }>('agent:error', (event) => {
@@ -416,9 +444,11 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
   // Cleanup all terminals on unmount
   useEffect(() => {
     return () => {
-      terminalsRef.current.forEach((entry) => {
+      terminalsRef.current.forEach((entry, agentId) => {
         entry.resizeObserver?.disconnect();
         if (!entry.disposed) {
+          TerminalWriteManager.unsubscribe(agentId);
+          disposeWebGL(entry.terminal);
           entry.terminal.dispose();
           entry.disposed = true;
         }
@@ -443,5 +473,7 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
     zoomOut,
     zoomReset,
     fontSize,
+    suspendWebGL,
+    resumeWebGL,
   };
 }
