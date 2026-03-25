@@ -431,7 +431,43 @@ impl AppState {
             match crate::migration::migrate_v0_to_v1(old_map, &path) {
                 Ok(agents) => return agents,
                 Err(e) => {
-                    eprintln!("[state] migration failed: {e}; starting with empty agent list");
+                    eprintln!("[state] migration failed: {e}; attempting to load backup as dormant agents");
+                    let backup_path = path.with_extension("v0.backup");
+                    if let Ok(backup_raw) = fs::read_to_string(&backup_path) {
+                        if let Ok(backup_map) =
+                            serde_json::from_str::<HashMap<String, serde_json::Value>>(&backup_raw)
+                        {
+                            let dormant_agents: HashMap<AgentId, Agent> = backup_map
+                                .into_iter()
+                                .filter_map(|(id, value)| {
+                                    let cwd = value
+                                        .get("projectPath")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let name = value
+                                        .get("name")
+                                        .and_then(|v| v.as_str())
+                                        .map(|s| s.to_string());
+                                    let agent = Agent {
+                                        id: id.clone(),
+                                        cwd,
+                                        name,
+                                        process_state: ProcessState::Dormant,
+                                        tab_id: "general".to_string(),
+                                        ..Default::default()
+                                    };
+                                    Some((id, agent))
+                                })
+                                .collect();
+                            eprintln!(
+                                "[state] loaded {} dormant agent(s) from backup",
+                                dormant_agents.len()
+                            );
+                            return dormant_agents;
+                        }
+                    }
+                    eprintln!("[state] backup not readable; starting with empty agent list");
                 }
             }
         }
