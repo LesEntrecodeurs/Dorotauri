@@ -190,16 +190,15 @@ pub fn agent_start(
         }
     }
 
-    // Super Agent: add MCP config so Claude Code has orchestrator tools
-    if agent_snapshot.is_super_agent {
-        let mcp_config = dirs::home_dir()
-            .unwrap_or_default()
-            .join(".claude")
-            .join("mcp.json");
-        if mcp_config.exists() {
-            cmd_parts.push("--mcp-config".into());
-            cmd_parts.push(mcp_config.to_string_lossy().to_string());
-        }
+    // Always add MCP config so orchestrator tools are available to all agents.
+    // This allows promoting an agent to Super Agent at any time without restarting.
+    let mcp_config = dirs::home_dir()
+        .unwrap_or_default()
+        .join(".claude")
+        .join("mcp.json");
+    if mcp_config.exists() {
+        cmd_parts.push("--mcp-config".into());
+        cmd_parts.push(mcp_config.to_string_lossy().to_string());
     }
 
     // Add secondary paths (--add-dir)

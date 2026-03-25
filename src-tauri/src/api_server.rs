@@ -532,8 +532,8 @@ pub fn build_cli_command(agent: &Agent, prompt: Option<&str>, settings: &AppSett
         }
     }
 
-    // Super Agent: add MCP config so Claude Code has orchestrator tools
-    if agent.is_super_agent {
+    // Always add MCP config so orchestrator tools are available to all agents
+    {
         let mcp_config = dirs::home_dir()
             .unwrap_or_default()
             .join(".claude")
