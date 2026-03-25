@@ -2,14 +2,14 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import type { AgentStatus, AgentEvent, AgentCharacter, AgentProvider, AgentTickItem } from '@/types/electron';
+import type { Agent, AgentEvent, AgentCharacter, AgentProvider, AgentTickItem } from '@/types/electron';
 
 // Re-export isTauri as isElectron for backward compatibility with consuming components
 export const isElectron = isTauri;
 
 // Hook for agent management via Tauri invoke
 export function useElectronAgents() {
-  const [agents, setAgents] = useState<AgentStatus[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch all agents
@@ -20,7 +20,7 @@ export function useElectronAgents() {
     }
 
     try {
-      const list = await invoke<AgentStatus[]>('agent_list');
+      const list = await invoke<Agent[]>('agent_list');
       // Only update state if data has actually changed to prevent unnecessary re-renders
       setAgents(prev => {
         // Quick length check first
@@ -30,8 +30,7 @@ export function useElectronAgents() {
           const prevAgent = prev[i];
           return (
             prevAgent.id !== agent.id ||
-            prevAgent.status !== agent.status ||
-            prevAgent.currentTask !== agent.currentTask ||
+            prevAgent.processState !== agent.processState ||
             prevAgent.lastActivity !== agent.lastActivity
           );
         });
@@ -61,7 +60,7 @@ export function useElectronAgents() {
       throw new Error('Tauri API not available');
     }
     try {
-      const agent = await invoke<AgentStatus>('agent_create', { config });
+      const agent = await invoke<Agent>('agent_create', { config });
       setAgents(prev => [...prev, agent]);
       return agent;
     } catch (err) {
@@ -82,7 +81,7 @@ export function useElectronAgents() {
       throw new Error('Tauri API not available');
     }
     try {
-      const result = await invoke<{ success: boolean; error?: string; agent?: AgentStatus }>('agent_update', { params });
+      const result = await invoke<{ success: boolean; error?: string; agent?: Agent }>('agent_update', { params });
       if (result.success && result.agent) {
         setAgents(prev => prev.map(a => a.id === params.id ? result.agent! : a));
       }
@@ -147,6 +146,33 @@ export function useElectronAgents() {
     }
   }, []);
 
+  // Set an agent to dormant state
+  const setDormant = useCallback(async (id: string) => {
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
+    }
+    await invoke('agent_set_dormant', { id });
+    fetchAgents();
+  }, [fetchAgents]);
+
+  // Reanimate a dormant agent
+  const reanimateAgent = useCallback(async (id: string): Promise<Agent> => {
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
+    }
+    const agent = await invoke<Agent>('agent_reanimate', { id });
+    fetchAgents();
+    return agent;
+  }, [fetchAgents]);
+
+  // Update the business state of an agent
+  const updateBusinessState = useCallback(async (id: string, businessState: string) => {
+    if (!isTauri()) {
+      throw new Error('Tauri API not available');
+    }
+    await invoke('agent_update_business_state', { id, businessState });
+  }, []);
+
   // Subscribe to agent events
   useEffect(() => {
     if (!isTauri()) return;
@@ -162,11 +188,11 @@ export function useElectronAgents() {
       fetchAgents();
     }).then(fn => unlistenFns.push(fn));
 
-    listen<{ agentId: string; status: string; timestamp: string }>('agent:status', (event) => {
+    listen<{ agentId: string; processState: string; timestamp: string }>('agent:status', (event) => {
       const e = event.payload;
       setAgents(prev => prev.map(a =>
         a.id === e.agentId
-          ? { ...a, status: e.status as AgentStatus['status'], lastActivity: e.timestamp || new Date().toISOString() }
+          ? { ...a, processState: e.processState as Agent['processState'], lastActivity: e.timestamp || new Date().toISOString() }
           : a
       ));
     }).then(fn => unlistenFns.push(fn));
@@ -178,18 +204,24 @@ export function useElectronAgents() {
         if (prev.length !== tickAgents.length) return prev;
         const hasStatusChange = tickAgents.some(t => {
           const existing = prev.find(a => a.id === t.id);
-          return existing && existing.status !== t.status;
+          return existing && existing.processState !== t.processState;
         });
         if (!hasStatusChange) return prev;
         return prev.map(a => {
           const tick = tickAgents.find(t => t.id === a.id);
-          if (tick && a.status !== tick.status) {
-            return { ...a, status: tick.status as AgentStatus['status'], lastActivity: tick.lastActivity };
+          if (tick && a.processState !== tick.processState) {
+            return { ...a, processState: tick.processState as Agent['processState'], lastActivity: tick.lastActivity };
           }
           return a;
         });
       });
     }).then(fn => unlistenFns.push(fn));
+
+    const cwdUnlisten = listen('agent:cwd-changed', (event: any) => {
+      const { agentId, cwd } = event.payload;
+      setAgents(prev => prev.map(a => a.id === agentId ? { ...a, cwd } : a));
+    });
+    cwdUnlisten.then(fn => unlistenFns.push(fn));
 
     return () => {
       unlistenFns.forEach(fn => fn());
@@ -211,6 +243,9 @@ export function useElectronAgents() {
     stopAgent,
     removeAgent,
     sendInput,
+    setDormant,
+    reanimateAgent,
+    updateBusinessState,
     refresh: fetchAgents,
   };
 }
