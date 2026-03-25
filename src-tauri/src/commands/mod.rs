@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod docker;
 pub mod layout;
 pub mod memory;
 pub mod pty;

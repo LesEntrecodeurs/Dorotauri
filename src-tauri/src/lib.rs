@@ -145,6 +145,11 @@ pub fn run() {
             commands::vault::vault_list_folders,
             commands::vault::vault_create_folder,
             commands::vault::vault_delete_folder,
+            // Docker commands
+            commands::docker::docker_list_containers,
+            commands::docker::docker_start_container,
+            commands::docker::docker_stop_container,
+            commands::docker::docker_restart_container,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

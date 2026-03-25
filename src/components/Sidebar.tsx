@@ -16,6 +16,7 @@ import {
   Sun,
   PanelLeftClose,
   PanelLeft,
+  Container,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -144,6 +145,7 @@ const navItems = [
   { href: '/plugins', icon: Puzzle, label: 'Plugins' },
   { href: '/projects', icon: FolderGit2, label: 'Projects' },
   { href: '/recurring-tasks', icon: Clock, label: 'Recurring Tasks' },
+  { href: '/docker', icon: Container, label: 'Docker' },
   { href: '/usage', icon: BarChart3, label: 'Usage' },
   { href: '/whats-new', icon: Megaphone, label: "What's New" },
 ];
