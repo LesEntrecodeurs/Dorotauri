@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.join(__dirname, '..');
 
-const sourcePath = path.join(rootDir, 'public', 'dorotauri-logo.png');
+const sourcePath = path.join(rootDir, 'public', 'dorotoring-logo.png');
 const iconsetDir = path.join(rootDir, 'icon.iconset');
 const icnsPath = path.join(rootDir, 'public', 'icon.icns');
 
@@ -32,7 +32,7 @@ const sizes = [
   { size: 1024, name: 'icon_512x512@2x.png' },
 ];
 
-console.log('Generating macOS icon from dorotauri-without-text.png...');
+console.log('Generating macOS icon from dorotoring-without-text.png...');
 
 // First, create a 1024x1024 version with the background color filling the entire canvas
 // Sample the dominant background color from the image (the green/teal swirl)

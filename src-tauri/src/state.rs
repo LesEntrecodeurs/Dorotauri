@@ -422,14 +422,14 @@ pub struct AppState {
 }
 
 impl AppState {
-    /// Load persisted state from ~/.dorotauri/ (same location as the Electron app).
+    /// Load persisted state from ~/.dorotoring/ (same location as the Electron app).
     pub fn load() -> Self {
-        let dorotauri_dir = dorotauri_dir();
-        fs::create_dir_all(&dorotauri_dir).ok();
+        let dorotoring_dir = dorotoring_dir();
+        fs::create_dir_all(&dorotoring_dir).ok();
 
-        let agents = Self::load_agents(&dorotauri_dir);
-        let settings = Self::load_settings(&dorotauri_dir);
-        let tabs = Self::load_tabs(&dorotauri_dir);
+        let agents = Self::load_agents(&dorotoring_dir);
+        let settings = Self::load_settings(&dorotoring_dir);
+        let tabs = Self::load_tabs(&dorotoring_dir);
         let (status_tx, _) = broadcast::channel::<(String, String)>(64);
 
         Self {
@@ -536,9 +536,9 @@ impl AppState {
         tabs
     }
 
-    /// Persist agents map to ~/.dorotauri/agents.json (wrapped in AgentsFile)
+    /// Persist agents map to ~/.dorotoring/agents.json (wrapped in AgentsFile)
     pub fn save_agents(&self) {
-        let dir = dorotauri_dir();
+        let dir = dorotoring_dir();
         let agents = self.agents.lock().unwrap();
         let file = AgentsFile {
             schema_version: 1,
@@ -549,18 +549,18 @@ impl AppState {
         }
     }
 
-    /// Persist settings to ~/.dorotauri/app-settings.json
+    /// Persist settings to ~/.dorotoring/app-settings.json
     pub fn save_settings(&self) {
-        let dir = dorotauri_dir();
+        let dir = dorotoring_dir();
         let settings = self.settings.lock().unwrap();
         if let Ok(json) = serde_json::to_string_pretty(&*settings) {
             fs::write(dir.join("app-settings.json"), json).ok();
         }
     }
 
-    /// Persist tabs to ~/.dorotauri/tabs.json
+    /// Persist tabs to ~/.dorotoring/tabs.json
     pub fn save_tabs(&self) {
-        let dir = dorotauri_dir();
+        let dir = dorotoring_dir();
         let tabs = self.tabs.lock().unwrap();
         let file = TabsFile {
             schema_version: 1,
@@ -572,9 +572,9 @@ impl AppState {
     }
 }
 
-/// Canonical Dorotauri config directory.
-fn dorotauri_dir() -> PathBuf {
+/// Canonical Dorotoring config directory.
+fn dorotoring_dir() -> PathBuf {
     dirs::home_dir()
         .expect("could not determine home directory")
-        .join(".dorotauri")
+        .join(".dorotoring")
 }

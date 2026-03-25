@@ -77,9 +77,9 @@ export class OpenCodeProvider implements CLIProvider {
 
   getPtyEnvVars(agentId: string, projectPath: string, skills: string[]): Record<string, string> {
     return {
-      DOROTAURI_SKILLS: skills.join(','),
-      DOROTAURI_AGENT_ID: agentId,
-      DOROTAURI_PROJECT_PATH: projectPath,
+      DOROTORING_SKILLS: skills.join(','),
+      DOROTORING_AGENT_ID: agentId,
+      DOROTORING_PROJECT_PATH: projectPath,
     };
   }
 

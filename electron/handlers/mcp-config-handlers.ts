@@ -3,15 +3,15 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// Dorotauri-managed MCP servers — hidden from the Custom MCP UI
-const DOROTAURI_MANAGED_MCPS = new Set([
+// Dorotoring-managed MCP servers — hidden from the Custom MCP UI
+const DOROTORING_MANAGED_MCPS = new Set([
   'claude-mgr-orchestrator',
   'claude-mgr-telegram',
   'claude-mgr-kanban',
   'claude-mgr-vault',
-  'dorotauri-socialdata',
-  'dorotauri-x',
-  'dorotauri-world',
+  'dorotoring-socialdata',
+  'dorotoring-x',
+  'dorotoring-world',
   'google-workspace',
   'tasmania',
 ]);
@@ -47,7 +47,7 @@ function readClaudeMcp(): McpServer[] {
     const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     const servers = data.mcpServers || {};
     return Object.entries(servers)
-      .filter(([name]) => !DOROTAURI_MANAGED_MCPS.has(name))
+      .filter(([name]) => !DOROTORING_MANAGED_MCPS.has(name))
       .map(([name, cfg]: [string, any]) => ({
         name,
         command: cfg.command || '',
@@ -96,7 +96,7 @@ function readGeminiMcp(): McpServer[] {
     const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     const servers = data.mcpServers || {};
     return Object.entries(servers)
-      .filter(([name]) => !DOROTAURI_MANAGED_MCPS.has(name))
+      .filter(([name]) => !DOROTORING_MANAGED_MCPS.has(name))
       .map(([name, cfg]: [string, any]) => ({
         name,
         command: cfg.command || '',
@@ -162,7 +162,7 @@ function parseTomlMcpServers(content: string): McpServer[] {
 
   while ((match = sectionRegex.exec(content)) !== null) {
     const rawName = match[1].replace(/^"|"$/g, ''); // strip TOML quotes
-    if (DOROTAURI_MANAGED_MCPS.has(rawName)) continue;
+    if (DOROTORING_MANAGED_MCPS.has(rawName)) continue;
 
     // Extract content until next section header or EOF
     const startIdx = match.index + match[0].length;

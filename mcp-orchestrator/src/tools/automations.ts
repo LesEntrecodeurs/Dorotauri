@@ -87,7 +87,7 @@ function isAllowedWebhookUrl(urlString: string): boolean {
 }
 
 // Shared config file path that the Electron app writes to
-const CLI_PATHS_CONFIG_FILE = path.join(os.homedir(), ".dorotauri", "cli-paths.json");
+const CLI_PATHS_CONFIG_FILE = path.join(os.homedir(), ".dorotoring", "cli-paths.json");
 
 // Load CLI paths config from the shared config file
 function loadCLIPathsConfig(): { fullPath?: string; claude?: string; gh?: string; node?: string; additionalPaths?: string[] } | null {
@@ -270,8 +270,8 @@ async function pollGitHub(config: GitHubSourceConfig, automation: Automation): P
 // JIRA HELPERS
 // ============================================================================
 
-const APP_SETTINGS_FILE = path.join(os.homedir(), ".dorotauri", "app-settings.json");
-const KANBAN_FILE = path.join(os.homedir(), ".dorotauri", "kanban-tasks.json");
+const APP_SETTINGS_FILE = path.join(os.homedir(), ".dorotoring", "app-settings.json");
+const KANBAN_FILE = path.join(os.homedir(), ".dorotoring", "kanban-tasks.json");
 
 // Kanban task creation helper for JIRA items
 function createKanbanTaskFromJiraItem(

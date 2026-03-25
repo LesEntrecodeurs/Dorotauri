@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
 
-const WORLDS_DIR = path.join(os.homedir(), '.dorotauri', 'worlds');
+const WORLDS_DIR = path.join(os.homedir(), '.dorotoring', 'worlds');
 
 interface WorldHandlerDependencies {
   getMainWindow: () => BrowserWindow | null;
@@ -32,7 +32,7 @@ function sanitizeString(s: unknown, maxLen: number): string | null {
 
 function validateZoneForImport(data: Record<string, unknown>): { valid: boolean; error?: string; zone?: Record<string, any> } {
   // Format check
-  if (data.format !== 'dorotauri-world-v1') {
+  if (data.format !== 'dorotoring-world-v1') {
     return { valid: false, error: 'Invalid file format' };
   }
   if (!data.zone || typeof data.zone !== 'object') {
@@ -270,7 +270,7 @@ export function registerWorldHandlers(deps: WorldHandlerDependencies): void {
     }
   });
 
-  // Export a zone as a .dorotauri-world file
+  // Export a zone as a .dorotoring-world file
   ipcMain.handle('world:exportZone', async (_event, params: { zoneId: string; screenshot: string }) => {
     try {
       const { zoneId, screenshot } = params;
@@ -281,7 +281,7 @@ export function registerWorldHandlers(deps: WorldHandlerDependencies): void {
       const zoneData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
       const exportData = {
-        format: 'dorotauri-world-v1',
+        format: 'dorotoring-world-v1',
         exportedAt: new Date().toISOString(),
         zone: zoneData,
         screenshot,
@@ -293,8 +293,8 @@ export function registerWorldHandlers(deps: WorldHandlerDependencies): void {
       const safeName = (zoneData.name || 'world').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
       const result = await dialog.showSaveDialog(win, {
         title: 'Export World',
-        defaultPath: `${safeName}.dorotauri-world`,
-        filters: [{ name: 'Dorotauri World', extensions: ['dorotauri-world'] }],
+        defaultPath: `${safeName}.dorotoring-world`,
+        filters: [{ name: 'Dorotoring World', extensions: ['dorotoring-world'] }],
       });
 
       if (result.canceled || !result.filePath) {
@@ -308,7 +308,7 @@ export function registerWorldHandlers(deps: WorldHandlerDependencies): void {
     }
   });
 
-  // Import a .dorotauri-world file — returns preview data without saving
+  // Import a .dorotoring-world file — returns preview data without saving
   ipcMain.handle('world:importZone', async () => {
     try {
       const win = getMainWindow();
@@ -316,7 +316,7 @@ export function registerWorldHandlers(deps: WorldHandlerDependencies): void {
 
       const result = await dialog.showOpenDialog(win, {
         title: 'Import World',
-        filters: [{ name: 'Dorotauri World', extensions: ['dorotauri-world'] }],
+        filters: [{ name: 'Dorotoring World', extensions: ['dorotoring-world'] }],
         properties: ['openFile'],
       });
 
@@ -363,7 +363,7 @@ export function registerWorldHandlers(deps: WorldHandlerDependencies): void {
   ipcMain.handle('world:confirmImport', async (_event, zone: Record<string, unknown>) => {
     try {
       // Re-validate (defense in depth)
-      const wrapper = { format: 'dorotauri-world-v1', zone, screenshot: 'data:image/png;base64,' };
+      const wrapper = { format: 'dorotoring-world-v1', zone, screenshot: 'data:image/png;base64,' };
       const validation = validateZoneForImport(wrapper);
       if (!validation.valid) {
         return { success: false, error: validation.error };

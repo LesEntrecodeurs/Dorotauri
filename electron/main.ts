@@ -1,5 +1,5 @@
 /**
- * Dorotauri - Main Electron Entry Point
+ * Dorotoring - Main Electron Entry Point
  *
  * This file initializes and wires together all the modular components:
  * - Window management and protocol handling
@@ -102,7 +102,7 @@ import {
   isSuperAgent,
   getSuperAgent,
   ensureDataDir,
-  ensureDorotauriClaudeMd,
+  ensureDorotoringClaudeMd,
   migrateFromClaudeManager,
 } from './utils';
 
@@ -307,8 +307,8 @@ app.whenReady().then(async () => {
   // Ensure data directory exists
   ensureDataDir();
 
-  // Write Dorotauri's CLAUDE.md to ~/.dorotauri/ so all spawned agents can load it
-  ensureDorotauriClaudeMd();
+  // Write Dorotoring's CLAUDE.md to ~/.dorotoring/ so all spawned agents can load it
+  ensureDorotoringClaudeMd();
 
   // Migrate data from ~/.claude-manager if it exists (rebrand migration)
   migrateFromClaudeManager();

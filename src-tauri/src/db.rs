@@ -6,14 +6,14 @@ pub struct VaultDb {
 
 impl VaultDb {
     pub fn open() -> Result<Self, String> {
-        let dorotauri_dir = dirs::home_dir()
+        let dorotoring_dir = dirs::home_dir()
             .ok_or("Could not determine home directory")?
-            .join(".dorotauri");
+            .join(".dorotoring");
 
-        // Ensure the .dorotauri directory exists
-        std::fs::create_dir_all(&dorotauri_dir).map_err(|e| e.to_string())?;
+        // Ensure the .dorotoring directory exists
+        std::fs::create_dir_all(&dorotoring_dir).map_err(|e| e.to_string())?;
 
-        let path = dorotauri_dir.join("vault.db");
+        let path = dorotoring_dir.join("vault.db");
         let conn = rusqlite::Connection::open(&path).map_err(|e| e.to_string())?;
 
         // Enable WAL mode and foreign keys

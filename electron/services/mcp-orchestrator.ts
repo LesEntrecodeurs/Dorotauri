@@ -87,9 +87,9 @@ export async function setupMcpOrchestrator(appSettings?: AppSettings): Promise<v
       { name: 'claude-mgr-telegram', serverPath: getMcpTelegramPath() },
       { name: 'claude-mgr-kanban', serverPath: getMcpKanbanPath() },
       { name: 'claude-mgr-vault', serverPath: getMcpVaultPath() },
-      { name: 'dorotauri-socialdata', serverPath: getMcpSocialDataPath() },
-      { name: 'dorotauri-x', serverPath: getMcpXPath() },
-      { name: 'dorotauri-world', serverPath: getMcpWorldPath() },
+      { name: 'dorotoring-socialdata', serverPath: getMcpSocialDataPath() },
+      { name: 'dorotoring-x', serverPath: getMcpXPath() },
+      { name: 'dorotoring-world', serverPath: getMcpWorldPath() },
     ];
 
     // Add Tasmania if enabled

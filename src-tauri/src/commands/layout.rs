@@ -4,7 +4,7 @@ use std::path::PathBuf;
 fn layouts_path() -> PathBuf {
     dirs::home_dir()
         .expect("could not determine home directory")
-        .join(".dorotauri")
+        .join(".dorotoring")
         .join("layouts.json")
 }
 
@@ -17,7 +17,7 @@ pub fn layout_get() -> Result<String, String> {
 #[tauri::command]
 pub fn layout_save(data: String) -> Result<(), String> {
     let path = layouts_path();
-    // Ensure ~/.dorotauri exists
+    // Ensure ~/.dorotoring exists
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }

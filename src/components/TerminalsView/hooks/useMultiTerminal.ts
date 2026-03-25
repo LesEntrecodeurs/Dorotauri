@@ -253,7 +253,25 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       return;
     }
 
-    // Dispose old terminal if switching containers
+    // Reparent existing terminal to new container (preserves full xterm state)
+    if (existing && !existing.disposed && existing.terminal.element) {
+      disposeWebGL(existing.terminal);
+      container.appendChild(existing.terminal.element);
+      existing.container = container;
+      existing.resizeObserver?.disconnect();
+      const resizeObserver = new ResizeObserver(() => {
+        if (!existing.disposed) {
+          debouncedFit(agentId);
+        }
+      });
+      resizeObserver.observe(container);
+      existing.resizeObserver = resizeObserver;
+      attachWebGL(existing.terminal);
+      safeFit(agentId, existing);
+      return;
+    }
+
+    // No existing terminal or it was disposed — create fresh
     if (existing && !existing.disposed) {
       existing.resizeObserver?.disconnect();
       disposeWebGL(existing.terminal);
@@ -262,7 +280,7 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
     }
 
     initTerminal(agentId, container);
-  }, [initTerminal]);
+  }, [initTerminal, debouncedFit]);
 
   // Unregister and dispose a terminal
   const unregisterContainer = useCallback((agentId: string) => {

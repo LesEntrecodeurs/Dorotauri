@@ -6,13 +6,13 @@ use std::time::{Duration, SystemTime};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
-const USAGE_FILE: &str = "/tmp/dorotauri-usage.json";
+const USAGE_FILE: &str = "/tmp/dorotoring-usage.json";
 const POLL_INTERVAL: Duration = Duration::from_secs(3);
 
-fn dorotauri_dir() -> PathBuf {
+fn dorotoring_dir() -> PathBuf {
     dirs::home_dir()
         .expect("could not determine home directory")
-        .join(".dorotauri")
+        .join(".dorotoring")
 }
 
 fn claude_settings_path() -> PathBuf {
@@ -24,13 +24,13 @@ fn claude_settings_path() -> PathBuf {
 
 /// The bash statusline script that Claude Code pipes status JSON into.
 /// It both renders the terminal status bar AND writes rate_limits to a
-/// file so the Dorotauri sidebar can display usage bars.
+/// file so the Dorotoring sidebar can display usage bars.
 const STATUSLINE_SCRIPT: &str = include_str!("statusline.sh");
 
 /// Install the statusline script and configure Claude Code to use it.
 /// Called once at app startup — idempotent.
 pub fn ensure_statusline() {
-    let script_path = dorotauri_dir().join("statusline.sh");
+    let script_path = dorotoring_dir().join("statusline.sh");
 
     // Write / update the script
     if let Some(parent) = script_path.parent() {
@@ -91,7 +91,7 @@ pub struct RateLimitsPayload {
     pub ts: Option<i64>,
 }
 
-/// Start a background thread that watches `/tmp/dorotauri-usage.json`
+/// Start a background thread that watches `/tmp/dorotoring-usage.json`
 /// and emits `usage:rate-limits` events when it changes.
 pub fn start(app_handle: AppHandle) {
     thread::spawn(move || {

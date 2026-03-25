@@ -30,7 +30,7 @@ export function createWindow() {
     height: 1000,
     minWidth: 1200,
     minHeight: 800,
-    title: 'Dorotauri',
+    title: 'Dorotoring',
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#F0E8D5',
     webPreferences: {

@@ -11,8 +11,8 @@ set -euo pipefail
 
 INPUT=$(cat)
 
-# --- Write rate_limits to file for Dorotauri sidebar ---
-echo "$INPUT" | jq -c '{rate_limits: .rate_limits, ts: (now | floor)}' > /tmp/dorotauri-usage.json 2>/dev/null || true
+# --- Write rate_limits to file for Dorotoring sidebar ---
+echo "$INPUT" | jq -c '{rate_limits: .rate_limits, ts: (now | floor)}' > /tmp/dorotoring-usage.json 2>/dev/null || true
 
 # Autocompact buffer size (tokens). Adjust if Claude Code changes this.
 AUTOCOMPACT_BUFFER=33000
@@ -134,11 +134,11 @@ printf "\${DIM}↑%s ↓%s\${RESET}" "$IN_FMT" "$OUT_FMT"
 printf "\\n"
 `;
 
-const SCRIPT_PATH = path.join(os.homedir(), '.dorotauri', 'statusline.sh');
+const SCRIPT_PATH = path.join(os.homedir(), '.dorotoring', 'statusline.sh');
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
 
 /**
- * Install the statusline script to ~/.dorotauri/statusline.sh
+ * Install the statusline script to ~/.dorotoring/statusline.sh
  */
 function installScript(): void {
   const dir = path.dirname(SCRIPT_PATH);
@@ -149,7 +149,7 @@ function installScript(): void {
 }
 
 /**
- * Remove the statusline script from ~/.dorotauri/statusline.sh
+ * Remove the statusline script from ~/.dorotoring/statusline.sh
  */
 function removeScript(): void {
   if (fs.existsSync(SCRIPT_PATH)) {

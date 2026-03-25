@@ -1,5 +1,5 @@
 /**
- * API utilities for communicating with dorotauri API server
+ * API utilities for communicating with dorotoring API server
  */
 
 import * as fs from "fs";
@@ -7,7 +7,7 @@ import * as path from "path";
 import * as os from "os";
 
 const API_URL = process.env.CLAUDE_MGR_API_URL || "http://127.0.0.1:31415";
-const API_TOKEN_FILE = path.join(os.homedir(), ".dorotauri", "api-token");
+const API_TOKEN_FILE = path.join(os.homedir(), ".dorotoring", "api-token");
 
 function readApiToken(): string | null {
   try {

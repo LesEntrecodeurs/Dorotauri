@@ -26,15 +26,15 @@ export function ensureDataDir() {
 }
 
 /**
- * Write Dorotauri's CLAUDE.md to ~/.dorotauri/CLAUDE.md so all agents spawned from
- * Dorotauri can load it via --add-dir ~/.dorotauri with
+ * Write Dorotoring's CLAUDE.md to ~/.dorotoring/CLAUDE.md so all agents spawned from
+ * Dorotoring can load it via --add-dir ~/.dorotoring with
  * CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1.
  *
  * First tries to read the live CLAUDE.md from the app source directory.
  * Falls back to a bundled minimal version if the source file is unavailable
  * (e.g. in a packaged .asar build without unpacked assets).
  */
-export function ensureDorotauriClaudeMd(): void {
+export function ensureDorotoringClaudeMd(): void {
   try {
     ensureDataDir();
     const dest = path.join(DATA_DIR, 'CLAUDE.md');
@@ -55,7 +55,7 @@ export function ensureDorotauriClaudeMd(): void {
 
     // Fallback: write essential agent instructions
     if (!content) {
-      content = `# Dorotauri Agent Instructions
+      content = `# Dorotoring Agent Instructions
 
 ## Memory
 
@@ -82,19 +82,19 @@ Use auto memory (\`~/.claude/projects/.../memory/\`) actively on every project:
 
     fs.writeFileSync(dest, content, 'utf-8');
   } catch (err) {
-    console.warn('Failed to write Dorotauri CLAUDE.md:', err);
+    console.warn('Failed to write Dorotoring CLAUDE.md:', err);
   }
 }
 
 /**
- * Migrate data from ~/.claude-manager to ~/.dorotauri on first launch after rebrand.
+ * Migrate data from ~/.claude-manager to ~/.dorotoring on first launch after rebrand.
  * Only copies files that don't already exist in the new location to avoid overwriting newer data.
  * Removes the old directory after successful migration.
  */
 export function migrateFromClaudeManager() {
   if (!fs.existsSync(OLD_DATA_DIR)) return;
 
-  console.log('Migrating data from ~/.claude-manager to ~/.dorotauri...');
+  console.log('Migrating data from ~/.claude-manager to ~/.dorotoring...');
 
   const items = [
     'agents.json',
@@ -112,7 +112,7 @@ export function migrateFromClaudeManager() {
 
     if (!fs.existsSync(src)) continue;
     if (fs.existsSync(dest)) {
-      console.log(`  Skipping ${item} (already exists in ~/.dorotauri)`);
+      console.log(`  Skipping ${item} (already exists in ~/.dorotoring)`);
       continue;
     }
 

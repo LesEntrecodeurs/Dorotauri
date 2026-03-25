@@ -14,7 +14,7 @@ pub fn window_popout(
 
     WebviewWindowBuilder::new(&app_handle, &window_id, WebviewUrl::App(url.into()))
         .title(format!(
-            "Dorotauri — Agent {}",
+            "Dorotoring — Agent {}",
             &agent_id[..8.min(agent_id.len())]
         ))
         .inner_size(900.0, 600.0)

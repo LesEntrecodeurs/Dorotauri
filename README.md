@@ -1,4 +1,4 @@
-# Dorotauri
+# Dorotoring
 
 A lightweight desktop app to manage your AI coding agents. Run [Claude Code](https://claude.ai/code), [Codex](https://chatgpt.com/codex), [Gemini CLI](https://geminicli.com/) and local agents in parallel — deploy, monitor, and debug from one interface.
 
@@ -85,8 +85,8 @@ Monitor API usage across all agents — tokens, costs, activity patterns.
 ### Build from source
 
 ```bash
-git clone https://github.com/LesEntrecodeurs/dorotauri.git
-cd dorotauri
+git clone https://github.com/LesEntrecodeurs/dorotoring.git
+cd dorotoring
 npm install
 npm run tauri:dev        # Development
 npm run tauri:build      # Production build
@@ -100,7 +100,7 @@ npm run tauri:build      # Production build
 ## Project Structure
 
 ```
-dorotauri/
+dorotoring/
 ├── src/                        # React frontend
 │   ├── components/             # UI components (shadcn/ui)
 │   ├── routes/                 # React Router pages
@@ -158,7 +158,7 @@ Contributions welcome. Fork, branch, PR.
 
 ## Credits
 
-Dorotauri is a fork of [Dorothy](https://github.com/Charlie85270/Dorothy) by [@Charlie85270](https://github.com/Charlie85270), rewritten from Electron + Next.js to Tauri v2 + Vite with a shadcn/ui redesign.
+Dorotoring is a fork of [Dorothy](https://github.com/Charlie85270/Dorothy) by [@Charlie85270](https://github.com/Charlie85270), rewritten from Electron + Next.js to Tauri v2 + Vite with a shadcn/ui redesign.
 
 ## License
 

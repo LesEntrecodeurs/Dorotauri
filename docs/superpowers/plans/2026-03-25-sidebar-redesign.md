@@ -589,7 +589,7 @@ export default function ClientLayout() {
 
   // Initialize dark mode from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('dorotauri-dark-mode');
+    const saved = localStorage.getItem('dorotoring-dark-mode');
     if (saved === 'true') {
       setDarkMode(true);
     }
@@ -598,7 +598,7 @@ export default function ClientLayout() {
   // Sync dark class on <html> and persist to localStorage
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
-    localStorage.setItem('dorotauri-dark-mode', String(darkMode));
+    localStorage.setItem('dorotoring-dark-mode', String(darkMode));
   }, [darkMode]);
 
   // Global vault unread badge

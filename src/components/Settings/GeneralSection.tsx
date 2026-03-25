@@ -167,7 +167,7 @@ export const GeneralSection = ({ info, appSettings, onSaveAppSettings }: General
               <Settings className="w-6 h-6 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="font-medium">Dorotauri</h3>
+              <h3 className="font-medium">Dorotoring</h3>
               <p className="text-sm text-muted-foreground">
                 Version {updateInfo?.currentVersion || '1.2.5'}
               </p>
@@ -180,7 +180,7 @@ export const GeneralSection = ({ info, appSettings, onSaveAppSettings }: General
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">Auto-check for updates</p>
-                <p className="text-xs text-muted-foreground">Check for new versions when Dorotauri starts</p>
+                <p className="text-xs text-muted-foreground">Check for new versions when Dorotoring starts</p>
               </div>
               <Toggle
                 enabled={appSettings.autoCheckUpdates !== false}
@@ -234,7 +234,7 @@ export const GeneralSection = ({ info, appSettings, onSaveAppSettings }: General
               <CheckCircle className="w-5 h-5 text-green-700 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-green-700">You&apos;re up to date!</p>
-                <p className="text-xs text-muted-foreground">Dorotauri {updateInfo?.currentVersion} is the latest version.</p>
+                <p className="text-xs text-muted-foreground">Dorotoring {updateInfo?.currentVersion} is the latest version.</p>
               </div>
             </div>
           )}
@@ -245,7 +245,7 @@ export const GeneralSection = ({ info, appSettings, onSaveAppSettings }: General
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="text-sm font-medium text-blue-400">
-                      Dorotauri {updateInfo.latestVersion} is available
+                      Dorotoring {updateInfo.latestVersion} is available
                     </p>
                     <p className="text-xs text-muted-foreground">
                       You&apos;re currently on version {updateInfo.currentVersion}

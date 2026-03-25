@@ -13,10 +13,36 @@ interface TerminalTileProps {
   agentId: string;
 }
 
+// --- Persistent terminal cache ---
+// Survives tab switches: xterm instances stay alive with full scrollback,
+// PTY subscriptions, and output listeners intact.
+
+interface CachedTerminal {
+  terminal: Terminal;
+  fitAddon: FitAddon;
+  ptyId: string;
+  unsubOutput?: () => void;
+  resizeObserver: ResizeObserver | null;
+}
+
+const terminalCache = new Map<string, CachedTerminal>();
+
+/** Dispose and remove a cached terminal (call when agent is deleted). */
+export function disposeCachedTerminal(agentId: string) {
+  const cached = terminalCache.get(agentId);
+  if (!cached) return;
+  cached.resizeObserver?.disconnect();
+  cached.unsubOutput?.();
+  TerminalWriteManager.unsubscribe(cached.ptyId);
+  disposeWebGL(cached.terminal);
+  cached.terminal.dispose();
+  terminalCache.delete(agentId);
+}
+
 /**
  * A single terminal tile for the mosaic layout.
  * Spawns a real PTY shell so the user can type immediately.
- * Output streams via Tauri events, input goes via pty_write.
+ * Terminal instances are cached so tab switches preserve full state.
  */
 function TerminalTileInner({ agentId }: TerminalTileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,11 +53,35 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
     if (!container || initRef.current) return;
     initRef.current = true;
 
+    // Check cache first — reattach existing terminal to new container
+    const cached = terminalCache.get(agentId);
+    if (cached && cached.terminal.element) {
+      disposeWebGL(cached.terminal);
+      container.appendChild(cached.terminal.element);
+      attachWebGL(cached.terminal);
+
+      // Reconnect resize observer to new container
+      cached.resizeObserver?.disconnect();
+      const resizeObserver = new ResizeObserver(() => {
+        try {
+          cached.fitAddon.fit();
+          const { cols, rows } = cached.terminal;
+          invoke('pty_resize', { ptyId: cached.ptyId, cols, rows }).catch(() => {});
+        } catch {}
+      });
+      resizeObserver.observe(container);
+      cached.resizeObserver = resizeObserver;
+
+      // Fit to new container size
+      try { cached.fitAddon.fit(); } catch {}
+
+      return;
+    }
+
+    // No cache — create fresh terminal
     let cancelled = false;
-    let cleanup: (() => void) | undefined;
 
     (async () => {
-      // Dynamic import xterm
       const [{ Terminal }, { FitAddon }] = await Promise.all([
         import('xterm'),
         import('xterm-addon-fit'),
@@ -60,7 +110,6 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
         if (!ready || cancelled) return;
       }
 
-      // Create xterm instance
       const term = new Terminal({
         theme: getTerminalTheme('dark'),
         fontSize: TERMINAL_CONFIG.fontSize || 13,
@@ -76,12 +125,10 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
       term.open(container);
       attachWebGL(term);
 
-      // Initial fit
       try { fitAddon.fit(); } catch {}
 
       if (!isTauri()) {
         term.write('Not running in Tauri — terminal unavailable.\r\n');
-        cleanup = () => { disposeWebGL(term); term.dispose(); };
         return;
       }
 
@@ -92,43 +139,35 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
         if (agent?.cwd) cwd = agent.cwd;
       } catch {}
 
-      // Check if there's already a PTY for this agent (shared across windows)
+      // Check if there's already a PTY for this agent
       let ptyId: string;
-      let isShared = false;
       try {
         const existing = await invoke<string | null>('pty_lookup', { key: agentId });
         if (existing) {
           ptyId = existing;
-          isShared = true;
         } else {
           const { cols, rows } = term;
           ptyId = await invoke<string>('pty_create', { cwd, cols, rows });
-          // Register so pop-out windows can find this PTY
           await invoke('pty_register', { key: agentId, ptyId });
         }
       } catch (err) {
         term.write(`\x1b[31mFailed to create PTY: ${err}\x1b[0m\r\n`);
-        cleanup = () => { disposeWebGL(term); term.dispose(); };
         return;
       }
 
       // Subscribe to PTY output
-      let unsubOutput: (() => void) | undefined;
-      let disposed = false;
-
       TerminalWriteManager.subscribe(ptyId, term, ptyId);
 
-      listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
-        if ((event.payload.agent_id === ptyId || event.payload.pty_id === ptyId) && !disposed) {
+      const unsubOutput = await listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+        if (event.payload.agent_id === ptyId || event.payload.pty_id === ptyId) {
           TerminalWriteManager.write(ptyId, new Uint8Array(event.payload.data));
         }
-      }).then(fn => { unsubOutput = fn; });
+      });
 
       attachKeyHandler(term, (data) => {
         invoke('pty_write', { ptyId, data }).catch(() => {});
       });
 
-      // Forward keyboard input to PTY
       term.onData((data) => {
         if (/^(\x1b\[\?[\d;]*c|\d+;\d+c)+$/.test(data)) return;
         invoke('pty_write', { ptyId, data }).catch(() => {});
@@ -136,7 +175,6 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
 
       // ResizeObserver
       const resizeObserver = new ResizeObserver(() => {
-        if (disposed) return;
         try {
           fitAddon.fit();
           const { cols, rows } = term;
@@ -145,22 +183,24 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
       });
       resizeObserver.observe(container);
 
-      // Never kill the PTY on unmount — it stays alive across tab switches.
-      // On remount, pty_lookup will find the existing PTY and reattach.
-      // PTY cleanup happens when the agent is explicitly stopped/deleted.
-      cleanup = () => {
-        disposed = true;
-        resizeObserver.disconnect();
-        unsubOutput?.();
-        TerminalWriteManager.unsubscribe(ptyId);
-        disposeWebGL(term);
-        term.dispose();
-      };
+      // Store in cache
+      terminalCache.set(agentId, {
+        terminal: term,
+        fitAddon,
+        ptyId,
+        unsubOutput,
+        resizeObserver,
+      });
     })();
 
     return () => {
       cancelled = true;
-      cleanup?.();
+      // On unmount: only disconnect resize observer, keep everything else alive
+      const entry = terminalCache.get(agentId);
+      if (entry) {
+        entry.resizeObserver?.disconnect();
+        entry.resizeObserver = null;
+      }
       initRef.current = false;
     };
   }, [agentId]);

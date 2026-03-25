@@ -211,7 +211,7 @@ export const SlackSection = ({ appSettings, onSaveAppSettings, onUpdateLocalSett
           <h3 className="font-medium mb-4">Setup Guide</h3>
           <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
             <li>Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">api.slack.com/apps</a> and click &quot;Create New App&quot;</li>
-            <li>Choose &quot;From scratch&quot;, name it &quot;Dorotauri&quot;, select workspace</li>
+            <li>Choose &quot;From scratch&quot;, name it &quot;Dorotoring&quot;, select workspace</li>
             <li>Go to &quot;Socket Mode&quot; → Enable → Generate App Token with scope &quot;connections:write&quot; (xapp-...)</li>
             <li>Go to &quot;OAuth & Permissions&quot; → Add Bot Token Scopes:
               <ul className="ml-4 mt-1 space-y-0.5">
@@ -227,7 +227,7 @@ export const SlackSection = ({ appSettings, onSaveAppSettings, onUpdateLocalSett
               </ul>
             </li>
             <li>Paste both tokens above and enable the integration</li>
-            <li>Mention @Dorotauri in any channel or DM the bot to start!</li>
+            <li>Mention @Dorotoring in any channel or DM the bot to start!</li>
           </ol>
         </CardContent>
       </Card>

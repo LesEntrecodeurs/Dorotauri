@@ -1,10 +1,10 @@
 [package]
-name = "dorotauri"
+name = "dorotoring"
 version = "1.2.5"
 edition = "2021"
 
 [lib]
-name = "dorotauri_lib"
+name = "dorotoring_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

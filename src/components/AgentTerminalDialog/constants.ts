@@ -13,7 +13,7 @@ export const CHARACTER_FACES: Record<AgentCharacter, string> = {
   frog: '🐸',
 };
 
-// Terminal theme configuration — Dorotauri violet palette (dark)
+// Terminal theme configuration — Dorotoring violet palette (dark)
 export const TERMINAL_THEME = {
   background: '#1A1726',
   foreground: '#E2DFF0',
@@ -38,7 +38,7 @@ export const TERMINAL_THEME = {
   brightWhite: '#F8F5FC',
 } as const;
 
-// Light terminal theme — Dorotauri violet palette (light)
+// Light terminal theme — Dorotoring violet palette (light)
 export const TERMINAL_THEME_LIGHT = {
   background: '#F8F5FC',
   foreground: '#1E1B4B',

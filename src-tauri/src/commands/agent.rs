@@ -220,7 +220,8 @@ pub fn agent_start(
 
     let cmd_string = cmd_parts.join(" ");
 
-    // Write command to PTY (with newline to execute)
+    // Clear terminal before launching agent, then write command
+    pty_manager.write(&pty_id, b"clear\n")?;
     pty_manager.write(&pty_id, format!("{cmd_string}\n").as_bytes())?;
 
     // Update agent state

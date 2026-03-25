@@ -56,7 +56,7 @@ interface PluginSource {
 }
 
 const DEFAULT_TTL = 86_400_000; // 24 hours
-const CACHE_PREFIX = 'dorotauri-plugins-src-';
+const CACHE_PREFIX = 'dorotoring-plugins-src-';
 
 // ── Source registry ──
 // Add new sources here. Each is fetched, cached, and merged independently.

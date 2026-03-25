@@ -1,5 +1,5 @@
 #!/bin/bash
-# Notification hook for dorotauri (Gemini CLI)
+# Notification hook for dorotoring (Gemini CLI)
 
 INPUT=$(cat)
 
@@ -9,15 +9,15 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 API_URL="http://127.0.0.1:31415"
 
-AGENT_ID="${DOROTAURI_AGENT_ID:-$SESSION_ID}"
-PROJECT_PATH="${DOROTAURI_PROJECT_PATH:-$CWD}"
+AGENT_ID="${DOROTORING_AGENT_ID:-$SESSION_ID}"
+PROJECT_PATH="${DOROTORING_PROJECT_PATH:-$CWD}"
 
 if ! curl -s --connect-timeout 1 "$API_URL/api/health" > /dev/null 2>&1; then
   echo '{"continue":true,"suppressOutput":true}'
   exit 0
 fi
 
-# Forward notification to dorotauri
+# Forward notification to dorotoring
 if [ -n "$MESSAGE" ]; then
   SAFE_MSG=$(echo "$MESSAGE" | jq -Rs .)
   curl -s -X POST "$API_URL/api/hooks/notification" \

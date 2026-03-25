@@ -4,7 +4,7 @@
 
 **Goal:** Add an axum HTTP server inside Tauri to expose agent management REST API on `127.0.0.1:31415`, enabling the existing MCP orchestrator to control agents — making Super Agents functional.
 
-**Architecture:** Axum server runs in Tauri's tokio runtime, sharing `AppState` and `PtyManager` via `Arc`. Bearer token auth from `~/.dorotauri/api-token`. Long-poll via `tokio::sync::broadcast`. `agent_start` modified to pass `--mcp-config` for Super Agents.
+**Architecture:** Axum server runs in Tauri's tokio runtime, sharing `AppState` and `PtyManager` via `Arc`. Bearer token auth from `~/.dorotoring/api-token`. Long-poll via `tokio::sync::broadcast`. `agent_start` modified to pass `--mcp-config` for Super Agents.
 
 **Tech Stack:** Rust, axum 0.8, tower-http (cors), tokio broadcast, serde_json
 
@@ -211,18 +211,18 @@ For the API server, we'll accept `Arc<AppState>` etc. directly since the axum se
 
 - [ ] **Step 2: Implement auth middleware**
 
-Bearer token from `~/.dorotauri/api-token`:
+Bearer token from `~/.dorotoring/api-token`:
 
 ```rust
 /// Read the API token from disk
 fn read_api_token() -> Option<String> {
-    let path = dirs::home_dir()?.join(".dorotauri").join("api-token");
+    let path = dirs::home_dir()?.join(".dorotoring").join("api-token");
     std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
 }
 
 /// Generate and save a new API token
 fn ensure_api_token() -> String {
-    let dir = dirs::home_dir().unwrap().join(".dorotauri");
+    let dir = dirs::home_dir().unwrap().join(".dorotoring");
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join("api-token");
 
@@ -889,7 +889,7 @@ curl http://127.0.0.1:31415/api/health
 # Expected: {"ok":true}
 
 # Read token
-TOKEN=$(cat ~/.dorotauri/api-token)
+TOKEN=$(cat ~/.dorotoring/api-token)
 
 # List agents
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:31415/api/agents

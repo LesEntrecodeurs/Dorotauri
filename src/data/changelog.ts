@@ -12,7 +12,7 @@ export const CHANGELOG: Release[] = [
     version: '1.0.0',
     date: '2026-03-25',
     description:
-      'Dorotauri is a fork of Dorothy (github.com/Charlie85270/Dorothy), rewritten from Electron + Next.js to Tauri v2 + Vite + React Router with a full shadcn/ui redesign.',
+      'Dorotoring is a fork of Dorothy (github.com/Charlie85270/Dorothy), rewritten from Electron + Next.js to Tauri v2 + Vite + React Router with a full shadcn/ui redesign.',
     updates: [
       // Architecture — Tauri rewrite
       'Full rewrite from Electron + Next.js to Tauri v2 + Vite + React Router',
@@ -56,13 +56,13 @@ export const CHANGELOG: Release[] = [
       // Projects & MCP
       'Pinned and favorite projects with quick default selection',
       'JIRA self-hosted domain support',
-      'Manage external MCP servers (outside Dorotauri) from settings',
+      'Manage external MCP servers (outside Dorotoring) from settings',
 
       // macOS tray
       'macOS menu bar tray with live agent status panel',
       'Status tabs in tray: Working, Waiting for inputs, Ready to work, Idle',
       'Live task preview next to agent name',
-      'Full-color Dorotauri logo in the macOS menu bar',
+      'Full-color Dorotoring logo in the macOS menu bar',
 
       // Agent lifecycle
       'Fixed agent status lifecycle: idle on start, working only after user prompt',
@@ -76,4 +76,4 @@ export const CHANGELOG: Release[] = [
 ];
 
 export const LATEST_RELEASE = CHANGELOG[0];
-export const WHATS_NEW_STORAGE_KEY = 'dorotauri_whats_new_last_seen';
+export const WHATS_NEW_STORAGE_KEY = 'dorotoring_whats_new_last_seen';

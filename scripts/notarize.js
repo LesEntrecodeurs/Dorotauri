@@ -14,7 +14,7 @@ exports.default = async function notarizing(context) {
   if (useKeychain) {
     await notarize({
       appPath: `${appOutDir}/${appName}.app`,
-      keychainProfile: 'Dorotauri',
+      keychainProfile: 'Dorotoring',
     });
   } else {
     await notarize({

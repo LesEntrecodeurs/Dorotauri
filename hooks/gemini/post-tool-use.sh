@@ -1,5 +1,5 @@
 #!/bin/bash
-# Post-tool-use hook for dorotauri memory system (Gemini CLI)
+# Post-tool-use hook for dorotoring memory system (Gemini CLI)
 
 INPUT=$(cat)
 
@@ -14,8 +14,8 @@ fi
 
 API_URL="http://127.0.0.1:31415/api/memory/remember"
 
-AGENT_ID="${DOROTAURI_AGENT_ID:-$SESSION_ID}"
-PROJECT_PATH="${DOROTAURI_PROJECT_PATH:-$CWD}"
+AGENT_ID="${DOROTORING_AGENT_ID:-$SESSION_ID}"
+PROJECT_PATH="${DOROTORING_PROJECT_PATH:-$CWD}"
 
 store_observation() {
   local content="$1"

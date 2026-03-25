@@ -2,7 +2,7 @@
 
 > Last updated: 2026-03-25
 
-This document tracks planned features and improvements for Dorotauri. Items are organized by timeframe and may shift as priorities evolve. Contributions and feedback welcome — open an issue to discuss any item.
+This document tracks planned features and improvements for Dorotoring. Items are organized by timeframe and may shift as priorities evolve. Contributions and feedback welcome — open an issue to discuss any item.
 
 **Legend:** &ensp; 🟢 Done &ensp; 🔵 In Progress &ensp; ⚪ Planned
 
@@ -30,12 +30,12 @@ Migrate remaining Electron/Node.js services to native Rust within Tauri for lowe
 
 ## Mid-term
 
-Larger efforts that expand what Dorotauri can do and where it can run.
+Larger efforts that expand what Dorotoring can do and where it can run.
 
 | Status | Feature | Description |
 |--------|---------|-------------|
-| ⚪ | **Headless mode** | Run Dorotauri as a background daemon on a server without a GUI. Expose a REST/WebSocket API for remote management. Enables CI/CD integration and always-on agent fleets on cloud VMs. |
-| ⚪ | **Web dashboard for headless** | Lightweight web UI to monitor and control a headless Dorotauri instance from a browser. |
+| ⚪ | **Headless mode** | Run Dorotoring as a background daemon on a server without a GUI. Expose a REST/WebSocket API for remote management. Enables CI/CD integration and always-on agent fleets on cloud VMs. |
+| ⚪ | **Web dashboard for headless** | Lightweight web UI to monitor and control a headless Dorotoring instance from a browser. |
 | ⚪ | **Multi-provider agent support** | Spawn agents using Codex, Gemini CLI, or OpenCode directly from the UI — not just Claude Code. Per-agent provider selection. |
 
 ## Long-term
@@ -44,7 +44,7 @@ Exploratory ideas and larger vision items.
 
 | Status | Feature | Description |
 |--------|---------|-------------|
-| ⚪ | **Plugin system** | Allow community-built plugins to extend Dorotauri — custom MCP servers, new agent providers, UI widgets. |
+| ⚪ | **Plugin system** | Allow community-built plugins to extend Dorotoring — custom MCP servers, new agent providers, UI widgets. |
 | ⚪ | **Team collaboration** | Shared agent fleet across a team — role-based access, shared Vault, centralized usage tracking. |
 | ⚪ | **Mobile companion app** | Monitor and control your agent fleet from a mobile app (iOS/Android). |
 
@@ -52,4 +52,4 @@ Exploratory ideas and larger vision items.
 
 ## Contributing to the Roadmap
 
-Have an idea? Open an [issue](https://github.com/LesEntrecodeurs/dorotauri/issues) with the `roadmap` label. PRs that address roadmap items are especially welcome.
+Have an idea? Open an [issue](https://github.com/LesEntrecodeurs/dorotoring/issues) with the `roadmap` label. PRs that address roadmap items are especially welcome.

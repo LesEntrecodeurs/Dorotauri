@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dorotauri statusline for Claude Code
+# Dorotoring statusline for Claude Code
 # Style: ◆ Model │ ctx: NN% ▰▰▰▱▱ (Nk/Nk) │ branch │ NNm │ +N -N │ ↑Nk ↓Nk
 # Based on https://github.com/LLRHook/claude-statusline
 
@@ -7,8 +7,8 @@ set -euo pipefail
 
 INPUT=$(cat)
 
-# --- Write rate_limits to file for Dorotauri sidebar ---
-echo "$INPUT" | jq -c '{rate_limits: .rate_limits, ts: (now | floor)}' > /tmp/dorotauri-usage.json 2>/dev/null || true
+# --- Write rate_limits to file for Dorotoring sidebar ---
+echo "$INPUT" | jq -c '{rate_limits: .rate_limits, ts: (now | floor)}' > /tmp/dorotoring-usage.json 2>/dev/null || true
 
 # Autocompact buffer size (tokens). Adjust if Claude Code changes this.
 AUTOCOMPACT_BUFFER=33000

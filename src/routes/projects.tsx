@@ -51,7 +51,7 @@ const getProjectColor = (name: string) => {
 };
 
 // Storage key (custom projects still use localStorage, favorites/hidden use app settings)
-const CUSTOM_PROJECTS_KEY = 'dorotauri-custom-projects';
+const CUSTOM_PROJECTS_KEY = 'dorotoring-custom-projects';
 
 interface CustomProject {
   path: string;
@@ -209,7 +209,7 @@ export default function ProjectsPage() {
     }).catch(() => {});
     // Also migrate from localStorage if present
     try {
-      const stored = localStorage.getItem('dorotauri-favorite-projects');
+      const stored = localStorage.getItem('dorotoring-favorite-projects');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -218,7 +218,7 @@ export default function ProjectsPage() {
             window.electronAPI?.appSettings?.save({ favoriteProjects: merged });
             return merged;
           });
-          localStorage.removeItem('dorotauri-favorite-projects');
+          localStorage.removeItem('dorotoring-favorite-projects');
         }
       }
     } catch {}

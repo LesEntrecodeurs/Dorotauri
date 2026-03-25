@@ -1,5 +1,5 @@
 /**
- * Cron parsing utilities for Dorotauri scheduler.
+ * Cron parsing utilities for Dorotoring scheduler.
  * Handles conversion between cron expressions and launchd StartCalendarInterval entries.
  */
 

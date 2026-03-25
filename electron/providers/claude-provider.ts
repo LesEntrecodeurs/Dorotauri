@@ -80,8 +80,8 @@ export class ClaudeProvider implements CLIProvider {
       }
     }
 
-    // Dorotauri's CLAUDE.md via ~/.dorotauri
-    command += ` --add-dir '${os.homedir()}/.dorotauri'`;
+    // Dorotoring's CLAUDE.md via ~/.dorotoring
+    command += ` --add-dir '${os.homedir()}/.dorotoring'`;
 
     // Prompt with skills directive
     let finalPrompt = params.prompt;
@@ -117,7 +117,7 @@ export class ClaudeProvider implements CLIProvider {
       command += ` --mcp-config "${params.mcpConfigPath}"`;
     }
 
-    command += ` --add-dir "${os.homedir()}/.dorotauri"`;
+    command += ` --add-dir "${os.homedir()}/.dorotoring"`;
 
     const escaped = params.prompt.replace(/'/g, "'\\''");
     command += ` -p '${escaped}'`;
@@ -401,7 +401,7 @@ export PATH="${params.binaryDir}:$PATH"
 cd "${params.projectPath}"
 echo "=== Task started at $(date) ===" >> "${params.logPath}"
 unset CLAUDECODE
-CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 "${params.binaryPath}" ${flags} --output-format stream-json --verbose --mcp-config "${params.mcpConfigPath}" --add-dir "${params.homeDir}/.dorotauri" -p '${params.prompt}' >> "${params.logPath}" 2>&1
+CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 "${params.binaryPath}" ${flags} --output-format stream-json --verbose --mcp-config "${params.mcpConfigPath}" --add-dir "${params.homeDir}/.dorotoring" -p '${params.prompt}' >> "${params.logPath}" 2>&1
 echo "=== Task completed at $(date) ===" >> "${params.logPath}"
 `;
   }

@@ -35,11 +35,11 @@ pub struct ApiState {
 // Token management
 // ---------------------------------------------------------------------------
 
-/// Reads (or creates) the API token from ~/.dorotauri/api-token.
+/// Reads (or creates) the API token from ~/.dorotoring/api-token.
 pub fn ensure_api_token() -> String {
     let dir = dirs::home_dir()
         .expect("could not determine home directory")
-        .join(".dorotauri");
+        .join(".dorotoring");
     std::fs::create_dir_all(&dir).ok();
 
     let path = dir.join("api-token");

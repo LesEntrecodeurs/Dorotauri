@@ -3,7 +3,7 @@
  * MCP server for posting tweets via X API v2 (OAuth 1.0a)
  * Available to all Claude agents for publishing content on X/Twitter.
  *
- * Credentials are read from ~/.dorotauri/app-settings.json:
+ * Credentials are read from ~/.dorotoring/app-settings.json:
  *   xApiKey, xApiSecret, xAccessToken, xAccessTokenSecret
  */
 
@@ -13,7 +13,7 @@ import { registerPostTools } from "./tools/post.js";
 
 // Create MCP server
 const server = new McpServer({
-  name: "dorotauri-x",
+  name: "dorotoring-x",
   version: "1.0.0",
 });
 
