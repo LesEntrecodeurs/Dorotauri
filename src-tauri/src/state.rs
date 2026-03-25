@@ -8,42 +8,50 @@ pub type AgentId = String;
 pub type PtyId = String;
 
 // ---------------------------------------------------------------------------
-// AgentState enum — mirrors TS: 'idle' | 'running' | 'completed' | 'error' | 'waiting'
+// ProcessState enum — lifecycle state of an agent/terminal process
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum AgentState {
-    Idle,
+pub enum ProcessState {
+    Inactive,
     Running,
-    Completed,
-    Error,
     Waiting,
+    Error,
+    Completed,
+    Dormant,
+}
+
+impl Default for ProcessState {
+    fn default() -> Self {
+        ProcessState::Inactive
+    }
 }
 
 // ---------------------------------------------------------------------------
-// AgentStatus — mirrors electron/types/index.ts AgentStatus
+// Agent — unified agent/terminal primitive
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentStatus {
+pub struct Agent {
     pub id: AgentId,
-    pub status: AgentState,
-    pub project_path: String,
+    pub process_state: ProcessState,
+    pub cwd: String,
+    #[serde(default)]
+    pub secondary_paths: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub secondary_project_path: Option<String>,
+    pub role: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub worktree_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_name: Option<String>,
     #[serde(default)]
     pub skills: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub current_task: Option<String>,
     #[serde(default)]
     pub output: Vec<String>,
     pub last_activity: String,
+    pub created_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,17 +67,79 @@ pub struct AgentStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status_line: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_clean_output: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub local_model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kanban_task_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_session_id: Option<String>,
-    #[serde(default)]
-    pub path_missing: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_missing: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub obsidian_vault_paths: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub business_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub business_state_updated_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub business_state_updated_at: Option<String>,
+    pub tab_id: String,
+    #[serde(default)]
+    pub is_super_agent: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub super_agent_scope: Option<String>,
+    #[serde(default)]
+    pub scheduled_task_ids: Vec<String>,
+    #[serde(default)]
+    pub automation_ids: Vec<String>,
+}
+
+impl Default for Agent {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            process_state: ProcessState::Inactive,
+            cwd: String::new(),
+            secondary_paths: Vec::new(),
+            role: None,
+            worktree_path: None,
+            branch_name: None,
+            skills: Vec::new(),
+            output: Vec::new(),
+            last_activity: String::new(),
+            created_at: String::new(),
+            error: None,
+            pty_id: None,
+            character: None,
+            name: None,
+            skip_permissions: false,
+            provider: None,
+            status_line: None,
+            local_model: None,
+            kanban_task_id: None,
+            current_session_id: None,
+            path_missing: None,
+            obsidian_vault_paths: None,
+            business_state: None,
+            business_state_updated_by: None,
+            business_state_updated_at: None,
+            tab_id: "general".to_string(),
+            is_super_agent: false,
+            super_agent_scope: None,
+            scheduled_task_ids: Vec::new(),
+            automation_ids: Vec::new(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AgentsFile — versioned wrapper around the agents HashMap
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentsFile {
+    pub schema_version: u32,
+    pub agents: HashMap<AgentId, Agent>,
 }
 
 // ---------------------------------------------------------------------------
@@ -323,18 +393,18 @@ impl Default for AppSettings {
 // ---------------------------------------------------------------------------
 
 pub struct AppState {
-    pub agents: Mutex<HashMap<AgentId, AgentStatus>>,
+    pub agents: Mutex<HashMap<AgentId, Agent>>,
     pub settings: Mutex<AppSettings>,
 }
 
 impl AppState {
-    /// Load persisted state from ~/.dorothy/ (same location as the Electron app).
+    /// Load persisted state from ~/.dorotauri/ (same location as the Electron app).
     pub fn load() -> Self {
-        let dorothy_dir = dorothy_dir();
-        fs::create_dir_all(&dorothy_dir).ok();
+        let dorotauri_dir = dorotauri_dir();
+        fs::create_dir_all(&dorotauri_dir).ok();
 
-        let agents = Self::load_agents(&dorothy_dir);
-        let settings = Self::load_settings(&dorothy_dir);
+        let agents = Self::load_agents(&dorotauri_dir);
+        let settings = Self::load_settings(&dorotauri_dir);
 
         Self {
             agents: Mutex::new(agents),
@@ -342,12 +412,31 @@ impl AppState {
         }
     }
 
-    fn load_agents(dir: &PathBuf) -> HashMap<AgentId, AgentStatus> {
+    fn load_agents(dir: &PathBuf) -> HashMap<AgentId, Agent> {
         let path = dir.join("agents.json");
-        fs::read_to_string(&path)
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        let raw = match fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(_) => return HashMap::new(),
+        };
+
+        // Try to parse as the new versioned AgentsFile format first
+        if let Ok(file) = serde_json::from_str::<AgentsFile>(&raw) {
+            return file.agents;
+        }
+
+        // Fall back: try the old bare HashMap<AgentId, serde_json::Value> and migrate
+        if let Ok(old_map) =
+            serde_json::from_str::<HashMap<String, serde_json::Value>>(&raw)
+        {
+            match crate::migration::migrate_v0_to_v1(old_map, &path) {
+                Ok(agents) => return agents,
+                Err(e) => {
+                    eprintln!("[state] migration failed: {e}; starting with empty agent list");
+                }
+            }
+        }
+
+        HashMap::new()
     }
 
     fn load_settings(dir: &PathBuf) -> AppSettings {
@@ -358,18 +447,22 @@ impl AppState {
             .unwrap_or_default()
     }
 
-    /// Persist agents map to ~/.dorothy/agents.json
+    /// Persist agents map to ~/.dorotauri/agents.json (wrapped in AgentsFile)
     pub fn save_agents(&self) {
-        let dir = dorothy_dir();
+        let dir = dorotauri_dir();
         let agents = self.agents.lock().unwrap();
-        if let Ok(json) = serde_json::to_string_pretty(&*agents) {
+        let file = AgentsFile {
+            schema_version: 1,
+            agents: agents.clone(),
+        };
+        if let Ok(json) = serde_json::to_string_pretty(&file) {
             fs::write(dir.join("agents.json"), json).ok();
         }
     }
 
-    /// Persist settings to ~/.dorothy/app-settings.json
+    /// Persist settings to ~/.dorotauri/app-settings.json
     pub fn save_settings(&self) {
-        let dir = dorothy_dir();
+        let dir = dorotauri_dir();
         let settings = self.settings.lock().unwrap();
         if let Ok(json) = serde_json::to_string_pretty(&*settings) {
             fs::write(dir.join("app-settings.json"), json).ok();
@@ -377,9 +470,9 @@ impl AppState {
     }
 }
 
-/// Canonical Dorothy config directory.
-fn dorothy_dir() -> PathBuf {
+/// Canonical Dorotauri config directory.
+fn dorotauri_dir() -> PathBuf {
     dirs::home_dir()
         .expect("could not determine home directory")
-        .join(".dorothy")
+        .join(".dorotauri")
 }

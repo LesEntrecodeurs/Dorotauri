@@ -2,7 +2,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::notifications;
 use crate::pty::PtyManager;
-use crate::state::{AgentId, AgentState, AgentStatus, AppState};
+use crate::state::{Agent, AgentId, AppState, ProcessState};
 use crate::windows::WindowRegistry;
 
 // ---------------------------------------------------------------------------
@@ -10,7 +10,7 @@ use crate::windows::WindowRegistry;
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn agent_list(state: State<'_, AppState>) -> Vec<AgentStatus> {
+pub fn agent_list(state: State<'_, AppState>) -> Vec<Agent> {
     let agents = state.agents.lock().unwrap();
     agents.values().cloned().collect()
 }
@@ -20,7 +20,7 @@ pub fn agent_list(state: State<'_, AppState>) -> Vec<AgentStatus> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn agent_get(id: AgentId, state: State<'_, AppState>) -> Option<AgentStatus> {
+pub fn agent_get(id: AgentId, state: State<'_, AppState>) -> Option<Agent> {
     let agents = state.agents.lock().unwrap();
     agents.get(&id).cloned()
 }
@@ -33,31 +33,36 @@ pub fn agent_get(id: AgentId, state: State<'_, AppState>) -> Option<AgentStatus>
 pub fn agent_create(
     config: serde_json::Value,
     state: State<'_, AppState>,
-) -> Result<AgentStatus, String> {
+) -> Result<Agent, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
 
-    let agent = AgentStatus {
+    let secondary_paths: Vec<String> = config
+        .get("secondaryProjectPath")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| vec![s.to_string()])
+        .unwrap_or_default();
+
+    let agent = Agent {
         id: id.clone(),
-        status: AgentState::Idle,
-        project_path: config
+        process_state: ProcessState::Inactive,
+        cwd: config
             .get("projectPath")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string(),
-        secondary_project_path: config
-            .get("secondaryProjectPath")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        secondary_paths,
+        role: None,
         worktree_path: None,
         branch_name: None,
         skills: config
             .get("skills")
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default(),
-        current_task: None,
         output: Vec::new(),
-        last_activity: now,
+        last_activity: now.clone(),
+        created_at: now,
         error: None,
         pty_id: None,
         character: config
@@ -77,17 +82,31 @@ pub fn agent_create(
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
         status_line: None,
-        last_clean_output: None,
         local_model: config
             .get("localModel")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
         kanban_task_id: None,
         current_session_id: None,
-        path_missing: false,
+        path_missing: None,
         obsidian_vault_paths: config
             .get("obsidianVaultPaths")
             .and_then(|v| serde_json::from_value(v.clone()).ok()),
+        business_state: None,
+        business_state_updated_by: None,
+        business_state_updated_at: None,
+        tab_id: config
+            .get("tabId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("general")
+            .to_string(),
+        is_super_agent: config
+            .get("isSuperAgent")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        super_agent_scope: None,
+        scheduled_task_ids: Vec::new(),
+        automation_ids: Vec::new(),
     };
 
     {
@@ -111,7 +130,7 @@ pub fn agent_start(
     id: String,
     prompt: Option<String>,
     options: Option<serde_json::Value>,
-) -> Result<AgentStatus, String> {
+) -> Result<Agent, String> {
     let _ = &options; // reserved for future use (model, resume, etc.)
     let pty_id = uuid::Uuid::new_v4().to_string();
 
@@ -124,8 +143,8 @@ pub fn agent_start(
             .ok_or_else(|| format!("agent not found: {}", id))?
     };
 
-    // Spawn PTY in the agent's project directory
-    pty_manager.spawn(&pty_id, &agent_snapshot.id, &agent_snapshot.project_path, &app_handle, None, None)?;
+    // Spawn PTY in the agent's working directory
+    pty_manager.spawn(&pty_id, &agent_snapshot.id, &agent_snapshot.cwd, &app_handle, None, None)?;
 
     // Build CLI command based on provider
     let settings = state.settings.lock().unwrap();
@@ -173,13 +192,10 @@ pub fn agent_start(
     let updated_agent = {
         let mut agents = state.agents.lock().unwrap();
         if let Some(agent) = agents.get_mut(&id) {
-            agent.status = AgentState::Running;
+            agent.process_state = ProcessState::Running;
             agent.pty_id = Some(pty_id);
             agent.last_activity = now;
             agent.error = None;
-            if prompt.is_some() {
-                agent.current_task = prompt;
-            }
             agent.clone()
         } else {
             return Err(format!("agent disappeared: {}", id));
@@ -197,7 +213,7 @@ pub fn agent_start(
 }
 
 // ---------------------------------------------------------------------------
-// agent_stop — kill PTY, mark as idle
+// agent_stop — kill PTY, mark as dormant
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
@@ -207,7 +223,7 @@ pub fn agent_stop(
     pty_manager: State<'_, PtyManager>,
     registry: State<'_, WindowRegistry>,
     app_handle: AppHandle,
-) -> Result<AgentStatus, String> {
+) -> Result<Agent, String> {
     let now = chrono::Utc::now().to_rfc3339();
 
     let (updated_agent, was_running) = {
@@ -216,14 +232,14 @@ pub fn agent_stop(
             .get_mut(&id)
             .ok_or_else(|| format!("agent not found: {id}"))?;
 
-        let was_running = agent.status == AgentState::Running;
+        let was_running = agent.process_state == ProcessState::Running;
 
         // Kill PTY if one exists
         if let Some(ref pty_id) = agent.pty_id {
             pty_manager.kill(pty_id).ok();
         }
 
-        agent.status = AgentState::Idle;
+        agent.process_state = ProcessState::Dormant;
         agent.pty_id = None;
         agent.last_activity = now;
         (agent.clone(), was_running)
@@ -322,20 +338,42 @@ pub fn agent_update(
         if let Some(local_model) = params.get("localModel").and_then(|v| v.as_str()) {
             agent.local_model = Some(local_model.to_string());
         }
-        if let Some(project_path) = params.get("projectPath").and_then(|v| v.as_str()) {
-            agent.project_path = project_path.to_string();
+        // Support both old "projectPath" key and new "cwd" key for compatibility
+        if let Some(cwd) = params.get("cwd").and_then(|v| v.as_str()) {
+            agent.cwd = cwd.to_string();
+        } else if let Some(project_path) = params.get("projectPath").and_then(|v| v.as_str()) {
+            agent.cwd = project_path.to_string();
         }
-        if let Some(secondary) = params.get("secondaryProjectPath") {
+        if let Some(secondary) = params.get("secondaryPaths") {
             if secondary.is_null() {
-                agent.secondary_project_path = None;
+                agent.secondary_paths = Vec::new();
+            } else if let Ok(paths) = serde_json::from_value::<Vec<String>>(secondary.clone()) {
+                agent.secondary_paths = paths;
+            }
+        } else if let Some(secondary) = params.get("secondaryProjectPath") {
+            // Legacy key support
+            if secondary.is_null() {
+                agent.secondary_paths = Vec::new();
             } else if let Some(s) = secondary.as_str() {
-                agent.secondary_project_path = Some(s.to_string());
+                agent.secondary_paths = vec![s.to_string()];
             }
         }
         if let Some(vault_paths) = params.get("obsidianVaultPaths") {
             if let Ok(vp) = serde_json::from_value::<Vec<String>>(vault_paths.clone()) {
                 agent.obsidian_vault_paths = Some(vp);
             }
+        }
+        if let Some(tab_id) = params.get("tabId").and_then(|v| v.as_str()) {
+            agent.tab_id = tab_id.to_string();
+        }
+        if let Some(role) = params.get("role").and_then(|v| v.as_str()) {
+            agent.role = Some(role.to_string());
+        }
+        if let Some(is_super) = params.get("isSuperAgent").and_then(|v| v.as_bool()) {
+            agent.is_super_agent = is_super;
+        }
+        if let Some(bs) = params.get("businessState").and_then(|v| v.as_str()) {
+            agent.business_state = Some(bs.to_string());
         }
 
         agent.last_activity = now;
@@ -348,7 +386,7 @@ pub fn agent_update(
         .emit("agent:status", &updated_agent)
         .ok();
 
-    // Return { success: true, agent: AgentStatus } as expected by the frontend
+    // Return { success: true, agent: Agent } as expected by the frontend
     Ok(serde_json::json!({
         "success": true,
         "agent": updated_agent,

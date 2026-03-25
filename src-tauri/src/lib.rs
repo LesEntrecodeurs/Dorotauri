@@ -2,6 +2,7 @@ use tauri::Manager;
 
 mod commands;
 mod db;
+pub mod migration;
 mod notifications;
 mod pty;
 mod state;
