@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
-  "productName": "Dorotauri",
+  "productName": "Dorotoring",
   "version": "1.2.5",
-  "identifier": "io.dorotauri.app",
+  "identifier": "io.dorotoring.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -13,12 +13,12 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Dorotauri",
+        "title": "Dorotoring",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
         "minHeight": 600,
-        "decorations": true,
+        "decorations": false,
         "titleBarStyle": "Visible",
         "backgroundColor": "#F8F5FC"
       }
