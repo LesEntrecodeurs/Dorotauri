@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import type { DockerContainer, DockerStatus, SetupProgress } from '@/types/docker';
+import type { DockerContainer, DockerStatus, SetupProgress, ContainerStats } from '@/types/docker';
 
 const POLL_INTERVAL = 5000;
 
@@ -239,6 +239,52 @@ export function useDocker() {
     }
   }, [containers, refresh]);
 
+  // ── Stats polling ──────────────────────────────────────────────────────
+  const [stats, setStats] = useState<Map<string, ContainerStats>>(new Map());
+  const statsIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (daemonState !== 'ready') return;
+
+    const fetchStats = async () => {
+      try {
+        const result = await invoke<ContainerStats[]>('docker_container_stats');
+        const map = new Map<string, ContainerStats>();
+        for (const s of result) map.set(s.id, s);
+        setStats(map);
+      } catch { /* ignore stats errors */ }
+    };
+
+    fetchStats();
+    statsIntervalRef.current = setInterval(fetchStats, POLL_INTERVAL);
+    return () => {
+      if (statsIntervalRef.current) clearInterval(statsIntervalRef.current);
+    };
+  }, [daemonState]);
+
+  // ── Terminal actions (logs, shell, compose) ───────────────────────────
+  const openLogs = useCallback(async (containerId: string, ptyId: string) => {
+    await invoke('docker_container_logs', { id: containerId, ptyId });
+  }, []);
+
+  const openShell = useCallback(async (containerId: string, ptyId: string) => {
+    await invoke('docker_exec_shell', { id: containerId, ptyId });
+  }, []);
+
+  const composeUp = useCallback(async (configFile: string, ptyId: string) => {
+    await invoke('docker_compose_up', { configFile, ptyId });
+  }, []);
+
+  const composeDown = useCallback(async (configFile: string, ptyId: string) => {
+    await invoke('docker_compose_down', { configFile, ptyId });
+  }, []);
+
+  const closePty = useCallback(async (ptyId: string) => {
+    try {
+      await invoke('pty_kill', { ptyId });
+    } catch { /* ignore */ }
+  }, []);
+
   return {
     containers,
     loading,
@@ -246,11 +292,17 @@ export function useDocker() {
     actionLoading,
     daemonState,
     setupProgress,
+    stats,
     startContainer,
     stopContainer,
     restartContainer,
     startProject,
     stopProject,
+    openLogs,
+    openShell,
+    composeUp,
+    composeDown,
+    closePty,
     refresh,
     retry,
   };

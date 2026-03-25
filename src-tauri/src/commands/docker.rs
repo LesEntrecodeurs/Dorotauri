@@ -2,8 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tauri::AppHandle;
-use tauri::Emitter;
+use std::sync::Arc;
+use tauri::{AppHandle, Emitter, State};
+
+use crate::pty::PtyManager;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +21,16 @@ pub struct DockerContainer {
     pub created_at: String,
     pub project: Option<String>,
     pub service: Option<String>,
+    pub config_file: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerStats {
+    pub id: String,
+    pub cpu_perc: String,
+    pub mem_usage: String,
+    pub mem_perc: String,
 }
 
 #[derive(Serialize)]
@@ -69,6 +81,7 @@ impl From<RawDockerContainer> for DockerContainer {
     fn from(raw: RawDockerContainer) -> Self {
         let project = parse_label(&raw.Labels, "com.docker.compose.project");
         let service = parse_label(&raw.Labels, "com.docker.compose.service");
+        let config_file = parse_label(&raw.Labels, "com.docker.compose.project.config_files");
         Self {
             id: raw.ID,
             names: raw.Names,
@@ -79,8 +92,18 @@ impl From<RawDockerContainer> for DockerContainer {
             created_at: raw.CreatedAt,
             project,
             service,
+            config_file,
         }
     }
+}
+
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct RawContainerStats {
+    ID: String,
+    CPUPerc: String,
+    MemUsage: String,
+    MemPerc: String,
 }
 
 // ── Paths ───────────────────────────────────────────────────────────────────
@@ -236,12 +259,18 @@ fn make_executable(path: &Path) -> Result<(), String> {
 
 #[tauri::command]
 pub fn docker_status() -> DockerStatus {
+    let docker_installed = find_binary("docker").is_some();
+    let bins_installed = binaries_installed();
+
+    // Fast path: check daemon first. If ready, skip slow colima check.
+    let daemon_ready = docker_installed && is_daemon_ready();
+
     DockerStatus {
-        daemon_ready: is_daemon_ready(),
-        docker_installed: find_binary("docker").is_some(),
-        colima_installed: find_binary("colima").is_some(),
-        colima_running: is_colima_running(),
-        binaries_installed: binaries_installed(),
+        daemon_ready,
+        docker_installed,
+        colima_installed: if daemon_ready { true } else { find_binary("colima").is_some() },
+        colima_running: if daemon_ready { true } else { is_colima_running() },
+        binaries_installed: bins_installed,
     }
 }
 
@@ -472,5 +501,250 @@ fn run_docker_action(action: &str, id: &str) -> Result<(), String> {
         return Err(format!("docker {} failed: {}", action, stderr.trim()));
     }
 
+    Ok(())
+}
+
+// ── Stats ───────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn docker_container_stats() -> Result<Vec<ContainerStats>, String> {
+    let output = docker_cmd()
+        .args(["stats", "--no-stream", "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| format!("Failed to run docker stats: {}", e))?;
+
+    if !output.status.success() {
+        return Err("docker stats failed".to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut stats = Vec::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Ok(raw) = serde_json::from_str::<RawContainerStats>(trimmed) {
+            stats.push(ContainerStats {
+                id: raw.ID,
+                cpu_perc: raw.CPUPerc,
+                mem_usage: raw.MemUsage,
+                mem_perc: raw.MemPerc,
+            });
+        }
+    }
+
+    Ok(stats)
+}
+
+// ── Logs ────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn docker_container_logs(
+    id: String,
+    pty_id: String,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let docker_bin = find_binary("docker")
+        .unwrap_or_else(|| PathBuf::from("docker"))
+        .to_string_lossy()
+        .to_string();
+
+    // Spawn a PTY running: docker logs -f --tail 200 <id>
+    let pty_system = portable_pty::native_pty_system();
+    let size = portable_pty::PtySize { rows: 24, cols: 120, pixel_width: 0, pixel_height: 0 };
+    let pair = pty_system.openpty(size).map_err(|e| format!("pty open: {e}"))?;
+
+    let mut cmd = portable_pty::CommandBuilder::new(&docker_bin);
+    cmd.args(["logs", "-f", "--tail", "200", &id]);
+
+    let child = pair.slave.spawn_command(cmd).map_err(|e| format!("spawn: {e}"))?;
+    let writer = pair.master.take_writer().map_err(|e| format!("writer: {e}"))?;
+    let mut reader = pair.master.try_clone_reader().map_err(|e| format!("reader: {e}"))?;
+
+    let handle = app.clone();
+    let pty_id_clone = pty_id.clone();
+    let paused = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let event = crate::pty::PtyOutputEvent {
+                        agent_id: format!("docker-logs-{}", pty_id_clone),
+                        pty_id: pty_id_clone.clone(),
+                        data: buf[..n].to_vec(),
+                    };
+                    if handle.emit("agent:output", event).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    let pty_handle = crate::pty::PtyHandle {
+        master: pair.master,
+        writer,
+        child,
+        agent_id: format!("docker-logs-{}", pty_id),
+        child_pid: None,
+        paused,
+    };
+
+    pty_manager.handles.lock().unwrap().insert(pty_id, pty_handle);
+    Ok(())
+}
+
+// ── Shell exec ──────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn docker_exec_shell(
+    id: String,
+    pty_id: String,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let docker_bin = find_binary("docker")
+        .unwrap_or_else(|| PathBuf::from("docker"))
+        .to_string_lossy()
+        .to_string();
+
+    let pty_system = portable_pty::native_pty_system();
+    let size = portable_pty::PtySize { rows: 24, cols: 120, pixel_width: 0, pixel_height: 0 };
+    let pair = pty_system.openpty(size).map_err(|e| format!("pty open: {e}"))?;
+
+    let mut cmd = portable_pty::CommandBuilder::new(&docker_bin);
+    cmd.args(["exec", "-it", &id, "/bin/sh"]);
+
+    let child = pair.slave.spawn_command(cmd).map_err(|e| format!("spawn: {e}"))?;
+    let writer = pair.master.take_writer().map_err(|e| format!("writer: {e}"))?;
+    let mut reader = pair.master.try_clone_reader().map_err(|e| format!("reader: {e}"))?;
+
+    let handle = app.clone();
+    let pty_id_clone = pty_id.clone();
+    let paused = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let event = crate::pty::PtyOutputEvent {
+                        agent_id: format!("docker-exec-{}", pty_id_clone),
+                        pty_id: pty_id_clone.clone(),
+                        data: buf[..n].to_vec(),
+                    };
+                    if handle.emit("agent:output", event).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    let pty_handle = crate::pty::PtyHandle {
+        master: pair.master,
+        writer,
+        child,
+        agent_id: format!("docker-exec-{}", pty_id),
+        child_pid: None,
+        paused,
+    };
+
+    pty_manager.handles.lock().unwrap().insert(pty_id, pty_handle);
+    Ok(())
+}
+
+// ── Docker Compose ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn docker_compose_up(
+    config_file: String,
+    pty_id: String,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    app: AppHandle,
+) -> Result<(), String> {
+    docker_compose_action("up", &config_file, &pty_id, &pty_manager, &app)
+}
+
+#[tauri::command]
+pub fn docker_compose_down(
+    config_file: String,
+    pty_id: String,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    app: AppHandle,
+) -> Result<(), String> {
+    docker_compose_action("down", &config_file, &pty_id, &pty_manager, &app)
+}
+
+fn docker_compose_action(
+    action: &str,
+    config_file: &str,
+    pty_id: &str,
+    pty_manager: &PtyManager,
+    app: &AppHandle,
+) -> Result<(), String> {
+    let docker_bin = find_binary("docker")
+        .unwrap_or_else(|| PathBuf::from("docker"))
+        .to_string_lossy()
+        .to_string();
+
+    let pty_system = portable_pty::native_pty_system();
+    let size = portable_pty::PtySize { rows: 24, cols: 120, pixel_width: 0, pixel_height: 0 };
+    let pair = pty_system.openpty(size).map_err(|e| format!("pty open: {e}"))?;
+
+    let mut cmd = portable_pty::CommandBuilder::new(&docker_bin);
+    match action {
+        "up" => cmd.args(["compose", "-f", config_file, "up", "-d"]),
+        "down" => cmd.args(["compose", "-f", config_file, "down"]),
+        _ => return Err(format!("unknown compose action: {}", action)),
+    };
+
+    let child = pair.slave.spawn_command(cmd).map_err(|e| format!("spawn: {e}"))?;
+    let writer = pair.master.take_writer().map_err(|e| format!("writer: {e}"))?;
+    let mut reader = pair.master.try_clone_reader().map_err(|e| format!("reader: {e}"))?;
+
+    let handle = app.clone();
+    let pty_id_owned = pty_id.to_string();
+    let paused = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let event = crate::pty::PtyOutputEvent {
+                        agent_id: format!("docker-compose-{}", pty_id_owned),
+                        pty_id: pty_id_owned.clone(),
+                        data: buf[..n].to_vec(),
+                    };
+                    if handle.emit("agent:output", event).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    let pty_handle = crate::pty::PtyHandle {
+        master: pair.master,
+        writer,
+        child,
+        agent_id: format!("docker-compose-{}", pty_id),
+        child_pid: None,
+        paused,
+    };
+
+    pty_manager.handles.lock().unwrap().insert(pty_id.to_string(), pty_handle);
     Ok(())
 }

@@ -8,6 +8,7 @@ export interface DockerContainer {
   createdAt: string;
   project: string | null;
   service: string | null;
+  configFile: string | null;
 }
 
 export interface DockerStatus {
@@ -21,4 +22,11 @@ export interface DockerStatus {
 export interface SetupProgress {
   step: string;
   progress: number;
+}
+
+export interface ContainerStats {
+  id: string;
+  cpuPerc: string;
+  memUsage: string;
+  memPerc: string;
 }
