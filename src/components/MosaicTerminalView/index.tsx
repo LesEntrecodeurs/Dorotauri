@@ -238,7 +238,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const [layoutPresetIndex, setLayoutPresetIndex] = useState(0);
 
   // Hooks for the edit modal
-  const { updateAgent } = useElectronAgents();
+  const { updateAgent, createAgent } = useElectronAgents();
   const { installedSkills } = useElectronSkills();
 
   // Persist tabs
@@ -447,18 +447,16 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const addQuickTerminal = useCallback(async () => {
     if (!isTauri()) return;
     try {
-      const agent = await invoke<Agent>('agent_create', {
-        config: {
-          skills: [],
-          name: randomAgentName(),
-          character: 'robot',
-        }
+      const agent = await createAgent({
+        skills: [],
+        name: randomAgentName(),
+        character: 'robot',
       });
       addAgentToTab(agent.id);
     } catch (err) {
       console.error('Failed to create quick terminal:', err);
     }
-  }, [addAgentToTab]);
+  }, [addAgentToTab, createAgent]);
 
   // Split terminal: create a new terminal next to a target agent (inherits cwd)
   const handleSplitTerminal = useCallback(async (targetAgentId: string, direction: 'row' | 'column') => {
@@ -468,13 +466,11 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       const sourceAgent = agentMap.get(targetAgentId);
       const cwd = sourceAgent?.cwd || undefined;
 
-      const agent = await invoke<Agent>('agent_create', {
-        config: {
-          ...(cwd ? { cwd } : {}),
-          skills: [],
-          name: randomAgentName(),
-          character: 'robot',
-        }
+      const agent = await createAgent({
+        ...(cwd ? { cwd } : {}),
+        skills: [],
+        name: randomAgentName(),
+        character: 'robot',
       });
 
       setTabs(prev => prev.map(tab => {
@@ -488,7 +484,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     } catch (err) {
       console.error('Failed to split terminal:', err);
     }
-  }, [activeTabId, agentMap]);
+  }, [activeTabId, agentMap, createAgent]);
 
   // Keyboard shortcut: Ctrl/Cmd+T for quick terminal
   useEffect(() => {
