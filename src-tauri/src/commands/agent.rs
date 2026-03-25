@@ -190,15 +190,16 @@ pub fn agent_start(
         }
     }
 
-    // Always add MCP config so orchestrator tools are available to all agents.
-    // This allows promoting an agent to Super Agent at any time without restarting.
-    let mcp_config = dirs::home_dir()
-        .unwrap_or_default()
-        .join(".claude")
-        .join("mcp.json");
-    if mcp_config.exists() {
-        cmd_parts.push("--mcp-config".into());
-        cmd_parts.push(mcp_config.to_string_lossy().to_string());
+    // Super Agent: add MCP config for orchestrator tools
+    if agent_snapshot.is_super_agent {
+        let mcp_config = dirs::home_dir()
+            .unwrap_or_default()
+            .join(".claude")
+            .join("mcp.json");
+        if mcp_config.exists() {
+            cmd_parts.push("--mcp-config".into());
+            cmd_parts.push(mcp_config.to_string_lossy().to_string());
+        }
     }
 
     // Add secondary paths (--add-dir)
@@ -595,4 +596,95 @@ pub fn agent_send_input(
     };
 
     pty_manager.write(&pty_id, input.as_bytes())
+}
+
+// ---------------------------------------------------------------------------
+// agent_promote_super — promote to Super Agent and reload claude with MCP tools
+// Sends /exit to gracefully quit the current claude session, then relaunches
+// with --continue --mcp-config to resume the conversation with orchestrator tools.
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn agent_promote_super(
+    id: AgentId,
+    scope: Option<String>,
+    state: State<'_, Arc<AppState>>,
+    pty_manager: State<'_, Arc<PtyManager>>,
+) -> Result<Agent, String> {
+    let (pty_id, was_running) = {
+        let mut agents = state.agents.lock().unwrap();
+        let agent = agents.get_mut(&id).ok_or_else(|| format!("agent not found: {id}"))?;
+        agent.is_super_agent = true;
+        agent.super_agent_scope = scope;
+        agent.last_activity = chrono::Utc::now().to_rfc3339();
+        let running = matches!(agent.process_state, ProcessState::Running | ProcessState::Waiting);
+        (agent.pty_id.clone(), running)
+    };
+    state.save_agents();
+
+    // If claude is running in the PTY, gracefully exit and relaunch with MCP
+    if let Some(ref pty_id) = pty_id {
+        if was_running {
+            // Send /exit to quit claude gracefully
+            let _ = pty_manager.write(pty_id, b"/exit\n");
+
+            // Wait briefly for claude to exit, then relaunch
+            let pty_mgr = pty_manager.inner().clone();
+            let pty_id_clone = pty_id.clone();
+            let state_clone = state.inner().clone();
+            let agent_id = id.clone();
+
+            std::thread::spawn(move || {
+                // Give claude time to exit
+                std::thread::sleep(std::time::Duration::from_secs(2));
+
+                // Build relaunch command
+                let settings = state_clone.settings.lock().unwrap().clone();
+                let agents = state_clone.agents.lock().unwrap();
+                let agent = match agents.get(&agent_id) {
+                    Some(a) => a.clone(),
+                    None => return,
+                };
+                drop(agents);
+
+                let provider = agent.provider.as_deref().unwrap_or("claude");
+                let cli_binary = match provider {
+                    "codex" => settings.cli_paths.codex.clone(),
+                    "gemini" => settings.cli_paths.gemini.clone(),
+                    "opencode" => settings.cli_paths.opencode.clone(),
+                    "pi" => settings.cli_paths.pi.clone(),
+                    "local" => settings.cli_paths.claude.clone(),
+                    _ => settings.cli_paths.claude.clone(),
+                };
+
+                let mut cmd_parts = vec![cli_binary];
+                cmd_parts.push("--continue".into());
+
+                if agent.skip_permissions {
+                    match provider {
+                        "codex" => cmd_parts.push("--full-auto".into()),
+                        _ => cmd_parts.push("--dangerously-skip-permissions".into()),
+                    }
+                }
+
+                // MCP config (the whole reason for the reload)
+                let mcp_config = dirs::home_dir()
+                    .unwrap_or_default()
+                    .join(".claude")
+                    .join("mcp.json");
+                if mcp_config.exists() {
+                    cmd_parts.push("--mcp-config".into());
+                    cmd_parts.push(mcp_config.to_string_lossy().to_string());
+                }
+
+                let cmd = cmd_parts.join(" ");
+                let _ = pty_mgr.write(&pty_id_clone, format!("{cmd}\n").as_bytes());
+            });
+        }
+    }
+
+    let agents = state.agents.lock().unwrap();
+    let agent = agents.get(&id).ok_or_else(|| format!("agent not found: {id}"))?;
+    let _ = state.status_tx.send((id.clone(), "updated".into()));
+    Ok(agent.clone())
 }

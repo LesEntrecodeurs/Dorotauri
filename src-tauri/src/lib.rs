@@ -52,7 +52,7 @@ pub fn run() {
 
             // Start API server for MCP orchestrator
             let handle = app.handle().clone();
-            tokio::spawn(api_server::start(
+            tauri::async_runtime::spawn(api_server::start(
                 api_app_state,
                 api_pty_manager,
                 api_cwd_tracker,
@@ -100,6 +100,7 @@ pub fn run() {
             commands::agent::agent_set_dormant,
             commands::agent::agent_reanimate,
             commands::agent::agent_update_business_state,
+            commands::agent::agent_promote_super,
             // PTY commands
             commands::pty::pty_create,
             commands::pty::pty_write,

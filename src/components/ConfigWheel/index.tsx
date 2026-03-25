@@ -24,6 +24,8 @@ interface ConfigWheelProps {
   tabHasSuperAgent?: boolean;
   /** Callback to re-roll the agent name (random LoL champion) */
   onRerollName?: (id: string) => void;
+  /** Callback to promote to Super Agent (graceful reload with MCP tools) */
+  onPromoteSuper?: (id: string, scope: 'tab' | 'all') => void;
 }
 
 export const ConfigWheel = memo(function ConfigWheel({
@@ -32,6 +34,7 @@ export const ConfigWheel = memo(function ConfigWheel({
   availableSkills = [],
   tabHasSuperAgent = false,
   onRerollName,
+  onPromoteSuper,
 }: ConfigWheelProps) {
   const update = useCallback(
     (updates: Partial<Agent>) => onUpdate(agent.id, updates),
@@ -171,7 +174,13 @@ export const ConfigWheel = memo(function ConfigWheel({
             <SuperAgentToggle
               isSuperAgent={agent.isSuperAgent}
               scope={agent.superAgentScope}
-              onChange={(isSuperAgent, scope) => update({ isSuperAgent, superAgentScope: scope })}
+              onChange={(isSuperAgent, scope) => {
+                if (isSuperAgent && onPromoteSuper) {
+                  onPromoteSuper(agent.id, scope || 'tab');
+                } else {
+                  update({ isSuperAgent, superAgentScope: scope });
+                }
+              }}
             />
           )}
         </div>

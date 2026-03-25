@@ -555,6 +555,15 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
     }
   }, [updateAgent]);
 
+  // Promote to Super Agent — gracefully reloads claude with MCP tools
+  const handlePromoteSuper = useCallback(async (id: string, scope: 'tab' | 'all') => {
+    try {
+      await invoke('agent_promote_super', { id, scope });
+    } catch (err) {
+      console.error('Failed to promote super agent:', err);
+    }
+  }, []);
+
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
     if (!agent) return `Agent ${id.slice(0, 6)}`;
@@ -905,7 +914,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
                         <div className={`absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border rounded px-1 py-0.5 z-10 backdrop-blur-sm ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'border-amber-500/50' : 'border-border/50'}`}>
                           {getSuperAgentBadge(agent) && <span className="text-[10px] px-0.5">{getSuperAgentBadge(agent)}</span>}
                           <span className={`text-[10px] px-1 ${agent?.isSuperAgent ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>{getAgentTitle(id)}</span>
-                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} onRerollName={handleRerollName} />}
+                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} onRerollName={handleRerollName} onPromoteSuper={handlePromoteSuper} />}
                           <button onClick={(e) => { e.stopPropagation(); handlePopout(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                             <ExternalLink className="w-3 h-3" />
                           </button>
@@ -926,7 +935,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
                         {getSuperAgentBadge(agent) && <span className="text-xs shrink-0">{getSuperAgentBadge(agent)}</span>}
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
                         <div className="flex-1" />
-                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} onRerollName={handleRerollName} />}
+                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} onRerollName={handleRerollName} onPromoteSuper={handlePromoteSuper} />}
                         <button onClick={(e) => { e.stopPropagation(); handleMaximize(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Maximize">
                           <Maximize2 className="w-3 h-3" />
                         </button>

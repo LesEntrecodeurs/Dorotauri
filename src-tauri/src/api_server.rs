@@ -532,8 +532,8 @@ pub fn build_cli_command(agent: &Agent, prompt: Option<&str>, settings: &AppSett
         }
     }
 
-    // Always add MCP config so orchestrator tools are available to all agents
-    {
+    // Super Agent: add MCP config for orchestrator tools
+    if agent.is_super_agent {
         let mcp_config = dirs::home_dir()
             .unwrap_or_default()
             .join(".claude")
