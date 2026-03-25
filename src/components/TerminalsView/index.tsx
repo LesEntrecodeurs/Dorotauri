@@ -196,7 +196,7 @@ export default function TerminalsView() {
 
   const handleStartAll = useCallback(async () => {
     const needsStart = filteredAgents.filter(a =>
-      (a.status === 'idle' || a.status === 'completed') && !a.ptyId
+      (a.processState === 'inactive' || a.processState === 'completed') && !a.ptyId
     );
     for (const agent of needsStart) {
       await startAgent(agent.id, '', { resume: true });
@@ -204,7 +204,7 @@ export default function TerminalsView() {
   }, [filteredAgents, startAgent]);
 
   const handleStopAll = useCallback(async () => {
-    const running = filteredAgents.filter(a => a.status === 'running' || a.status === 'waiting');
+    const running = filteredAgents.filter(a => a.processState === 'running' || a.processState === 'waiting');
     for (const agent of running) {
       await stopAgent(agent.id);
     }
@@ -235,12 +235,12 @@ export default function TerminalsView() {
     skipPermissions?: boolean,
   ) => {
     const agent = await createAgent({
-      projectPath,
+      cwd: projectPath,
       skills,
       worktree,
       character: character as import('@/types/electron').AgentCharacter,
       name,
-      secondaryProjectPath,
+      secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined,
       skipPermissions,
       tabId: tabManager.activeTabId ?? undefined,
     });
@@ -261,7 +261,7 @@ export default function TerminalsView() {
     if (isLoading || autoStartedRef.current) return;
     autoStartedRef.current = true;
     const needsStart = agents.filter(a =>
-      (a.status === 'idle' || a.status === 'completed') && !a.ptyId
+      (a.processState === 'inactive' || a.processState === 'completed') && !a.ptyId
     );
     for (const agent of needsStart) {
       startAgent(agent.id, '', { resume: true }).catch(() => { });
@@ -284,7 +284,7 @@ export default function TerminalsView() {
     return () => clearTimeout(timer);
   }, [viewFullscreen, multiTerminal]);
 
-  const runningCount = filteredAgents.filter(a => a.status === 'running' || a.status === 'waiting').length;
+  const runningCount = filteredAgents.filter(a => a.processState === 'running' || a.processState === 'waiting').length;
 
   return (
     <DndContext sensors={dnd.sensors} onDragEnd={dnd.handleDragEnd}>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, RefreshCw, ZoomIn, ZoomOut, Maximize2, X, Save, Eye, Pencil } from 'lucide-react';
-import type { AgentStatus, ProjectMemory } from '@/types/electron';
+import type { Agent, ProjectMemory } from '@/types/electron';
 import { SimpleMarkdown } from '@/components/VaultView/components/MarkdownRenderer';
 
 // ── Node / edge types ─────────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ type InstructionFiles = Record<string, string[] | 'global'>;
 // ── Build graph ───────────────────────────────────────────────────────────────
 
 function buildGraph(
-  agents: AgentStatus[],
+  agents: Agent[],
   claudeData: ClaudeDataType | null,
   memories: ProjectMemory[],
   instructions: InstructionFiles,
@@ -234,7 +234,7 @@ function buildGraph(
 
     // ── Memory files (MEMORY.md etc.) for this agent's project ──
     const normalPath = (p: string) => p?.replace(/\/$/, '').toLowerCase();
-    const agentPath = normalPath(agent.projectPath ?? '');
+    const agentPath = normalPath(agent.cwd ?? '');
     const agentMemory = memories.find(m =>
       normalPath(m.projectPath) === agentPath ||
       normalPath(m.projectPath).endsWith('/' + agentPath.split('/').pop())
@@ -333,7 +333,7 @@ function buildGraph(
   if (projectMcpServers) {
     for (const [mcpName, entry] of Object.entries(projectMcpServers).slice(0, 30)) {
       for (const agent of relevantAgents) {
-        const hasAccess = entry.projectPaths.some(p => agent.projectPath === p);
+        const hasAccess = entry.projectPaths.some(p => agent.cwd === p);
         if (!hasAccess) continue;
         const mcpId = `mcp:${mcpName}`;
         if (!added.has(mcpId)) {
@@ -526,7 +526,7 @@ export default function AgentKnowledgeGraph() {
 
   const [loading, setLoading] = useState(true);
   const [graphBuilding, setGraphBuilding] = useState(false);
-  const [agents, setAgents] = useState<AgentStatus[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [legendOpen, setLegendOpen] = useState(true);
   const [nodeCount, setNodeCount] = useState(0);
@@ -550,7 +550,7 @@ export default function AgentKnowledgeGraph() {
         window.electronAPI?.shell?.exec({ command: 'cat ~/.claude/mcp.json' }).catch(() => null) ?? null,
       ]);
 
-      const typedAgents = agentList as AgentStatus[];
+      const typedAgents = agentList as Agent[];
       const typedClaude = claudeData as ClaudeDataType | null;
       const memories = (memResult as { projects: ProjectMemory[] })?.projects ?? [];
 
@@ -570,8 +570,8 @@ export default function AgentKnowledgeGraph() {
       memoriesRef.current = memories;
 
       // ── Discover CLAUDE.md instruction files ──
-      const typedAgentsCast = typedAgents as AgentStatus[];
-      const uniqueProjectPaths = [...new Set(typedAgentsCast.map(a => a.projectPath).filter(Boolean))];
+      const typedAgentsCast = typedAgents as Agent[];
+      const uniqueProjectPaths = [...new Set(typedAgentsCast.map(a => a.cwd).filter(Boolean))];
 
       // Only include the CLAUDE.md files that are actually loaded per agent:
       // - ~/.claude/CLAUDE.md  (global Claude config)
@@ -605,7 +605,7 @@ export default function AgentKnowledgeGraph() {
         } else {
           // Project-specific: match to agents whose projectPath contains this file
           const matchingIds = typedAgentsCast
-            .filter(a => a.projectPath && fp.startsWith(a.projectPath + '/'))
+            .filter(a => a.cwd && fp.startsWith(a.cwd + '/'))
             .map(a => a.id);
           instrFiles[fp] = matchingIds.length > 0 ? matchingIds : 'global';
         }

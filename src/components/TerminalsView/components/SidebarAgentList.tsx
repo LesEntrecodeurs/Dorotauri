@@ -34,10 +34,10 @@ export default function SidebarAgentList({
           ? '🐸'
           : CHARACTER_FACES[agent.character || 'robot'] || '🤖';
         const name = agent.name || `Agent ${agent.id.slice(0, 6)}`;
-        const projectName = agent.projectPath.split('/').pop() || '';
-        const status = STATUS_COLORS[agent.status] || STATUS_COLORS.idle;
+        const projectName = agent.cwd.split('/').pop() || '';
+        const status = STATUS_COLORS[agent.processState] || STATUS_COLORS.inactive;
         const isFocused = focusedPanelId === agent.id;
-        const isRunning = agent.status === 'running' || agent.status === 'waiting';
+        const isRunning = agent.processState === 'running' || agent.processState === 'waiting';
 
         return (
           <div
@@ -59,7 +59,7 @@ export default function SidebarAgentList({
             {/* Avatar */}
             <div className="relative">
               <span className="text-sm">{emoji}</span>
-              {agent.status === 'running' ? (
+              {agent.processState === 'running' ? (
                 <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600" />

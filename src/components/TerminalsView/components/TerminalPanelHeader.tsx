@@ -10,12 +10,12 @@ import {
   GripVertical,
   ShieldOff,
 } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { Button } from '@/components/ui/button';
 import { CHARACTER_FACES, STATUS_COLORS } from '../constants';
 
 interface TerminalPanelHeaderProps {
-  agent: AgentStatus;
+  agent: Agent;
   isFullscreen: boolean;
   isBroadcasting: boolean;
   tabType: 'custom' | 'project';
@@ -45,8 +45,8 @@ export default function TerminalPanelHeader({
     ? '\u{1F438}'
     : CHARACTER_FACES[agent.character || 'robot'] || '\u{1F916}';
   const name = agent.name || `Agent ${agent.id.slice(0, 6)}`;
-  const projectName = agent.projectPath.split('/').pop() || '';
-  const status = STATUS_COLORS[agent.status] || STATUS_COLORS.idle;
+  const projectName = agent.cwd.split('/').pop() || '';
+  const status = STATUS_COLORS[agent.processState] || STATUS_COLORS.inactive;
 
   const showDragHandle = tabType === 'custom';
   const showRemoveButton = tabType === 'custom';
@@ -67,7 +67,7 @@ export default function TerminalPanelHeader({
 
       {/* Status badge */}
       <span className={`text-[10px] px-1.5 py-0.5 font-medium ${status.bg} ${status.text}`}>
-        {agent.status}
+        {agent.processState}
       </span>
 
       {/* Project name */}
@@ -99,7 +99,7 @@ export default function TerminalPanelHeader({
 
       {/* Action buttons */}
       <div className="flex items-center gap-0.5" onMouseDown={e => e.stopPropagation()}>
-        {agent.status === 'running' || agent.status === 'waiting' ? (
+        {agent.processState === 'running' || agent.processState === 'waiting' ? (
           <Button
             variant="ghost"
             size="icon"

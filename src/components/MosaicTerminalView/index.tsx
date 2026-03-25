@@ -8,7 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical, ArrowRightFromLine, ChevronRight } from 'lucide-react';
-import type { AgentStatus as AgentStatusType, AgentCharacter } from '@/types/electron';
+import type { Agent as AgentStatusType, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
 import NewChatModal from '@/components/NewChatModal';
@@ -143,7 +143,8 @@ function splitNodeInTree(
 const STATUS_DOTS: Record<string, string> = {
   running: 'bg-green-500',
   waiting: 'bg-amber-500',
-  idle: 'bg-gray-400',
+  inactive: 'bg-gray-400',
+  dormant: 'bg-gray-300',
   error: 'bg-red-500',
   completed: 'bg-blue-500',
 };
@@ -151,7 +152,8 @@ const STATUS_DOTS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   running: 'bg-green-600/20 text-green-400',
   waiting: 'bg-amber-500/20 text-amber-400',
-  idle: 'bg-gray-500/20 text-gray-400',
+  inactive: 'bg-gray-500/20 text-gray-400',
+  dormant: 'bg-gray-500/10 text-gray-500',
   error: 'bg-red-500/20 text-red-400',
   completed: 'bg-primary/20 text-primary',
 };
@@ -385,7 +387,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
       const agent = await invoke<AgentStatusType>('agent_create', {
         config: {
-          projectPath: typeof home === 'string' ? home : '/home',
+          cwd: typeof home === 'string' ? home : '/home',
           skills: [],
           name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
           character: 'robot',
@@ -407,7 +409,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
       const agent = await invoke<AgentStatusType>('agent_create', {
         config: {
-          projectPath: typeof home === 'string' ? home : '/home',
+          cwd: typeof home === 'string' ? home : '/home',
           skills: [],
           name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
           character: 'robot',
@@ -451,8 +453,8 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       id: agent.id,
       name: agent.name,
       character: agent.character as AgentCharacter | undefined,
-      projectPath: agent.projectPath,
-      secondaryProjectPath: agent.secondaryProjectPath,
+      cwd: agent.cwd,
+      secondaryPaths: agent.secondaryPaths,
       skills: agent.skills,
       skipPermissions: agent.skipPermissions,
       provider: agent.provider,
@@ -464,7 +466,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
   const handleUpdateAgent = useCallback(async (id: string, updates: {
     skills?: string[];
-    secondaryProjectPath?: string | null;
+    secondaryPaths?: string[] | null;
     skipPermissions?: boolean;
     name?: string;
     character?: AgentCharacter;
@@ -727,11 +729,11 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                     onClick={() => addAgentToTab(agent.id)}
                     className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0"
                   >
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOTS[agent.status] || STATUS_DOTS.idle}`} />
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOTS[agent.processState] || STATUS_DOTS.inactive}`} />
                     <span className="text-sm">{getAgentEmoji(agent.id)}</span>
                     <div className="flex flex-col min-w-0">
                       <span className="truncate font-medium">{agent.name || agent.id.slice(0, 8)}</span>
-                      <span className="text-[10px] text-muted-foreground truncate">{agent.projectPath?.split('/').pop()}</span>
+                      <span className="text-[10px] text-muted-foreground truncate">{agent.cwd?.split('/').pop()}</span>
                     </div>
                     <span className="ml-auto text-muted-foreground">+</span>
                   </button>
@@ -791,7 +793,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
             <MosaicWithoutDragDropContext<ViewId>
               renderTile={(id, path) => {
                 const agent = agentMap.get(id);
-                const statusClass = agent ? (STATUS_COLORS[agent.status] || STATUS_COLORS.idle) : STATUS_COLORS.idle;
+                const statusClass = agent ? (STATUS_COLORS[agent.processState] || STATUS_COLORS.inactive) : STATUS_COLORS.inactive;
                 return (
                   <MosaicWindow<ViewId>
                     path={path}
@@ -817,7 +819,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                       <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar" data-agent-id={id}>
                         <span className="text-sm">{getAgentEmoji(id)}</span>
                         <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{getAgentTitle(id)}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.status || 'unknown'}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
                         <div className="flex-1" />
                         <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Agent settings">
                           <Settings className="w-3 h-3" />

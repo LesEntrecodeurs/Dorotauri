@@ -183,7 +183,7 @@ export function AgentDetailPanel({
             <TerminalIcon className="w-4 h-4 text-primary" />
             <span className="text-muted-foreground">Interactive Terminal</span>
           </div>
-          {agent.status === 'running' && (
+          {agent.processState === 'running' && (
             <span className="flex items-center gap-1 text-primary">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               Agent is running

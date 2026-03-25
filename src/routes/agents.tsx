@@ -75,8 +75,8 @@ export default function AgentsPage() {
       id: agent.id,
       name: agent.name,
       character: agent.character,
-      projectPath: agent.cwd,
-      secondaryProjectPath: agent.secondaryPaths?.[0],
+      cwd: agent.cwd,
+      secondaryPaths: agent.secondaryPaths,
       skills: agent.skills,
       skipPermissions: agent.skipPermissions,
       provider: agent.provider,
@@ -115,14 +115,13 @@ export default function AgentsPage() {
 
   const handleUpdateAgent = useCallback(async (id: string, updates: {
     skills?: string[];
-    secondaryProjectPath?: string | null;
+    secondaryPaths?: string[] | null;
     skipPermissions?: boolean;
     name?: string;
     character?: AgentCharacter;
   }) => {
     try {
-      const { secondaryProjectPath, ...rest } = updates;
-      await updateAgent({ id, ...rest, ...(secondaryProjectPath !== undefined ? { secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : [] } : {}) });
+      await updateAgent({ id, ...updates });
       setEditAgentId(null);
     } catch (error) {
       console.error('Failed to update agent:', error);

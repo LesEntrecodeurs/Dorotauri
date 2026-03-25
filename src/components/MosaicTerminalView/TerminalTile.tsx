@@ -4,7 +4,7 @@ import type { FitAddon } from 'xterm-addon-fit';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
 
 interface TerminalTileProps {
@@ -85,8 +85,8 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
       // Get agent info to determine project directory
       let cwd = '/home';
       try {
-        const agent = await invoke<AgentStatus | null>('agent_get', { id: agentId });
-        if (agent?.projectPath) cwd = agent.projectPath;
+        const agent = await invoke<Agent | null>('agent_get', { id: agentId });
+        if (agent?.cwd) cwd = agent.cwd;
       } catch {}
 
       // Check if there's already a PTY for this agent (shared across windows)

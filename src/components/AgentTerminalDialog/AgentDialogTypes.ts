@@ -1,23 +1,23 @@
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 export type PanelType = 'code' | 'git' | 'terminal' | 'context' | 'settings';
 
 export interface AgentTerminalDialogProps {
-  agent: AgentStatus | null;
+  agent: Agent | null;
   open: boolean;
   onClose: () => void;
   onStart: (agentId: string, prompt: string) => void;
   onStop: (agentId: string) => void;
   projects?: { path: string; name: string }[];
-  agents?: AgentStatus[];
+  agents?: Agent[];
   onBrowseFolder?: () => Promise<string | null>;
-  onAgentUpdated?: (agent: AgentStatus) => void;
+  onAgentUpdated?: (agent: Agent) => void;
   onUpdateAgent?: (params: {
     id: string;
     skills?: string[];
-    secondaryProjectPath?: string | null;
+    secondaryPaths?: string[] | null;
     skipPermissions?: boolean;
-  }) => Promise<{ success: boolean; error?: string; agent?: AgentStatus }>;
+  }) => Promise<{ success: boolean; error?: string; agent?: Agent }>;
   initialPanel?: PanelType;
   skipHistoricalOutput?: boolean;
 }

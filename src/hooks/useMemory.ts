@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/hooks/useTauri';
-import type { ProjectMemory, MemoryFile, AgentStatus } from '@/types/electron';
+import type { ProjectMemory, MemoryFile, Agent } from '@/types/electron';
 
 export interface MemoryState {
   projects: ProjectMemory[];
@@ -34,14 +34,14 @@ export function useMemory() {
       // Fetch projects and active agents in parallel
       const [memResult, agents] = await Promise.all([
         invoke<{ projects: ProjectMemory[]; error: string | null }>('memory_list_projects').catch(() => ({ projects: [], error: 'Failed to fetch memory projects' })),
-        invoke<AgentStatus[]>('agent_list').catch(() => []),
+        invoke<Agent[]>('agent_list').catch(() => []),
       ]);
 
-      // Build agent count map keyed by projectPath
+      // Build agent count map keyed by cwd
       const countMap = new Map<string, number>();
       for (const agent of agents) {
-        if (agent.status === 'running' || agent.status === 'waiting') {
-          const key = agent.projectPath;
+        if (agent.processState === 'running' || agent.processState === 'waiting') {
+          const key = agent.cwd;
           countMap.set(key, (countMap.get(key) ?? 0) + 1);
         }
       }

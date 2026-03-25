@@ -132,13 +132,13 @@ export default function Dashboard() {
 
   // Find agent for a project path
   const findAgentForProject = (projectPath: string) => {
-    return agents.find(a => a.projectPath === projectPath);
+    return agents.find(a => a.cwd === projectPath);
   };
 
   // Agent stats
-  const runningAgents = agents.filter(a => a.status === 'running').length;
-  const idleAgents = agents.filter(a => a.status === 'idle').length;
-  const waitingAgents = agents.filter(a => a.status === 'waiting').length;
+  const runningAgents = agents.filter(a => a.processState === 'running').length;
+  const idleAgents = agents.filter(a => a.processState === 'inactive').length;
+  const waitingAgents = agents.filter(a => a.processState === 'waiting').length;
 
   if (loading && !data) {
     return (
@@ -486,11 +486,12 @@ export default function Dashboard() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {agents.slice(0, 6).map((agent) => {
-                    const projectName = agent.projectPath.split('/').pop() || 'Unknown';
+                    const projectName = agent.cwd.split('/').pop() || 'Unknown';
                     const statusColors: Record<string, string> = {
                       running: 'bg-success',
                       waiting: 'bg-warning',
-                      idle: 'bg-muted-foreground',
+                      inactive: 'bg-muted-foreground',
+                      dormant: 'bg-muted-foreground/60',
                       error: 'bg-destructive',
                       completed: 'bg-foreground',
                     };
@@ -505,7 +506,7 @@ export default function Dashboard() {
                             {agent.name?.toLowerCase() === 'bitwonka' ? '\u{1F438}' : (characterEmojis[agent.character || 'robot'] || '\u{1F916}')}
                           </div>
                           <div
-                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-secondary ${statusColors[agent.status]}`}
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-secondary ${statusColors[agent.processState]}`}
                           />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -515,10 +516,10 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground truncate">{projectName}</p>
                         </div>
                         <Badge
-                          variant={agent.status === 'running' ? 'default' : agent.status === 'error' ? 'destructive' : 'secondary'}
+                          variant={agent.processState === 'running' ? 'default' : agent.processState === 'error' ? 'destructive' : 'secondary'}
                           className="text-[10px] px-2 py-0.5"
                         >
-                          {agent.status}
+                          {agent.processState}
                         </Badge>
                       </div>
                     );

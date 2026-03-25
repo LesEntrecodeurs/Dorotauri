@@ -1,11 +1,11 @@
 import { memo } from 'react';
 import { Users, Folder, Crown, AlertTriangle, Circle } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES } from './constants';
 import { isSuperAgent } from './AgentDialogTypes';
 
 interface AgentDialogSuperAgentSidebarProps {
-  agents: AgentStatus[];
+  agents: Agent[];
   projects: { path: string; name: string }[];
 }
 
@@ -26,11 +26,11 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
   projects,
 }: AgentDialogSuperAgentSidebarProps) {
   const otherAgents = agents.filter(a => !isSuperAgent(a));
-  const runningAgents = otherAgents.filter(a => a.status === 'running');
-  const idleAgents = otherAgents.filter(a => a.status === 'idle' || a.status === 'completed');
-  const errorAgents = otherAgents.filter(a => a.status === 'error');
+  const runningAgents = otherAgents.filter(a => a.processState === 'running');
+  const idleAgents = otherAgents.filter(a => a.processState === 'inactive' || a.processState === 'completed');
+  const errorAgents = otherAgents.filter(a => a.processState === 'error');
 
-  const face = (agent: AgentStatus) =>
+  const face = (agent: Agent) =>
     CHARACTER_FACES[agent.character as keyof typeof CHARACTER_FACES] || '🤖';
 
   return (
@@ -58,7 +58,7 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{agent.name}</p>
                       <p className="text-[10px] text-muted-foreground truncate">
-                        {agent.currentTask?.slice(0, 40) || agent.projectPath.split('/').pop()}
+                        {(agent.businessState || agent.statusLine)?.slice(0, 40) || agent.cwd.split('/').pop()}
                       </p>
                     </div>
                   </div>
@@ -79,7 +79,7 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
                     <span className="text-lg">{face(agent)}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{agent.name}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{agent.projectPath.split('/').pop()}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{agent.cwd.split('/').pop()}</p>
                     </div>
                   </div>
                 ))}
@@ -98,10 +98,10 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
                     <span className="text-lg opacity-60">{face(agent)}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-muted-foreground truncate">{agent.name}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{agent.projectPath.split('/').pop()}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{agent.cwd.split('/').pop()}</p>
                     </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${STATUS_BG_COLOR[agent.status] || 'bg-text-muted/20'} ${STATUS_COLOR[agent.status] || 'text-muted-foreground'}`}>
-                      {agent.status}
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${STATUS_BG_COLOR[agent.processState] || 'bg-text-muted/20'} ${STATUS_COLOR[agent.processState] || 'text-muted-foreground'}`}>
+                      {agent.processState}
                     </span>
                   </div>
                 ))}
@@ -129,9 +129,9 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
             <div className="space-y-1">
               {projects.map((project) => {
                 const projectAgents = otherAgents.filter(
-                  a => a.projectPath === project.path || a.worktreePath?.startsWith(project.path)
+                  a => a.cwd === project.path || a.worktreePath?.startsWith(project.path)
                 );
-                const runningCount = projectAgents.filter(a => a.status === 'running').length;
+                const runningCount = projectAgents.filter(a => a.processState === 'running').length;
                 return (
                   <div key={project.path} className="flex items-center gap-2 px-2 py-1.5 rounded-none hover:bg-muted/50">
                     <Folder className="w-4 h-4 text-primary shrink-0" />

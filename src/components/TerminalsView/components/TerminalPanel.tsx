@@ -2,13 +2,13 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import TerminalPanelHeader from './TerminalPanelHeader';
 
 interface TerminalPanelProps {
-  agent: AgentStatus;
+  agent: Agent;
   isFullscreen: boolean;
   isBroadcasting: boolean;
   isFocused: boolean;

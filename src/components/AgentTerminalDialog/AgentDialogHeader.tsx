@@ -1,10 +1,10 @@
 import { memo } from 'react';
 import { X, Maximize2, Minimize2, FolderOpen, GitBranch, Layers, Crown } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES } from './constants';
 
 interface AgentDialogHeaderProps {
-  agent: AgentStatus;
+  agent: Agent;
   character: string;
   isFullscreen: boolean;
   hasSecondaryProject: boolean;
@@ -36,13 +36,13 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
             <span
               className={`
                 text-xs px-2 py-0.5 rounded-full
-                ${agent.status === 'running' ? 'bg-primary/20 text-primary' : ''}
-                ${agent.status === 'idle' ? 'bg-text-muted/20 text-muted-foreground' : ''}
-                ${agent.status === 'completed' ? 'bg-success/20 text-success' : ''}
-                ${agent.status === 'error' ? 'bg-destructive/20 text-destructive' : ''}
+                ${agent.processState === 'running' ? 'bg-primary/20 text-primary' : ''}
+                ${agent.processState === 'inactive' ? 'bg-text-muted/20 text-muted-foreground' : ''}
+                ${agent.processState === 'completed' ? 'bg-success/20 text-success' : ''}
+                ${agent.processState === 'error' ? 'bg-destructive/20 text-destructive' : ''}
               `}
             >
-              {agent.status}
+              {agent.processState}
             </span>
           </h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -54,7 +54,7 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
             ) : (
               <>
                 <span className="font-mono truncate max-w-[200px]">
-                  {agent.projectPath.split('/').pop()}
+                  {agent.cwd.split('/').pop()}
                 </span>
                 {agent.branchName && (
                   <span className="text-primary flex items-center gap-1">

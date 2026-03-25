@@ -19,7 +19,7 @@ import { Plus, Loader2, RefreshCw, Search } from 'lucide-react';
 import { useElectronKanban, useKanbanAgentSync } from '@/hooks/useElectronKanban';
 import { isElectron as checkIsElectron } from '@/hooks/useElectron';
 import type { KanbanTask, KanbanColumn as KanbanColumnType, KanbanTaskCreate } from '@/types/kanban';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KanbanColumn } from './components/KanbanColumn';
@@ -58,7 +58,7 @@ export default function KanbanBoard() {
 
   // Terminal dialog state
   const [terminalAgentId, setTerminalAgentId] = useState<string | null>(null);
-  const [terminalAgent, setTerminalAgent] = useState<AgentStatus | null>(null);
+  const [terminalAgent, setTerminalAgent] = useState<Agent | null>(null);
 
   // Fetch agent when terminal is opened
   useEffect(() => {

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Sparkles, FolderKanban, X } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import SidebarAgentList from './SidebarAgentList';
 import SidebarSkillsPalette from './SidebarSkillsPalette';
 import SidebarProjectBrowser from './SidebarProjectBrowser';
@@ -11,7 +11,7 @@ import SidebarProjectBrowser from './SidebarProjectBrowser';
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
-  agents: AgentStatus[];
+  agents: Agent[];
   focusedPanelId: string | null;
   onFocusPanel: (agentId: string) => void;
   onStartAgent: (agentId: string) => void;

@@ -2,7 +2,7 @@
 
 
 import { useState, useEffect, useRef } from 'react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -20,7 +20,7 @@ function cleanInput(data: string): string {
 
 interface UseAgentDialogTerminalOptions {
   open: boolean;
-  agent: AgentStatus | null;
+  agent: Agent | null;
   isFullscreen: boolean;
   skipHistoricalOutput: boolean;
 }
@@ -134,7 +134,7 @@ export function useAgentDialogTerminal({
 
         if (isTauri()) {
           try {
-            const latestAgent = await invoke<AgentStatus | null>('agent_get', { id: agent.id });
+            const latestAgent = await invoke<Agent | null>('agent_get', { id: agent.id });
             if (latestAgent?.output?.length) {
               const isGemini = agent.provider === 'gemini';
               const writeLine = (line: string) => term.write(isGemini ? stripCursorSequences(line) : line);

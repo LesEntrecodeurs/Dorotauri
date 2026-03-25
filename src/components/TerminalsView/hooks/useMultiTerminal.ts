@@ -4,7 +4,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { Terminal } from 'xterm';
 import type { FitAddon } from 'xterm-addon-fit';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -23,7 +23,7 @@ interface TerminalEntry {
 }
 
 interface UseMultiTerminalOptions {
-  agents: AgentStatus[];
+  agents: Agent[];
   initialFontSize?: number;
   onFontSizeChange?: (size: number) => void;
   theme?: 'dark' | 'light';
@@ -176,7 +176,7 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       // Fetch directly via invoke to avoid depending on React state (agents array).
       if (isTauri()) {
         try {
-          const agent = await invoke<AgentStatus | null>('agent_get', { id: agentId });
+          const agent = await invoke<Agent | null>('agent_get', { id: agentId });
           if (agent?.output?.length) {
             const outputStr = agent.output.join('');
             term.write(outputStr);
@@ -184,10 +184,10 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
 
           // Step 3: For running/waiting agents, the PTY resize from safeFit
           // will trigger Claude Code to redraw at correct dimensions.
-          // For idle agents, just clear the garbled display.
-          if (agent?.status === 'idle' || agent?.status === 'completed' || agent?.status === 'error') {
+          // For inactive agents, just clear the garbled display.
+          if (agent?.processState === 'inactive' || agent?.processState === 'completed' || agent?.processState === 'error') {
             term.write('\x1b[2J\x1b[H');
-            term.write(`\x1b[90m— Session ${agent.status} —\x1b[0m\r\n`);
+            term.write(`\x1b[90m— Session ${agent.processState} —\x1b[0m\r\n`);
           }
         } catch {}
       }

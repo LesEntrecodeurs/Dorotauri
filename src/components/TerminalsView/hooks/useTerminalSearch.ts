@@ -1,7 +1,7 @@
 
 
 import { useState, useCallback, useMemo } from 'react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 interface SearchResult {
   agentId: string;
@@ -12,7 +12,7 @@ interface SearchResult {
   matchEnd: number;
 }
 
-export function useTerminalSearch(agents: AgentStatus[]) {
+export function useTerminalSearch(agents: Agent[]) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const results = useMemo<SearchResult[]>(() => {

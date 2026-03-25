@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import { X, FolderOpen, FolderPlus } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 interface AgentDialogSecondaryProjectProps {
-  agent: AgentStatus;
+  agent: Agent;
   availableProjects: { path: string; name: string }[];
   customSecondaryPath: string;
   onCustomPathChange: (value: string) => void;
@@ -19,12 +19,13 @@ export const AgentDialogSecondaryProject = memo(function AgentDialogSecondaryPro
   onSetSecondaryProject,
   onBrowseFolder,
 }: AgentDialogSecondaryProjectProps) {
-  const selectedProjectName = agent.secondaryProjectPath?.split('/').pop() || '';
-  const unselectedProjects = availableProjects.filter(p => p.path !== agent.secondaryProjectPath);
+  const secondaryPath = agent.secondaryPaths?.[0];
+  const selectedProjectName = secondaryPath?.split('/').pop() || '';
+  const unselectedProjects = availableProjects.filter(p => p.path !== secondaryPath);
 
   return (
     <div className="p-3 space-y-3">
-      {agent.secondaryProjectPath && (
+      {secondaryPath && (
         <div>
           <p className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wide">Active Context</p>
           <button

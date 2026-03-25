@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import type { KanbanTask, KanbanColumn, KanbanTaskCreate, KanbanTaskUpdate, KanbanMoveResult } from '@/types/kanban';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 /**
  * Hook for Kanban board management via Tauri invoke
@@ -232,7 +232,7 @@ export function useKanbanAgentSync(
         // Get agent output for completion summary
         let completionSummary = isSuccess ? 'Task completed successfully.' : 'Task completed with errors.';
         try {
-          const agent = await invoke<AgentStatus | null>('agent_get', { id: e.agentId });
+          const agent = await invoke<Agent | null>('agent_get', { id: e.agentId });
           if (agent?.output && agent.output.length > 0) {
             // Get last 50 lines of output as summary (or less if not available)
             const outputLines = agent.output.slice(-50);

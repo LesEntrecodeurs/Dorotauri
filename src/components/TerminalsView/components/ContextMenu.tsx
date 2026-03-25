@@ -13,12 +13,12 @@ import {
   Terminal,
 } from 'lucide-react';
 import type { ContextMenuState } from '../types';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import type { Tab } from '../../../types/electron.d';
 
 interface ContextMenuProps {
   state: ContextMenuState;
-  agent: AgentStatus | null;
+  agent: Agent | null;
   onClose: () => void;
   onStart: (agentId: string) => void;
   onStop: (agentId: string) => void;
@@ -52,7 +52,7 @@ export default function ContextMenu({
   if (!state.open || !state.agentId || !agent) return null;
 
   const agentId = state.agentId;
-  const isRunning = agent.status === 'running' || agent.status === 'waiting';
+  const isRunning = agent.processState === 'running' || agent.processState === 'waiting';
 
   // Other tabs to move to (exclude current)
   const otherTabs = tabs.filter(t => t.id !== activeTabId);

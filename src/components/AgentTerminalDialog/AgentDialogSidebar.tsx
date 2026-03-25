@@ -10,7 +10,7 @@ import {
   Check,
   Zap,
 } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import type { PanelType } from './AgentDialogTypes';
 import { AgentDialogPanelHeader } from './AgentDialogPanelHeader';
 import { AgentDialogSecondaryProject } from './AgentDialogSecondaryProject';
@@ -19,7 +19,7 @@ const GitPanel = lazy(() => import('./GitPanel'));
 const CodePanel = lazy(() => import('./CodePanel'));
 
 interface AgentDialogSidebarProps {
-  agent: AgentStatus;
+  agent: Agent;
   projectPath: string;
   expandedPanels: Set<PanelType>;
   onTogglePanel: (panel: PanelType) => void;

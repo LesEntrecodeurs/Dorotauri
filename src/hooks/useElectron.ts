@@ -45,12 +45,12 @@ export function useElectronAgents() {
 
   // Create a new agent
   const createAgent = useCallback(async (config: {
-    projectPath: string;
+    cwd: string;
     skills: string[];
     worktree?: { enabled: boolean; branchName: string };
     character?: AgentCharacter;
     name?: string;
-    secondaryProjectPath?: string;
+    secondaryPaths?: string[];
     skipPermissions?: boolean;
     provider?: AgentProvider;
     localModel?: string;
@@ -73,7 +73,7 @@ export function useElectronAgents() {
   const updateAgent = useCallback(async (params: {
     id: string;
     skills?: string[];
-    secondaryProjectPath?: string | null;
+    secondaryPaths?: string[] | null;
     skipPermissions?: boolean;
     name?: string;
     character?: AgentCharacter;

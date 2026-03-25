@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES, STATUS_COLORS } from '../constants';
 
 interface AddAgentDropdownProps {
-  allAgents: AgentStatus[];
+  allAgents: Agent[];
   currentTabAgentIds: string[];
   onAddAgent: (agentId: string) => void;
   onCreateAgent: () => void;
@@ -38,9 +38,9 @@ export default function AddAgentDropdown({
     const tabSet = new Set(currentTabAgentIds);
     const available = allAgents.filter(a => !tabSet.has(a.id));
 
-    const byProject = new Map<string, AgentStatus[]>();
+    const byProject = new Map<string, Agent[]>();
     for (const agent of available) {
-      const key = agent.projectPath;
+      const key = agent.cwd;
       if (!byProject.has(key)) byProject.set(key, []);
       byProject.get(key)!.push(agent);
     }
@@ -87,7 +87,7 @@ export default function AddAgentDropdown({
                     ? '🐸'
                     : CHARACTER_FACES[agent.character || 'robot'] || '🤖';
                   const name = agent.name || `Agent ${agent.id.slice(0, 6)}`;
-                  const status = STATUS_COLORS[agent.status] || STATUS_COLORS.idle;
+                  const status = STATUS_COLORS[agent.processState] || STATUS_COLORS.inactive;
 
                   return (
                     <button

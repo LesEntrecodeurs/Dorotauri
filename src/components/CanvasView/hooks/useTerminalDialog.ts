@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
-export function useTerminalDialog(electronAgents: AgentStatus[]) {
+export function useTerminalDialog(electronAgents: Agent[]) {
   const [terminalAgentId, setTerminalAgentId] = useState<string | null>(null);
   const [terminalInitialPanel, setTerminalInitialPanel] = useState<'settings' | undefined>(undefined);
 
@@ -20,7 +20,7 @@ export function useTerminalDialog(electronAgents: AgentStatus[]) {
     setTerminalInitialPanel(undefined);
   }, []);
 
-  const terminalAgent: AgentStatus | null = useMemo(() => {
+  const terminalAgent: Agent | null = useMemo(() => {
     if (!terminalAgentId) return null;
     return electronAgents.find(a => a.id === terminalAgentId) || null;
   }, [terminalAgentId, electronAgents]);

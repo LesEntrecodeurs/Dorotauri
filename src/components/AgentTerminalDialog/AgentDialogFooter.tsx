@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import { Play, Square, Terminal as TerminalIcon, AlertTriangle } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 interface AgentDialogFooterProps {
-  agent: AgentStatus;
+  agent: Agent;
   prompt: string;
   onPromptChange: (value: string) => void;
   onStart: () => void;
@@ -23,11 +23,11 @@ export const AgentDialogFooter = memo(function AgentDialogFooter({
         <div className="flex items-center gap-2 px-3 py-2 mb-3 bg-amber-500/10 border border-amber-500/30 rounded-none text-amber-400 text-sm">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>
-            Project path no longer exists: <code className="font-mono text-xs">{agent.projectPath}</code>
+            Project path no longer exists: <code className="font-mono text-xs">{agent.cwd}</code>
           </span>
         </div>
       )}
-      {agent.status !== 'running' ? (
+      {agent.processState !== 'running' ? (
         <div className="flex items-center gap-3">
           <input
             type="text"
@@ -58,7 +58,7 @@ export const AgentDialogFooter = memo(function AgentDialogFooter({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-primary">
             <TerminalIcon className="w-4 h-4" />
-            <span>Agent is working: {agent.currentTask?.slice(0, 50)}...</span>
+            <span>Agent is working: {(agent.businessState || agent.statusLine)?.slice(0, 50)}...</span>
           </div>
           <button
             onClick={onStop}

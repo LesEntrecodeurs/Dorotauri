@@ -11,7 +11,7 @@ import {
   Maximize,
   Minimize,
 } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import type { LayoutPreset } from '../types';
 import LayoutPresetSelector from './LayoutPresetSelector';
 import AddAgentDropdown from './AddAgentDropdown';
@@ -33,7 +33,7 @@ interface GlobalToolbarProps {
   isViewFullscreen: boolean;
   onToggleViewFullscreen: () => void;
   isCustomTabActive: boolean;
-  allAgents: AgentStatus[];
+  allAgents: Agent[];
   currentTabAgentIds: string[];
   onAddAgentToTab: (agentId: string) => void;
   disabledPresets: LayoutPreset[];

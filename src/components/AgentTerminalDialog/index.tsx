@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, PanelRight } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import 'xterm/css/xterm.css';
 
 import type { AgentTerminalDialogProps, PanelType } from './AgentDialogTypes';
@@ -48,17 +48,17 @@ export default function AgentTerminalDialog({
 
   // Derived values
   const projectPath = useMemo(
-    () => agent?.worktreePath || agent?.projectPath || '',
-    [agent?.worktreePath, agent?.projectPath],
+    () => agent?.worktreePath || agent?.cwd || '',
+    [agent?.worktreePath, agent?.cwd],
   );
   const character = useMemo(
     () => (agent?.name?.toLowerCase() === 'bitwonka' ? 'frog' : agent?.character || 'robot'),
     [agent?.name, agent?.character],
   );
-  const hasSecondaryProject = !!agent?.secondaryProjectPath;
+  const hasSecondaryProject = !!(agent?.secondaryPaths?.length);
   const availableProjects = useMemo(
-    () => (agent ? projects.filter(p => p.path !== agent.projectPath && p.path !== agent.worktreePath) : projects),
-    [projects, agent?.projectPath, agent?.worktreePath], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (agent ? projects.filter(p => p.path !== agent.cwd && p.path !== agent.worktreePath) : projects),
+    [projects, agent?.cwd, agent?.worktreePath], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // Sync skip-permissions UI state when agent changes
@@ -138,8 +138,8 @@ export default function AgentTerminalDialog({
     }
     if (window.electronAPI?.agent?.setSecondaryProject) {
       try {
-        const result = await window.electronAPI.agent.setSecondaryProject({ id: agent.id, secondaryProjectPath: path });
-        if (result.success && result.agent && onAgentUpdated) onAgentUpdated(result.agent);
+        const result = await window.electronAPI.agent.setSecondaryProject({ id: agent.id, secondaryPaths: path ? [path] : [] });
+        if (result.success && result.agent && onAgentUpdated) onAgentUpdated(result.agent as Agent);
         if (result.success) setCustomSecondaryPath('');
       } catch (err) {
         console.error('Failed to set secondary project:', err);
@@ -155,7 +155,7 @@ export default function AgentTerminalDialog({
       const result = onUpdateAgent
         ? await onUpdateAgent(params)
         : await window.electronAPI!.agent.update(params);
-      if (result.success && result.agent && onAgentUpdated) onAgentUpdated(result.agent as AgentStatus);
+      if (result.success && result.agent && onAgentUpdated) onAgentUpdated(result.agent as Agent);
       setEditSkipPermissions(value);
     } catch (err) {
       console.error('Failed to save settings:', err);
