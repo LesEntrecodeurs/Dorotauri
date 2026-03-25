@@ -45,14 +45,22 @@ pub fn agent_create(
         .map(|s| vec![s.to_string()])
         .unwrap_or_default();
 
+    let home = dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| "/".to_string());
+
+    let cwd = config
+        .get("cwd")
+        .or_else(|| config.get("projectPath"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .unwrap_or(home);
+
     let agent = Agent {
         id: id.clone(),
         process_state: ProcessState::Inactive,
-        cwd: config
-            .get("projectPath")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
+        cwd,
         secondary_paths,
         role: None,
         worktree_path: None,
