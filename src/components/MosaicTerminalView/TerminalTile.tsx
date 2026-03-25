@@ -136,14 +136,13 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
       });
       resizeObserver.observe(container);
 
-      const ptyOwned = !isShared; // Only kill PTY if we created it
+      // Never kill the PTY on unmount — it stays alive across tab switches.
+      // On remount, pty_lookup will find the existing PTY and reattach.
+      // PTY cleanup happens when the agent is explicitly stopped/deleted.
       cleanup = () => {
         disposed = true;
         resizeObserver.disconnect();
         unsubOutput?.();
-        if (ptyOwned) {
-          invoke('pty_kill', { ptyId }).catch(() => {});
-        }
         term.dispose();
       };
     })();
