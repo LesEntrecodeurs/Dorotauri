@@ -1,6 +1,8 @@
+use std::sync::Arc;
 use tauri::Manager;
 
 mod commands;
+mod cwd_tracker;
 mod db;
 pub mod migration;
 mod notifications;
@@ -13,18 +15,23 @@ pub fn run() {
     let pty_manager = pty::PtyManager::new();
     let window_registry = windows::WindowRegistry::new();
     let vault_db = db::VaultDb::open().expect("Failed to initialize vault database");
+    let cwd_tracker = cwd_tracker::CwdTracker::new();
+
+    // Clone the agents Arc so the polling thread can share it
+    let agents_arc = Arc::clone(&app_state.agents);
 
     tauri::Builder::default()
         .manage(app_state)
         .manage(pty_manager)
         .manage(window_registry)
         .manage(vault_db)
+        .manage(cwd_tracker)
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         // TODO: Enable updater plugin once signing keys are configured
         // .plugin(tauri_plugin_updater::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
             let registry = app.state::<windows::WindowRegistry>();
             registry.register(
                 "main",
@@ -34,6 +41,11 @@ pub fn run() {
                     displayed_agents: vec![],
                 },
             );
+
+            // Start the cwd polling thread
+            let tracker = app.state::<cwd_tracker::CwdTracker>();
+            tracker.start_polling(app.handle().clone(), agents_arc);
+
             Ok(())
         })
         .on_window_event(|window, event| match event {

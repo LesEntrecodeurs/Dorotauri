@@ -1,5 +1,6 @@
 use tauri::{AppHandle, Emitter, State};
 
+use crate::cwd_tracker::CwdTracker;
 use crate::notifications;
 use crate::pty::PtyManager;
 use crate::state::{Agent, AgentId, AppState, ProcessState};
@@ -126,6 +127,7 @@ pub fn agent_create(
 pub fn agent_start(
     state: State<'_, AppState>,
     pty_manager: State<'_, PtyManager>,
+    cwd_tracker: State<'_, CwdTracker>,
     app_handle: AppHandle,
     id: String,
     prompt: Option<String>,
@@ -145,6 +147,11 @@ pub fn agent_start(
 
     // Spawn PTY in the agent's working directory
     pty_manager.spawn(&pty_id, &agent_snapshot.id, &agent_snapshot.cwd, &app_handle, None, None)?;
+
+    // Register the shell PID with the cwd tracker
+    if let Some(pid) = pty_manager.get_child_pid(&pty_id) {
+        cwd_tracker.register(&pty_id, pid);
+    }
 
     // Build CLI command based on provider
     let settings = state.settings.lock().unwrap();
@@ -223,6 +230,7 @@ pub fn agent_stop(
     id: AgentId,
     state: State<'_, AppState>,
     pty_manager: State<'_, PtyManager>,
+    cwd_tracker: State<'_, CwdTracker>,
     registry: State<'_, WindowRegistry>,
     app_handle: AppHandle,
 ) -> Result<Agent, String> {
@@ -238,6 +246,7 @@ pub fn agent_stop(
 
         // Kill PTY if one exists
         if let Some(ref pty_id) = agent.pty_id {
+            cwd_tracker.unregister(pty_id);
             pty_manager.kill(pty_id).ok();
         }
 
@@ -404,6 +413,7 @@ pub fn agent_set_dormant(
     id: AgentId,
     state: State<'_, AppState>,
     pty_manager: State<'_, PtyManager>,
+    cwd_tracker: State<'_, CwdTracker>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
     let now = chrono::Utc::now().to_rfc3339();
@@ -413,6 +423,7 @@ pub fn agent_set_dormant(
 
         // Kill PTY if exists
         if let Some(ref pty_id) = agent.pty_id {
+            cwd_tracker.unregister(pty_id);
             pty_manager.kill(pty_id).ok();
         }
 
@@ -434,6 +445,7 @@ pub fn agent_reanimate(
     id: AgentId,
     state: State<'_, AppState>,
     pty_manager: State<'_, PtyManager>,
+    cwd_tracker: State<'_, CwdTracker>,
     app_handle: AppHandle,
 ) -> Result<Agent, String> {
     let now = chrono::Utc::now().to_rfc3339();
@@ -456,6 +468,11 @@ pub fn agent_reanimate(
 
     // Spawn PTY
     pty_manager.spawn(&pty_id, &id, &cwd, &app_handle, None, None)?;
+
+    // Register the shell PID with the cwd tracker
+    if let Some(pid) = pty_manager.get_child_pid(&pty_id) {
+        cwd_tracker.register(&pty_id, pid);
+    }
 
     // Update agent
     let updated = {

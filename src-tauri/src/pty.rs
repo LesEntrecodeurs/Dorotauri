@@ -28,6 +28,7 @@ pub struct PtyHandle {
     pub writer: Box<dyn Write + Send>,
     pub child: Box<dyn portable_pty::Child + Send>,
     pub agent_id: String,
+    pub child_pid: Option<u32>,
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,8 @@ impl PtyManager {
             .spawn_command(cmd)
             .map_err(|e| format!("failed to spawn shell: {e}"))?;
 
+        let child_pid = child.process_id().map(|p| p as u32);
+
         // Writer for sending input to the PTY
         let writer = pair
             .master
@@ -131,6 +134,7 @@ impl PtyManager {
             writer,
             child,
             agent_id: agent_id.to_string(),
+            child_pid,
         };
 
         self.handles
@@ -203,5 +207,11 @@ impl PtyManager {
         } else {
             None
         }
+    }
+
+    /// Return the child shell PID for a given pty_id, if available.
+    pub fn get_child_pid(&self, pty_id: &str) -> Option<u32> {
+        let handles = self.handles.lock().unwrap();
+        handles.get(pty_id)?.child_pid
     }
 }

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub type AgentId = String;
 pub type PtyId = String;
@@ -393,7 +393,7 @@ impl Default for AppSettings {
 // ---------------------------------------------------------------------------
 
 pub struct AppState {
-    pub agents: Mutex<HashMap<AgentId, Agent>>,
+    pub agents: Arc<Mutex<HashMap<AgentId, Agent>>>,
     pub settings: Mutex<AppSettings>,
 }
 
@@ -407,7 +407,7 @@ impl AppState {
         let settings = Self::load_settings(&dorotauri_dir);
 
         Self {
-            agents: Mutex::new(agents),
+            agents: Arc::new(Mutex::new(agents)),
             settings: Mutex::new(settings),
         }
     }
