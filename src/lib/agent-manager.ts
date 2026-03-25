@@ -1,9 +1,16 @@
 import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import type { AgentConfig, Agent, AgentEvent } from '@/types/agent';
+import type { Agent, AgentEvent } from '@/types/agent';
 
-export type { AgentConfig, Agent, AgentEvent };
+export interface AgentConfig {
+  id?: string;
+  cwd: string;
+  skills: string[];
+  createdAt?: string;
+}
+
+export type { Agent, AgentEvent };
 
 class AgentManager extends EventEmitter {
   private agents: Map<string, Agent> = new Map();
@@ -11,13 +18,21 @@ class AgentManager extends EventEmitter {
 
   createAgent(config: Omit<AgentConfig, 'id' | 'createdAt'>): Agent {
     const id = uuidv4();
+    const now = new Date().toISOString();
     const status: Agent = {
       id,
       processState: 'inactive',
       cwd: config.cwd,
       skills: config.skills,
+      secondaryPaths: [],
+      skipPermissions: false,
+      tabId: 'general',
+      isSuperAgent: false,
+      scheduledTaskIds: [],
+      automationIds: [],
       output: [],
-      lastActivity: new Date().toISOString(),
+      lastActivity: now,
+      createdAt: now,
     };
     this.agents.set(id, status);
     return status;

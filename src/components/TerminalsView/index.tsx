@@ -5,7 +5,7 @@ import { isElectron } from '@/hooks/useElectron';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { DndContext } from '@dnd-kit/core';
-import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
+import { useElectronAgents, useElectronSkills } from '@/hooks/useElectron';
 import { useMultiTerminal } from './hooks/useMultiTerminal';
 import { useTerminalGrid } from './hooks/useTerminalGrid';
 import { useTabManager } from './hooks/useTabManager';
@@ -37,11 +37,10 @@ export default function TerminalsView() {
     isLoading,
     startAgent,
     stopAgent,
-    removeAgent,
     sendInput,
     createAgent,
+    setDormant,
   } = useElectronAgents();
-  const { projects, openFolderDialog } = useElectronFS();
   const { installedSkills, refresh: refreshSkills } = useElectronSkills();
 
   const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -162,17 +161,17 @@ export default function TerminalsView() {
     await stopAgent(agentId);
   }, [stopAgent]);
 
-  // Remove agent from its tab by clearing tabId, then stop it
+  // Remove agent from its tab by clearing tabId and setting dormant
   const handleRemoveFromTab = useCallback(async (agentId: string) => {
-    await stopAgent(agentId);
     await tabManager.moveAgentToTab(agentId, '');
-  }, [stopAgent, tabManager]);
+    await setDormant(agentId);
+  }, [setDormant, tabManager]);
 
-  // Full remove: unregister terminal and delete agent
+  // Close agent: unregister terminal and set dormant (persisted, not destroyed)
   const handleRemoveAgent = useCallback(async (agentId: string) => {
     multiTerminal.unregisterContainer(agentId);
-    await removeAgent(agentId);
-  }, [removeAgent, multiTerminal]);
+    await setDormant(agentId);
+  }, [setDormant, multiTerminal]);
 
   // Add agent to active tab by updating its tabId
   const handleAddAgentToTab = useCallback(async (agentId: string) => {
@@ -224,23 +223,19 @@ export default function TerminalsView() {
   }, [tabManager]);
 
   const handleNewAgent = useCallback(async (
-    projectPath: string,
     skills: string[],
     prompt: string,
     model?: string,
     worktree?: { enabled: boolean; branchName: string },
     character?: string,
     name?: string,
-    secondaryProjectPath?: string,
     skipPermissions?: boolean,
   ) => {
     const agent = await createAgent({
-      cwd: projectPath,
       skills,
       worktree,
       character: character as import('@/types/electron').AgentCharacter,
       name,
-      secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined,
       skipPermissions,
       tabId: tabManager.activeTabId ?? undefined,
     });
@@ -409,8 +404,6 @@ export default function TerminalsView() {
               open={showNewChatModal}
               onClose={() => setShowNewChatModal(false)}
               onSubmit={handleNewAgent}
-              projects={projects}
-              onBrowseFolder={openFolderDialog}
               installedSkills={installedSkills}
               onRefreshSkills={refreshSkills}
             />

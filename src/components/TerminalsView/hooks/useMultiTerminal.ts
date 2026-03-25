@@ -184,8 +184,12 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
 
           // Step 3: For running/waiting agents, the PTY resize from safeFit
           // will trigger Claude Code to redraw at correct dimensions.
-          // For inactive agents, just clear the garbled display.
-          if (agent?.processState === 'inactive' || agent?.processState === 'completed' || agent?.processState === 'error') {
+          // For inactive agents, clear garbled display and show status.
+          // For dormant/reanimated agents, keep the replayed output visible.
+          if (agent?.processState === 'dormant') {
+            // Dormant: output was already replayed in Step 2; just append status
+            term.write(`\r\n\x1b[90m— Session dormant —\x1b[0m\r\n`);
+          } else if (agent?.processState === 'inactive' || agent?.processState === 'completed' || agent?.processState === 'error') {
             term.write('\x1b[2J\x1b[H');
             term.write(`\x1b[90m— Session ${agent.processState} —\x1b[0m\r\n`);
           }

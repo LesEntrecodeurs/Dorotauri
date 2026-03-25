@@ -98,7 +98,6 @@ export default function CanvasView() {
     stopAgent,
     startAgent,
     createAgent,
-    projects,
     superAgent,
     setTerminalAgentId: (id) => id ? handleOpenTerminal(id) : closeTerminal(),
   });
@@ -106,7 +105,6 @@ export default function CanvasView() {
   const {
     isCreatingSuperAgent,
     showCreateAgentModal,
-    createAgentProjectPath,
     handleToggleAgent,
     handleStartAgent,
     handleStopAgent,
@@ -192,7 +190,7 @@ export default function CanvasView() {
               onSelect={() => setSelectedNodeId(agent.id)}
               onDrag={(delta) => handleAgentDrag(agent.id, delta)}
               onOpenTerminal={() => handleOpenTerminal(agent.id)}
-              onToggleAgent={() => handleToggleAgent(agent.id, agent.processState === 'running' || agent.processState === 'waiting')}
+              onToggleAgent={() => handleToggleAgent(agent.id, agent.status === 'running' || agent.status === 'waiting')}
               onEdit={() => handleEditAgent(agent.id)}
             />
           ))}
@@ -259,13 +257,9 @@ export default function CanvasView() {
         open={showCreateAgentModal}
         onClose={closeCreateAgentModal}
         onSubmit={handleCreateAgent}
-        projects={projects.map(p => ({ path: p.path, name: p.name }))}
-        onBrowseFolder={isElectron() ? openFolderDialog : undefined}
         installedSkills={installedSkills}
         allInstalledSkills={claudeData?.skills || []}
         onRefreshSkills={refreshSkills}
-        initialProjectPath={createAgentProjectPath || undefined}
-        initialStep={createAgentProjectPath ? 2 : 1}
       />
     </div>
   );

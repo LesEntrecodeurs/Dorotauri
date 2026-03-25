@@ -1,5 +1,6 @@
 
 
+
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Play, Check } from 'lucide-react';
@@ -10,17 +11,15 @@ import type { AgentProvider } from '@/types/electron';
 import type { AppSettings } from '@/components/Settings/types';
 import { CHARACTER_OPTIONS } from './constants';
 import { useSkillInstall } from './hooks/useSkillInstall';
-import StepProject from './StepProject';
 import StepModel from './StepModel';
 import StepTools from './StepTools';
 import StepTask from './StepTask';
 import SkillInstallTerminal from './SkillInstallTerminal';
 
 const STEPS = [
-  { label: 'Project', number: 1 },
-  { label: 'Model', number: 2 },
-  { label: 'Tools', number: 3 },
-  { label: 'Task', number: 4 },
+  { label: 'Model', number: 1 },
+  { label: 'Tools', number: 2 },
+  { label: 'Task', number: 3 },
 ] as const;
 
 function StepIndicator({ currentStep, onStepClick }: { currentStep: number; onStepClick: (step: number) => void }) {
@@ -84,29 +83,16 @@ export default function NewChatModal({
   onSubmit,
   onUpdate,
   editAgent,
-  projects,
-  onBrowseFolder,
   installedSkills = [],
   allInstalledSkills = [],
   onRefreshSkills,
-  initialProjectPath,
   initialStep,
 }: NewChatModalProps) {
   const isEditMode = !!editAgent;
   // Step navigation
   const [step, setStep] = useState(initialStep || 1);
 
-  // Step 1: Project selection
-  const [selectedProject, setSelectedProject] = useState<string>(initialProjectPath || '');
-  const [customPath, setCustomPath] = useState('');
-  const [showSecondaryProject, setShowSecondaryProject] = useState(false);
-  const [selectedSecondaryProject, setSelectedSecondaryProject] = useState<string>('');
-  const [customSecondaryPath, setCustomSecondaryPath] = useState('');
-  const [favoriteProjects, setFavoriteProjects] = useState<string[]>([]);
-  const [hiddenProjects, setHiddenProjects] = useState<string[]>([]);
-  const [defaultProjectPath, setDefaultProjectPath] = useState<string>('');
-
-  // Step 2: Model
+  // Step 1: Model
   const [provider, setProvider] = useState<AgentProvider>('claude');
   const [model, setModel] = useState<string>('default');
   const [localModel, setLocalModel] = useState('');
@@ -114,21 +100,19 @@ export default function NewChatModal({
   const [installedProviders, setInstalledProviders] = useState<Record<string, boolean>>({ claude: true, codex: true, gemini: true, opencode: true, pi: true });
   const agentPersonaRef = useRef<AgentPersonaValues>({ character: 'robot', name: '' });
 
-  // Step 3: Tools
+  // Step 2: Tools
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [installedSkillsByProvider, setInstalledSkillsByProvider] = useState<Record<string, string[]>>({});
   const [selectedObsidianVaults, setSelectedObsidianVaults] = useState<string[]>([]);
   const [registeredVaults, setRegisteredVaults] = useState<string[]>([]);
   const [detectedVault, setDetectedVault] = useState<string | null>(null);
 
-  // Step 4: Task
+  // Step 3: Task
   const [prompt, setPrompt] = useState('');
   const [useWorktree, setUseWorktree] = useState(false);
   const [branchName, setBranchName] = useState('');
   const [skipPermissions, setSkipPermissions] = useState(true);
   const [isOrchestrator, setIsOrchestrator] = useState(false);
-
-  const projectPath = selectedProject || customPath;
 
   // Refresh both parent skills and local provider-skill map
   const handleRefreshSkills = useCallback(() => {
@@ -157,8 +141,6 @@ export default function NewChatModal({
       if (editAgent) {
         // Edit mode: pre-populate from existing agent
         setStep(initialStep || 1);
-        setSelectedProject(editAgent.cwd);
-        setCustomPath('');
         setSelectedSkills(editAgent.skills || []);
         setPrompt('');
         setUseWorktree(!!editAgent.branchName);
@@ -167,9 +149,6 @@ export default function NewChatModal({
           character: editAgent.character || 'robot',
           name: editAgent.name || '',
         };
-        setShowSecondaryProject(!!(editAgent.secondaryPaths && editAgent.secondaryPaths.length > 0));
-        setSelectedSecondaryProject(editAgent.secondaryPaths?.[0] || '');
-        setCustomSecondaryPath('');
         setSkipPermissions(editAgent.skipPermissions || false);
         setProvider(editAgent.provider || 'claude');
         setLocalModel(editAgent.localModel || '');
@@ -178,16 +157,11 @@ export default function NewChatModal({
       } else {
         // Create mode: reset everything
         setStep(initialStep || 1);
-        setSelectedProject(initialProjectPath || '');
-        setCustomPath('');
         setSelectedSkills([]);
         setPrompt('');
         setUseWorktree(false);
         setBranchName('');
         agentPersonaRef.current = { character: 'robot', name: '' };
-        setShowSecondaryProject(false);
-        setSelectedSecondaryProject('');
-        setCustomSecondaryPath('');
         setSkipPermissions(false);
         setProvider('claude');
         setLocalModel('');
@@ -195,24 +169,10 @@ export default function NewChatModal({
         setDetectedVault(null);
       }
 
-      // Load app settings (Tasmania, favorites, default project)
+      // Load app settings (Tasmania)
       invoke<AppSettings | null>('app_settings_get').then((settings) => {
         if (!settings) return;
         setTasmaniaEnabled(settings.tasmaniaEnabled || false);
-        if (Array.isArray(settings.favoriteProjects)) {
-          setFavoriteProjects(settings.favoriteProjects);
-        }
-        if (Array.isArray(settings.hiddenProjects)) {
-          setHiddenProjects(settings.hiddenProjects);
-        }
-        // Store default project path for sorting
-        if (settings.defaultProjectPath) {
-          setDefaultProjectPath(settings.defaultProjectPath);
-        }
-        // Auto-select default project if no project pre-selected
-        if (!initialProjectPath && !editAgent && settings.defaultProjectPath) {
-          setSelectedProject(settings.defaultProjectPath);
-        }
       }).catch(() => {});
 
       // Load registered obsidian vaults
@@ -244,73 +204,12 @@ export default function NewChatModal({
         // Command not implemented yet
       });
     }
-  }, [open, initialProjectPath, initialStep, editAgent]);
+  }, [open, initialStep, editAgent]);
 
   // Clear selected skills when provider changes
   useEffect(() => {
     setSelectedSkills([]);
   }, [provider]);
-
-  // Detect Obsidian vault when project path changes
-  useEffect(() => {
-    if (!projectPath || !open) return;
-    (async () => {
-      try {
-        const result = await invoke<{ detected?: boolean; vaultPath?: string }>('obsidian_detect_vault', { projectPath });
-        if (result?.detected && result.vaultPath) {
-          setDetectedVault(result.vaultPath);
-          // Auto-register if not already registered
-          if (!registeredVaults.includes(result.vaultPath)) {
-            try {
-              await invoke('obsidian_add_vault', { vaultPath: result.vaultPath });
-            } catch {
-              // Command not implemented yet
-            }
-            setRegisteredVaults(prev => [...prev, result.vaultPath!]);
-          }
-          // Auto-select the detected vault
-          setSelectedObsidianVaults(prev =>
-            prev.includes(result.vaultPath!) ? prev : [...prev, result.vaultPath!]
-          );
-        } else {
-          setDetectedVault(null);
-        }
-      } catch {
-        // Obsidian commands not implemented yet
-        setDetectedVault(null);
-      }
-    })();
-  }, [projectPath, open, registeredVaults]);
-
-  // Stable callbacks for child components
-  const handleSelectProject = useCallback((path: string) => {
-    setSelectedProject(path);
-    setCustomPath('');
-  }, []);
-
-  const handleCustomPathChange = useCallback((path: string) => {
-    setCustomPath(path);
-    setSelectedProject('');
-  }, []);
-
-  const handleToggleSecondary = useCallback(() => {
-    setShowSecondaryProject(prev => !prev);
-  }, []);
-
-  const handleSelectSecondaryProject = useCallback((path: string) => {
-    setSelectedSecondaryProject(path);
-    setCustomSecondaryPath('');
-  }, []);
-
-  const handleCustomSecondaryPathChange = useCallback((path: string) => {
-    setCustomSecondaryPath(path);
-    setSelectedSecondaryProject('');
-  }, []);
-
-  const handleClearSecondary = useCallback(() => {
-    setSelectedSecondaryProject('');
-    setCustomSecondaryPath('');
-  }, []);
 
   const toggleSkill = useCallback((skillName: string) => {
     setSelectedSkills((prev) =>
@@ -333,19 +232,15 @@ export default function NewChatModal({
   }, []);
 
   const handleSubmit = useCallback(() => {
-    if (!projectPath) return;
     if (useWorktree && !branchName.trim()) return;
 
     const { character: agentCharacter, name: agentName } = agentPersonaRef.current;
-    const projectName = projectPath.split('/').pop() || 'project';
-    const finalName = agentName.trim() || `${CHARACTER_OPTIONS.find(c => c.id === agentCharacter)?.name || 'Agent'} on ${projectName}`;
-    const secondaryPath = showSecondaryProject ? (selectedSecondaryProject || customSecondaryPath) : undefined;
+    const finalName = agentName.trim() || `${CHARACTER_OPTIONS.find(c => c.id === agentCharacter)?.name || 'Agent'}`;
 
     if (isEditMode && editAgent && onUpdate) {
       // Edit mode: update existing agent
       onUpdate(editAgent.id, {
         skills: selectedSkills,
-        secondaryPaths: secondaryPath ? [secondaryPath] : null,
         skipPermissions,
         name: finalName,
         character: agentCharacter,
@@ -359,28 +254,23 @@ export default function NewChatModal({
       || (selectedSkills.length > 0 ? `Use the following skills: ${selectedSkills.join(', ')}` : '');
     const worktreeConfig = useWorktree ? { enabled: true, branchName: branchName.trim() } : undefined;
 
-    onSubmit(projectPath, selectedSkills, finalPrompt, model, worktreeConfig, agentCharacter, finalName, secondaryPath, skipPermissions, provider, localModel, selectedObsidianVaults.length > 0 ? selectedObsidianVaults : undefined);
+    onSubmit(selectedSkills, finalPrompt, model, worktreeConfig, agentCharacter, finalName, skipPermissions, provider, localModel, selectedObsidianVaults.length > 0 ? selectedObsidianVaults : undefined);
 
     // Reset form
     setStep(1);
-    setSelectedProject('');
-    setCustomPath('');
     setSelectedSkills([]);
     setPrompt('');
     setUseWorktree(false);
     setBranchName('');
     agentPersonaRef.current = { character: 'robot', name: '' };
-    setShowSecondaryProject(false);
-    setSelectedSecondaryProject('');
     setSkipPermissions(false);
-    setCustomSecondaryPath('');
     setProvider('claude');
     setLocalModel('');
     setSelectedObsidianVaults([]);
-  }, [projectPath, prompt, selectedSkills, useWorktree, branchName, showSecondaryProject, selectedSecondaryProject, customSecondaryPath, model, skipPermissions, provider, localModel, selectedObsidianVaults, onSubmit, isEditMode, editAgent, onUpdate, onClose]);
+  }, [prompt, selectedSkills, useWorktree, branchName, model, skipPermissions, provider, localModel, selectedObsidianVaults, onSubmit, isEditMode, editAgent, onUpdate, onClose]);
 
-  // Can proceed from current step?
-  const canContinue = step === 1 ? !!projectPath : true;
+  // Can always continue (no project validation needed)
+  const canContinue = true;
   const canStart = !useWorktree || !!branchName.trim();
 
   if (!open) return null;
@@ -417,28 +307,6 @@ export default function NewChatModal({
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5">
             {step === 1 && (
-              <StepProject
-                projects={projects}
-                projectPath={projectPath}
-                selectedProject={selectedProject}
-                customPath={customPath}
-                onSelectProject={handleSelectProject}
-                onCustomPathChange={handleCustomPathChange}
-                onBrowseFolder={onBrowseFolder}
-                showSecondaryProject={showSecondaryProject}
-                onToggleSecondary={handleToggleSecondary}
-                selectedSecondaryProject={selectedSecondaryProject}
-                onSelectSecondaryProject={handleSelectSecondaryProject}
-                customSecondaryPath={customSecondaryPath}
-                onCustomSecondaryPathChange={handleCustomSecondaryPathChange}
-                onClearSecondary={handleClearSecondary}
-                favoriteProjects={favoriteProjects}
-                hiddenProjects={hiddenProjects}
-                defaultProjectPath={defaultProjectPath}
-              />
-            )}
-
-            {step === 2 && (
               <StepModel
                 provider={provider}
                 onProviderChange={setProvider}
@@ -449,11 +317,10 @@ export default function NewChatModal({
                 tasmaniaEnabled={tasmaniaEnabled}
                 installedProviders={installedProviders}
                 agentPersonaRef={agentPersonaRef}
-                projectPath={projectPath}
               />
             )}
 
-            {step === 3 && (
+            {step === 2 && (
               <StepTools
                 selectedSkills={selectedSkills}
                 onToggleSkill={toggleSkill}
@@ -469,7 +336,7 @@ export default function NewChatModal({
               />
             )}
 
-            {step === 4 && (
+            {step === 3 && (
               <StepTask
                 prompt={prompt}
                 onPromptChange={setPrompt}
@@ -482,7 +349,6 @@ export default function NewChatModal({
                 onToggleSkipPermissions={() => setSkipPermissions(prev => !prev)}
                 isOrchestrator={isOrchestrator}
                 onOrchestratorToggle={handleOrchestratorToggle}
-                projectPath={projectPath}
                 provider={provider}
                 model={model}
                 selectedObsidianVaults={selectedObsidianVaults}
@@ -508,7 +374,7 @@ export default function NewChatModal({
                 Cancel
               </button>
 
-              {step < 4 ? (
+              {step < 3 ? (
                 <button
                   onClick={() => setStep(step + 1)}
                   disabled={!canContinue}

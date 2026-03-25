@@ -1,4 +1,7 @@
 export type AgentStatus = 'inactive' | 'running' | 'paused' | 'error' | 'completed' | 'dormant';
+
+// Re-export the canonical Agent type from electron.d.ts
+export type { Agent as ElectronAgent, ProcessState } from './electron.d';
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
 export type ProjectStatus = 'active' | 'archived' | 'paused';
 

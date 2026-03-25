@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronRight,
   Settings2,
-  FolderOpen,
   Sparkles,
   BookOpen,
 } from 'lucide-react';
@@ -31,7 +30,6 @@ interface StepTaskProps {
   isOrchestrator: boolean;
   onOrchestratorToggle: (enabled: boolean) => void;
   // Summary data
-  projectPath: string;
   provider: AgentProvider;
   model: string;
   selectedObsidianVaults: string[];
@@ -49,7 +47,6 @@ const StepTask = React.memo(function StepTask({
   onToggleSkipPermissions,
   isOrchestrator,
   onOrchestratorToggle,
-  projectPath,
   provider,
   model,
   selectedObsidianVaults,
@@ -209,7 +206,6 @@ const StepTask = React.memo(function StepTask({
       <div className="rounded-md border border-border bg-secondary/30 p-4 space-y-2">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Summary</span>
         <div className="space-y-1.5">
-          <SummaryRow icon={<FolderOpen className="w-3.5 h-3.5" />} label="Project" value={projectPath.split('/').pop() || projectPath} />
           <SummaryRow icon={<Sparkles className="w-3.5 h-3.5" />} label="Model" value={`${provider} / ${model}`} />
           {selectedSkills.length > 0 && (
             <SummaryRow icon={<Zap className="w-3.5 h-3.5" />} label="Skills" value={`${selectedSkills.length} selected`} />

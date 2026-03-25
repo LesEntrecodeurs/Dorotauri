@@ -6,12 +6,10 @@ import type { AgentPersonaValues } from './types';
 import { CHARACTER_OPTIONS } from './constants';
 
 const AgentPersonaEditor = React.memo(function AgentPersonaEditor({
-  projectPath,
   onChange,
   initialCharacter,
   initialName,
 }: {
-  projectPath: string;
   onChange: (v: AgentPersonaValues) => void;
   initialCharacter?: AgentCharacter;
   initialName?: string;
@@ -31,7 +29,6 @@ const AgentPersonaEditor = React.memo(function AgentPersonaEditor({
     onChangeRef.current({ character, name: value });
   };
 
-  const projectName = projectPath.split('/').pop() || 'project';
   const charLabel = CHARACTER_OPTIONS.find(c => c.id === character)?.name || 'Agent';
 
   return (
@@ -67,7 +64,7 @@ const AgentPersonaEditor = React.memo(function AgentPersonaEditor({
           type="text"
           value={name}
           onChange={(e) => handleNameChange(e.target.value)}
-          placeholder={`${charLabel} on ${projectName}`}
+          placeholder={`${charLabel}`}
         />
       </div>
     </div>

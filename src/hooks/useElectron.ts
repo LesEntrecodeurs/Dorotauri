@@ -45,8 +45,8 @@ export function useElectronAgents() {
 
   // Create a new agent
   const createAgent = useCallback(async (config: {
-    cwd: string;
-    skills: string[];
+    cwd?: string;
+    skills?: string[];
     worktree?: { enabled: boolean; branchName: string };
     character?: AgentCharacter;
     name?: string;

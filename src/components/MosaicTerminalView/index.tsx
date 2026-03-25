@@ -8,9 +8,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical, ArrowRightFromLine, ChevronRight } from 'lucide-react';
-import type { Agent as AgentStatusType, AgentCharacter } from '@/types/electron';
+import type { Agent, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
-import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
+import { useElectronAgents, useElectronSkills } from '@/hooks/useElectron';
 import NewChatModal from '@/components/NewChatModal';
 import type { EditAgentData } from '@/components/NewChatModal/types';
 import TerminalTile from './TerminalTile';
@@ -18,7 +18,7 @@ import TerminalTile from './TerminalTile';
 type ViewId = string;
 
 interface MosaicTerminalViewProps {
-  agents: AgentStatusType[];
+  agents: Agent[];
   zenMode?: boolean;
 }
 
@@ -158,6 +158,11 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-primary/20 text-primary',
 };
 
+function getSuperAgentBadge(agent: Agent | undefined): string {
+  if (!agent?.isSuperAgent) return '';
+  return agent.superAgentScope === 'all' ? '\u{1F451}\u{1F451}' : '\u{1F451}';
+}
+
 export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTerminalViewProps) {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(loadTabs);
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
@@ -172,7 +177,6 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
   // Hooks for the edit modal
   const { updateAgent } = useElectronAgents();
-  const { projects, openFolderDialog } = useElectronFS();
   const { installedSkills } = useElectronSkills();
 
   // Persist tabs
@@ -183,7 +187,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
   // Agent lookup
   const agentMap = useMemo(() => {
-    const map = new Map<string, AgentStatusType>();
+    const map = new Map<string, Agent>();
     for (const agent of agents) map.set(agent.id, agent);
     return map;
   }, [agents]);
@@ -385,7 +389,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
         projects => projects[0]?.path || '/home'
       ).catch(() => '/home');
 
-      const agent = await invoke<AgentStatusType>('agent_create', {
+      const agent = await invoke<Agent>('agent_create', {
         config: {
           cwd: typeof home === 'string' ? home : '/home',
           skills: [],
@@ -407,7 +411,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
         projects => projects[0]?.path || '/home'
       ).catch(() => '/home');
 
-      const agent = await invoke<AgentStatusType>('agent_create', {
+      const agent = await invoke<Agent>('agent_create', {
         config: {
           cwd: typeof home === 'string' ? home : '/home',
           skills: [],
@@ -453,7 +457,6 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       id: agent.id,
       name: agent.name,
       character: agent.character as AgentCharacter | undefined,
-      cwd: agent.cwd,
       secondaryPaths: agent.secondaryPaths,
       skills: agent.skills,
       skipPermissions: agent.skipPermissions,
@@ -727,12 +730,15 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                   <button
                     key={agent.id}
                     onClick={() => addAgentToTab(agent.id)}
-                    className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0"
+                    className={`flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0 ${agent.isSuperAgent && agent.superAgentScope === 'all' ? 'bg-amber-500/5' : ''}`}
                   >
                     <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOTS[agent.processState] || STATUS_DOTS.inactive}`} />
                     <span className="text-sm">{getAgentEmoji(agent.id)}</span>
                     <div className="flex flex-col min-w-0">
-                      <span className="truncate font-medium">{agent.name || agent.id.slice(0, 8)}</span>
+                      <span className={`truncate ${agent.isSuperAgent ? 'font-bold' : 'font-medium'}`}>
+                        {getSuperAgentBadge(agent) && <span className="mr-1">{getSuperAgentBadge(agent)}</span>}
+                        {agent.name || agent.id.slice(0, 8)}
+                      </span>
                       <span className="text-[10px] text-muted-foreground truncate">{agent.cwd?.split('/').pop()}</span>
                     </div>
                     <span className="ml-auto text-muted-foreground">+</span>
@@ -771,10 +777,11 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
             </button>
           </div>
         ) : maximizedAgent && activeTab?.agentIds.includes(maximizedAgent) ? (
-          <div className="w-full h-full flex flex-col">
-            <div className="flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0">
+          <div className={`w-full h-full flex flex-col ${agentMap.get(maximizedAgent)?.isSuperAgent && agentMap.get(maximizedAgent)?.superAgentScope === 'all' ? 'ring-2 ring-amber-500/50 rounded' : ''}`}>
+            <div className={`flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0 ${agentMap.get(maximizedAgent)?.isSuperAgent && agentMap.get(maximizedAgent)?.superAgentScope === 'all' ? 'bg-amber-500/5' : ''}`}>
               <span className="text-sm">{getAgentEmoji(maximizedAgent)}</span>
-              <span className="text-xs font-medium text-foreground">{getAgentTitle(maximizedAgent)}</span>
+              <span className={`text-xs text-foreground truncate ${agentMap.get(maximizedAgent)?.isSuperAgent ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(maximizedAgent)}</span>
+              {getSuperAgentBadge(agentMap.get(maximizedAgent)) && <span className="text-xs shrink-0">{getSuperAgentBadge(agentMap.get(maximizedAgent))}</span>}
               <div className="flex-1" />
               <button onClick={() => handlePopout(maximizedAgent)} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                 <ExternalLink className="w-3 h-3" />
@@ -801,8 +808,9 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                     renderToolbar={() => zenMode ? (
                       /* Zen mode: floating overlay toolbar, visible on hover */
                       <div className="group/toolbar relative w-full h-0" data-agent-id={id}>
-                        <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border border-border/50 rounded px-1 py-0.5 z-10 backdrop-blur-sm">
-                          <span className="text-[10px] text-muted-foreground px-1">{getAgentTitle(id)}</span>
+                        <div className={`absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border rounded px-1 py-0.5 z-10 backdrop-blur-sm ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'border-amber-500/50' : 'border-border/50'}`}>
+                          {getSuperAgentBadge(agent) && <span className="text-[10px] px-0.5">{getSuperAgentBadge(agent)}</span>}
+                          <span className={`text-[10px] px-1 ${agent?.isSuperAgent ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>{getAgentTitle(id)}</span>
                           <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Settings">
                             <Settings className="w-3 h-3" />
                           </button>
@@ -816,9 +824,10 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                       </div>
                     ) : (
                       /* Normal mode: fixed toolbar */
-                      <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar" data-agent-id={id}>
+                      <div className={`flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b select-none mosaic-custom-toolbar ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'border-amber-500/50 bg-amber-500/5' : 'border-border'}`} data-agent-id={id}>
                         <span className="text-sm">{getAgentEmoji(id)}</span>
-                        <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{getAgentTitle(id)}</span>
+                        <span className={`text-xs text-foreground truncate max-w-[120px] ${agent?.isSuperAgent ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(id)}</span>
+                        {getSuperAgentBadge(agent) && <span className="text-xs shrink-0">{getSuperAgentBadge(agent)}</span>}
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
                         <div className="flex-1" />
                         <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Agent settings">
@@ -836,7 +845,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                       </div>
                     )}
                   >
-                    <div data-agent-id={id} className="h-full">
+                    <div data-agent-id={id} className={`h-full ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'ring-2 ring-amber-500/50' : ''}`}>
                       <TerminalTile agentId={id} />
                     </div>
                   </MosaicWindow>
@@ -858,8 +867,6 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
         onSubmit={() => {}}
         onUpdate={handleUpdateAgent}
         editAgent={editAgentData}
-        projects={projects.map(p => ({ path: p.path, name: p.name }))}
-        onBrowseFolder={isTauri() ? openFolderDialog : undefined}
         installedSkills={installedSkills}
         initialStep={1}
       />

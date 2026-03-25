@@ -6,11 +6,6 @@ export interface AgentPersonaValues {
   name: string;
 }
 
-export interface Project {
-  path: string;
-  name: string;
-}
-
 export interface WorktreeConfig {
   enabled: boolean;
   branchName: string;
@@ -20,7 +15,6 @@ export interface EditAgentData {
   id: string;
   name?: string;
   character?: AgentCharacter;
-  cwd: string;
   secondaryPaths?: string[];
   skills: string[];
   skipPermissions?: boolean;
@@ -34,14 +28,12 @@ export interface NewChatModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (
-    projectPath: string,
     skills: string[],
     prompt: string,
     model?: string,
     worktree?: WorktreeConfig,
     character?: AgentCharacter,
     name?: string,
-    secondaryProjectPath?: string,
     skipPermissions?: boolean,
     provider?: AgentProvider,
     localModel?: string,
@@ -55,11 +47,8 @@ export interface NewChatModalProps {
     character?: AgentCharacter;
   }) => void;
   editAgent?: EditAgentData | null;
-  projects: Project[];
-  onBrowseFolder?: () => Promise<string | null>;
   installedSkills?: string[];
   allInstalledSkills?: ClaudeSkill[];
   onRefreshSkills?: () => void;
-  initialProjectPath?: string;
   initialStep?: number;
 }

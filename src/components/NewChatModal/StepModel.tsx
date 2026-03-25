@@ -83,7 +83,6 @@ interface StepModelProps {
   tasmaniaEnabled: boolean;
   installedProviders?: Record<string, boolean>;
   agentPersonaRef: React.MutableRefObject<AgentPersonaValues>;
-  projectPath: string;
 }
 
 const StepModel = React.memo(function StepModel({
@@ -96,7 +95,6 @@ const StepModel = React.memo(function StepModel({
   tasmaniaEnabled,
   installedProviders,
   agentPersonaRef,
-  projectPath,
 }: StepModelProps) {
   // Tasmania state for local provider
   const [tasmaniaStatus, setTasmaniaStatus] = useState<{
@@ -296,7 +294,6 @@ const StepModel = React.memo(function StepModel({
 
       {/* Agent Persona */}
       <AgentPersonaEditor
-        projectPath={projectPath}
         onChange={(v) => { agentPersonaRef.current = v; }}
         initialCharacter={agentPersonaRef.current.character}
         initialName={agentPersonaRef.current.name}
