@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button';
 import { SuperAgentButton } from './SuperAgentButton';
 
 interface CanvasToolbarProps {
-  filter: 'all' | 'running' | 'idle' | 'stopped';
-  setFilter: (filter: 'all' | 'running' | 'idle' | 'stopped') => void;
+  filter: 'all' | 'running' | 'inactive' | 'dormant';
+  setFilter: (filter: 'all' | 'running' | 'inactive' | 'dormant') => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   projectFilter: string;
@@ -24,7 +24,7 @@ interface CanvasToolbarProps {
   onResetView: () => void;
   zoom: number;
   setZoom: (zoom: number) => void;
-  superAgent: { id: string; status: string } | null;
+  superAgent: { id: string; processState: string } | null;
   isCreatingSuperAgent: boolean;
   onSuperAgentClick: () => void;
   showSuperAgentButton: boolean;
@@ -82,7 +82,7 @@ export function CanvasToolbar({
         {/* Status filter */}
         <div className="flex items-center gap-0.5 lg:gap-1 p-1 bg-card/90 border border-border">
           <Filter className="w-4 h-4 text-muted-foreground ml-1 lg:ml-2 hidden sm:block" />
-          {(['all', 'running', 'idle', 'stopped'] as const).map((f) => (
+          {(['all', 'running', 'inactive', 'dormant'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -93,7 +93,7 @@ export function CanvasToolbar({
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              {f === 'all' ? 'All' : f === 'running' ? 'Run' : f === 'idle' ? 'Idle' : 'Stop'}
+              {f === 'all' ? 'All' : f === 'running' ? 'Run' : f === 'inactive' ? 'Idle' : 'Sleep'}
             </button>
           ))}
         </div>

@@ -1,17 +1,17 @@
 
 
 import { Activity, Cpu, DollarSign, Terminal } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 interface StatusBarProps {
-  agents: AgentStatus[];
+  agents: Agent[];
 }
 
 export default function StatusBar({ agents }: StatusBarProps) {
-  const running = agents.filter(a => a.status === 'running').length;
-  const waiting = agents.filter(a => a.status === 'waiting').length;
-  const idle = agents.filter(a => a.status === 'idle').length;
-  const error = agents.filter(a => a.status === 'error').length;
+  const running = agents.filter(a => a.processState === 'running').length;
+  const waiting = agents.filter(a => a.processState === 'waiting').length;
+  const idle = agents.filter(a => a.processState === 'inactive').length;
+  const error = agents.filter(a => a.processState === 'error').length;
 
   // Estimate total output tokens (rough: each output line ~10 tokens)
   const totalOutputLines = agents.reduce((sum, a) => sum + a.output.length, 0);

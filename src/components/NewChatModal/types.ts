@@ -20,8 +20,8 @@ export interface EditAgentData {
   id: string;
   name?: string;
   character?: AgentCharacter;
-  projectPath: string;
-  secondaryProjectPath?: string;
+  cwd: string;
+  secondaryPaths?: string[];
   skills: string[];
   skipPermissions?: boolean;
   provider?: AgentProvider;
@@ -49,7 +49,7 @@ export interface NewChatModalProps {
   ) => void;
   onUpdate?: (id: string, updates: {
     skills?: string[];
-    secondaryProjectPath?: string | null;
+    secondaryPaths?: string[] | null;
     skipPermissions?: boolean;
     name?: string;
     character?: AgentCharacter;

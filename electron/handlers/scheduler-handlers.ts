@@ -22,7 +22,7 @@ function resolveDefaultProvider(deps: SchedulerDeps): AgentProvider {
   return deps.getAppSettings().defaultProvider || 'claude';
 }
 
-const SCHEDULER_METADATA_PATH = path.join(os.homedir(), '.dorothy', 'scheduler-metadata.json');
+const SCHEDULER_METADATA_PATH = path.join(os.homedir(), '.dorotauri', 'scheduler-metadata.json');
 
 // Active log file watchers for real-time streaming
 const logWatchers = new Map<string, { watcher: fs.FSWatcher; offset: number }>();
@@ -43,11 +43,11 @@ function resolveLogPath(taskId: string): string {
     } catch { /* use default */ }
   }
 
-  // Also check dorothy plist format
-  const dorothyPlistPath = path.join(os.homedir(), 'Library', 'LaunchAgents', `com.dorothy.scheduler.${taskId}.plist`);
-  if (fs.existsSync(dorothyPlistPath)) {
+  // Also check dorotauri plist format
+  const dorotauriPlistPath = path.join(os.homedir(), 'Library', 'LaunchAgents', `com.dorotauri.scheduler.${taskId}.plist`);
+  if (fs.existsSync(dorotauriPlistPath)) {
     try {
-      const plistContent = fs.readFileSync(dorothyPlistPath, 'utf-8');
+      const plistContent = fs.readFileSync(dorotauriPlistPath, 'utf-8');
       const stdOutMatch = plistContent.match(/<key>StandardOutPath<\/key>\s*<string>([^<]+)<\/string>/);
       if (stdOutMatch) return stdOutMatch[1];
     } catch { /* use default */ }
@@ -229,7 +229,7 @@ async function getCLIPath(providerId: AgentProvider = 'claude'): Promise<string>
 
   // Check user-configured path in app-settings.json
   try {
-    const settingsFile = path.join(os.homedir(), '.dorothy', 'app-settings.json');
+    const settingsFile = path.join(os.homedir(), '.dorotauri', 'app-settings.json');
     if (fs.existsSync(settingsFile)) {
       const settings = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
       const configuredPath = settings.cliPaths?.[binaryName];
@@ -323,7 +323,7 @@ async function createLaunchdJob(
   }
 
   // Create script to run
-  const scriptPath = path.join(os.homedir(), '.dorothy', 'scripts', `${taskId}.sh`);
+  const scriptPath = path.join(os.homedir(), '.dorotauri', 'scripts', `${taskId}.sh`);
   const scriptsDir = path.dirname(scriptPath);
   if (!fs.existsSync(scriptsDir)) {
     fs.mkdirSync(scriptsDir, { recursive: true });
@@ -387,7 +387,7 @@ async function createLaunchdJob(
     ? renderEntry(calendarEntries[0])
     : `  <array>\n${calendarEntries.map(e => '  ' + renderEntry(e)).join('\n')}\n  </array>`;
 
-  const label = `com.dorothy.scheduler.${taskId}`;
+  const label = `com.dorotauri.scheduler.${taskId}`;
   const plistPath = path.join(os.homedir(), 'Library', 'LaunchAgents', `${label}.plist`);
   const launchAgentsDir = path.dirname(plistPath);
   if (!fs.existsSync(launchAgentsDir)) {
@@ -439,7 +439,7 @@ async function createCronJob(
   const claudePath = await getCLIPath(provider);
   const claudeDir = path.dirname(claudePath);
 
-  const scriptPath = path.join(os.homedir(), '.dorothy', 'scripts', `${taskId}.sh`);
+  const scriptPath = path.join(os.homedir(), '.dorotauri', 'scripts', `${taskId}.sh`);
   const scriptsDir = path.dirname(scriptPath);
   if (!fs.existsSync(scriptsDir)) {
     fs.mkdirSync(scriptsDir, { recursive: true });
@@ -473,7 +473,7 @@ async function createCronJob(
   fs.writeFileSync(scriptPath, scriptContent);
   fs.chmodSync(scriptPath, '755');
 
-  const cronLine = `${schedule} ${scriptPath} # dorothy-${taskId}`;
+  const cronLine = `${schedule} ${scriptPath} # dorotauri-${taskId}`;
 
   await new Promise<void>((resolve, reject) => {
     const getCron = spawn('crontab', ['-l']);
@@ -663,14 +663,14 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
           try {
             const files = fs.readdirSync(launchAgentsDir);
             for (const file of files) {
-              if (!file.startsWith('com.claude.schedule.') && !file.startsWith('com.dorothy.scheduler.')) continue;
+              if (!file.startsWith('com.claude.schedule.') && !file.startsWith('com.dorotauri.scheduler.')) continue;
               if (!file.endsWith('.plist')) continue;
 
               let taskId: string;
               if (file.startsWith('com.claude.schedule.')) {
                 taskId = file.replace('com.claude.schedule.', '').replace('.plist', '');
               } else {
-                taskId = file.replace('com.dorothy.scheduler.', '').replace('.plist', '');
+                taskId = file.replace('com.dorotauri.scheduler.', '').replace('.plist', '');
               }
 
               if (addedTaskIds.has(taskId)) continue;
@@ -906,7 +906,7 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
       // Remove launchd job (macOS)
       if (os.platform() === 'darwin') {
         const labels = [
-          `com.dorothy.scheduler.${taskId}`,
+          `com.dorotauri.scheduler.${taskId}`,
           `com.claude.schedule.${taskId}`,
         ];
 
@@ -938,7 +938,7 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
           getCron.on('close', () => {
             const newCron = existingCron
               .split('\n')
-              .filter(line => !line.includes(`dorothy-${taskId}`))
+              .filter(line => !line.includes(`dorotauri-${taskId}`))
               .join('\n');
 
             const setCron = spawn('crontab', ['-']);
@@ -952,7 +952,7 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
       }
 
       // Remove script file
-      const scriptPath = path.join(os.homedir(), '.dorothy', 'scripts', `${taskId}.sh`);
+      const scriptPath = path.join(os.homedir(), '.dorotauri', 'scripts', `${taskId}.sh`);
       if (fs.existsSync(scriptPath)) {
         fs.unlinkSync(scriptPath);
       }
@@ -1033,7 +1033,7 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
       const promptWithStatus = prompt + statusInstruction;
       const escapedPrompt = promptWithStatus.replace(/'/g, "'\\''");
 
-      const scriptPath = path.join(os.homedir(), '.dorothy', 'scripts', `${taskId}.sh`);
+      const scriptPath = path.join(os.homedir(), '.dorotauri', 'scripts', `${taskId}.sh`);
       const scriptsDir = path.dirname(scriptPath);
       if (!fs.existsSync(scriptsDir)) {
         fs.mkdirSync(scriptsDir, { recursive: true });
@@ -1058,7 +1058,7 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
       if (scheduleChanged) {
         if (os.platform() === 'darwin') {
           // Remove old launchd job
-          const label = `com.dorothy.scheduler.${taskId}`;
+          const label = `com.dorotauri.scheduler.${taskId}`;
           const plistPath = path.join(os.homedir(), 'Library', 'LaunchAgents', `${label}.plist`);
           const uid = process.getuid?.() || 501;
 
@@ -1087,7 +1087,7 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
             getCron.on('close', () => {
               const newCron = existingCron
                 .split('\n')
-                .filter(line => !line.includes(`dorothy-${taskId}`))
+                .filter(line => !line.includes(`dorotauri-${taskId}`))
                 .join('\n');
               const setCron = spawn('crontab', ['-']);
               setCron.stdin.write(newCron);
@@ -1127,7 +1127,7 @@ export function registerSchedulerHandlers(deps: SchedulerDeps): void {
         return { success: false, error: 'Task not found' };
       }
 
-      const scriptPath = path.join(os.homedir(), '.dorothy', 'scripts', `${taskId}.sh`);
+      const scriptPath = path.join(os.homedir(), '.dorotauri', 'scripts', `${taskId}.sh`);
       if (fs.existsSync(scriptPath)) {
         spawn('bash', [scriptPath], {
           detached: true,

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import type { AgentNode, ProjectNode, ConnectionData } from '../types';
 
 export function isSuperAgent(agent: { name?: string }): boolean {
@@ -8,10 +8,10 @@ export function isSuperAgent(agent: { name?: string }): boolean {
 }
 
 export function useCanvasNodes(
-  electronAgents: AgentStatus[],
+  electronAgents: Agent[],
   agentPositions: Record<string, { x: number; y: number }>,
   projectPositions: Record<string, { x: number; y: number }>,
-  filter: 'all' | 'running' | 'idle' | 'stopped',
+  filter: 'all' | 'running' | 'inactive' | 'dormant',
   projectFilter: string,
   searchQuery: string
 ) {
@@ -28,9 +28,9 @@ export function useCanvasNodes(
           type: 'agent' as const,
           name: agent.name || `Agent ${agent.id.slice(0, 6)}`,
           character: agent.character || 'robot',
-          status: agent.status as AgentNode['status'],
+          status: agent.processState as AgentNode['status'],
           skills: agent.skills || [],
-          projectPath: agent.projectPath,
+          projectPath: agent.cwd,
           position: pos,
         };
       });
@@ -43,7 +43,7 @@ export function useCanvasNodes(
     electronAgents
       .filter(agent => !isSuperAgent(agent))
       .forEach((agent) => {
-        const projectPath = agent.projectPath;
+        const projectPath = agent.cwd;
         const projectName = projectPath.split('/').pop() || projectPath;
 
         if (!projectMap.has(projectPath)) {
@@ -77,10 +77,10 @@ export function useCanvasNodes(
   const uniqueProjects = useMemo(() => {
     const projectMap = new Map<string, { path: string; name: string }>();
     electronAgents.forEach((agent) => {
-      if (!projectMap.has(agent.projectPath)) {
-        projectMap.set(agent.projectPath, {
-          path: agent.projectPath,
-          name: agent.projectPath.split('/').pop() || agent.projectPath,
+      if (!projectMap.has(agent.cwd)) {
+        projectMap.set(agent.cwd, {
+          path: agent.cwd,
+          name: agent.cwd.split('/').pop() || agent.cwd,
         });
       }
     });
@@ -92,11 +92,12 @@ export function useCanvasNodes(
     return agentNodes.filter((agent) => {
       const statusMatch = filter === 'all' ||
         (filter === 'running' && (agent.status === 'running' || agent.status === 'waiting')) ||
-        (filter === 'idle' && agent.status === 'idle') ||
-        (filter === 'stopped' && (agent.status === 'stopped' || agent.status === 'completed' || agent.status === 'error'));
+        (filter === 'inactive' && agent.status === 'inactive') ||
+        (filter === 'dormant' && (agent.status === 'dormant' || agent.status === 'completed' || agent.status === 'error'));
       const searchMatch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         agent.projectPath.toLowerCase().includes(searchQuery.toLowerCase());
       const projectMatch = projectFilter === 'all' || agent.projectPath === projectFilter;
+
       return statusMatch && searchMatch && projectMatch;
     });
   }, [agentNodes, filter, searchQuery, projectFilter]);
@@ -128,7 +129,7 @@ export function useCanvasNodes(
   }, [filteredAgents, filteredProjects]);
 
   // Find existing super agent
-  const superAgent: AgentStatus | null = useMemo(() => {
+  const superAgent: Agent | null = useMemo(() => {
     return electronAgents.find(a => isSuperAgent(a)) || null;
   }, [electronAgents]);
 

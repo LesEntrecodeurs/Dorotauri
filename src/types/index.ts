@@ -1,4 +1,4 @@
-export type AgentStatus = 'idle' | 'running' | 'paused' | 'error' | 'completed';
+export type AgentStatus = 'inactive' | 'running' | 'paused' | 'error' | 'completed' | 'dormant';
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
 export type ProjectStatus = 'active' | 'archived' | 'paused';
 
@@ -14,9 +14,9 @@ export interface Skill {
 export interface Agent {
   id: string;
   name: string;
-  status: AgentStatus;
+  processState: AgentStatus;
   model: 'opus' | 'sonnet' | 'haiku';
-  currentTask: string | null;
+  businessState: string | null;
   assignedProject: string | null;
   skills: string[];
   tokensUsed: number;

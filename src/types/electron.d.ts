@@ -11,6 +11,7 @@ export interface AgentTickItem {
   cwd: string;
   lastActivity: string;
   provider: string;
+  ptyId?: string;
 }
 
 export interface AgentEvent {

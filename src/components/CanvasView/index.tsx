@@ -58,7 +58,7 @@ export default function CanvasView() {
   const { isPanning, handlers: gestureHandlers } = useCanvasGestures(canvasState);
 
   // Filter state
-  const [filter, setFilter] = useState<'all' | 'running' | 'idle' | 'stopped'>('all');
+  const [filter, setFilter] = useState<'all' | 'running' | 'inactive' | 'dormant'>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -192,7 +192,7 @@ export default function CanvasView() {
               onSelect={() => setSelectedNodeId(agent.id)}
               onDrag={(delta) => handleAgentDrag(agent.id, delta)}
               onOpenTerminal={() => handleOpenTerminal(agent.id)}
-              onToggleAgent={() => handleToggleAgent(agent.id, agent.status === 'running' || agent.status === 'waiting')}
+              onToggleAgent={() => handleToggleAgent(agent.id, agent.processState === 'running' || agent.processState === 'waiting')}
               onEdit={() => handleEditAgent(agent.id)}
             />
           ))}

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { AgentStatus, AgentEvent } from '@/types/agent';
+import type { Agent, AgentEvent } from '@/types/agent';
 
 export function useAgents() {
-  const [agents, setAgents] = useState<AgentStatus[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,16 +27,16 @@ export function useAgents() {
     return () => clearInterval(interval);
   }, [fetchAgents]);
 
-  const createAgent = async (projectPath: string, skills: string[], prompt?: string, model?: string) => {
+  const createAgent = async (cwd: string, skills: string[], prompt?: string, model?: string) => {
     const res = await fetch('/api/agents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectPath, skills, prompt, model }),
+      body: JSON.stringify({ cwd, skills, prompt, model }),
     });
     if (!res.ok) throw new Error('Failed to create agent');
     const data = await res.json();
     await fetchAgents();
-    return data.agent as AgentStatus;
+    return data.agent as Agent;
   };
 
   const startAgent = async (id: string, prompt: string, model?: string) => {

@@ -14,11 +14,11 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { STATUS_COLORS, CHARACTER_FACES } from '@/components/AgentList/constants';
 
 interface AgentDetailPanelProps {
-  agent: AgentStatus;
+  agent: Agent;
   terminalRef: React.RefObject<HTMLDivElement | null>;
   terminalReady: boolean;
   onStop: () => void;
@@ -34,7 +34,7 @@ export function AgentDetailPanel({
   onStart,
   onRemove,
 }: AgentDetailPanelProps) {
-  const statusConfig = STATUS_COLORS[agent.status];
+  const statusConfig = STATUS_COLORS[agent.processState];
 
   return (
     <>
@@ -46,18 +46,18 @@ export function AgentDetailPanel({
               <span className="text-2xl">🐸</span>
             ) : agent.character ? (
               <span className="text-2xl">{CHARACTER_FACES[agent.character] || '🤖'}</span>
-            ) : agent.status === 'running' ? (
+            ) : agent.processState === 'running' ? (
               <Cpu className={`w-6 h-6 ${statusConfig.text} animate-pulse`} />
             ) : (
               <Bot className={`w-6 h-6 ${statusConfig.text}`} />
             )}
-            {agent.status === 'running' && (
+            {agent.processState === 'running' && (
               <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-primary animate-pulse border border-secondary" />
             )}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold">{agent.name || agent.projectPath.split('/').pop()}</h3>
+              <h3 className="font-semibold">{agent.name || agent.cwd.split('/').pop()}</h3>
               {agent.provider && agent.provider !== 'claude' && agent.provider !== 'local' && (
                 <Badge
                   variant="secondary"
@@ -80,7 +80,7 @@ export function AgentDetailPanel({
             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
               <span className="flex items-center gap-1">
                 <FolderOpen className="w-3 h-3" />
-                {agent.worktreePath || agent.projectPath}
+                {agent.worktreePath || agent.cwd}
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
@@ -105,7 +105,7 @@ export function AgentDetailPanel({
               <span className="hidden sm:inline">Path not found</span>
             </div>
           )}
-          {agent.status === 'running' ? (
+          {agent.processState === 'running' ? (
             <Button
               onClick={onStop}
               variant="ghost"
@@ -189,7 +189,7 @@ export function AgentDetailPanel({
               Agent is running
             </span>
           )}
-          {agent.status === 'waiting' && (
+          {agent.processState === 'waiting' && (
             <span className="flex items-center gap-1 text-warning">
               <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
               Waiting for input

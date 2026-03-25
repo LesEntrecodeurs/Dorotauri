@@ -9,6 +9,7 @@ pub mod migration;
 mod notifications;
 mod pty;
 mod state;
+mod usage_watcher;
 mod windows;
 
 pub fn run() {
@@ -46,6 +47,12 @@ pub fn run() {
             // Start the cwd polling thread
             let tracker = app.state::<cwd_tracker::CwdTracker>();
             tracker.start_polling(app.handle().clone(), agents_arc);
+
+            // Install statusline script & configure Claude Code
+            usage_watcher::ensure_statusline();
+
+            // Start the usage rate-limits watcher
+            usage_watcher::start(app.handle().clone());
 
             Ok(())
         })

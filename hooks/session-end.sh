@@ -1,5 +1,5 @@
 #!/bin/bash
-# Session end hook for dorothy
+# Session end hook for dorotauri
 # Sets agent status to "completed" when session terminates and captures final output
 
 # Read JSON input from stdin
@@ -11,7 +11,7 @@ TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 REASON=$(echo "$INPUT" | jq -r '.reason // "other"')
 
-echo "[$(date)] SESSION_END hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID" >> /tmp/dorothy-hooks.log
+echo "[$(date)] SESSION_END hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID" >> /tmp/dorotauri-hooks.log
 
 # API endpoint
 API_URL="http://127.0.0.1:31415"

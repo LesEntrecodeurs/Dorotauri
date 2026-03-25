@@ -41,6 +41,98 @@ import { LATEST_RELEASE, WHATS_NEW_STORAGE_KEY } from '@/data/changelog';
 import { useStore } from '@/store';
 import { useNotifications } from '@/hooks/useNotifications';
 
+function formatSessionReset(resetsAt: number): string {
+  const diff = resetsAt - Math.floor(Date.now() / 1000);
+  if (diff <= 0) return '0m';
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  if (h > 0) return `${h}h${m}m`;
+  return `${m}m`;
+}
+
+function formatWeekReset(resetsAt: number): string {
+  const diff = resetsAt - Math.floor(Date.now() / 1000);
+  if (diff <= 0) return '0m';
+  const d = Math.floor(diff / 86400);
+  const h = Math.floor((diff % 86400) / 3600);
+  if (d > 0) return `${d}d ${h}h`;
+  const m = Math.floor((diff % 3600) / 60);
+  if (h > 0) return `${h}h${m}m`;
+  return `${m}m`;
+}
+
+function barColor(pct: number): string {
+  if (pct >= 80) return 'bg-red-500';
+  if (pct >= 50) return 'bg-yellow-500';
+  return 'bg-green-500';
+}
+
+function barTrackColor(pct: number): string {
+  if (pct >= 80) return 'bg-red-500/20';
+  if (pct >= 50) return 'bg-yellow-500/20';
+  return 'bg-secondary';
+}
+
+function textColor(pct: number): string {
+  if (pct >= 80) return 'text-red-400';
+  if (pct >= 50) return 'text-yellow-400';
+  return 'text-muted-foreground';
+}
+
+function UsageBars() {
+  const rateLimits = useStore((s) => s.rateLimits);
+  if (!rateLimits) return null;
+  const { fiveHour, sevenDay } = rateLimits;
+  if (!fiveHour && !sevenDay) return null;
+
+  return (
+    <div className="px-2 py-1.5 space-y-2 group-data-[collapsible=icon]:hidden border-t border-border pt-2">
+      {fiveHour && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-muted-foreground">Session 5h</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-medium ${textColor(fiveHour.usedPercentage)}`}>
+                {Math.round(fiveHour.usedPercentage)}%
+              </span>
+              <span className="text-[9px] text-muted-foreground/60">
+                {formatSessionReset(fiveHour.resetsAt)}
+              </span>
+            </div>
+          </div>
+          <div className={`h-1 w-full rounded-full overflow-hidden ${barTrackColor(fiveHour.usedPercentage)}`}>
+            <div
+              className={`h-full rounded-full transition-all ${barColor(fiveHour.usedPercentage)}`}
+              style={{ width: `${Math.min(100, fiveHour.usedPercentage)}%` }}
+            />
+          </div>
+        </div>
+      )}
+      {sevenDay && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-muted-foreground">Week</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-medium ${textColor(sevenDay.usedPercentage)}`}>
+                {Math.round(sevenDay.usedPercentage)}%
+              </span>
+              <span className="text-[9px] text-muted-foreground/60">
+                {formatWeekReset(sevenDay.resetsAt)}
+              </span>
+            </div>
+          </div>
+          <div className={`h-1 w-full rounded-full overflow-hidden ${barTrackColor(sevenDay.usedPercentage)}`}>
+            <div
+              className={`h-full rounded-full transition-all ${barColor(sevenDay.usedPercentage)}`}
+              style={{ width: `${Math.min(100, sevenDay.usedPercentage)}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const navItems = [
   { href: '/', icon: LayoutDashboard, label: 'Hub' },
   { href: '/agents', icon: Bot, label: 'Agents' },
@@ -106,14 +198,14 @@ export default function AppSidebar() {
         <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <div className="w-8 h-8 overflow-hidden shrink-0 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
             <img
-              src="/dorothy-without-text.png"
-              alt="Dorothy"
+              src="/dorotauri-logo.png"
+              alt="Dorotauri"
               className="w-full h-full object-cover scale-150"
             />
           </div>
           <img
             src="/text.png"
-            alt="Dorothy"
+            alt="Dorotauri"
             className="h-4 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden"
           />
         </div>
@@ -192,6 +284,7 @@ export default function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <UsageBars />
         <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />

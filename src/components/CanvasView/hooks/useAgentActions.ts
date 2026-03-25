@@ -1,23 +1,23 @@
 import { useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import type { AgentCharacter, AgentStatus } from '@/types/electron';
+import type { AgentCharacter, Agent } from '@/types/electron';
 
 interface CreateAgentConfig {
-  projectPath: string;
+  cwd: string;
   skills: string[];
   worktree?: { enabled: boolean; branchName: string };
   character?: AgentCharacter;
   name?: string;
-  secondaryProjectPath?: string;
+  secondaryPaths?: string[];
   skipPermissions?: boolean;
 }
 
 interface UseAgentActionsProps {
   stopAgent: (id: string) => void;
   startAgent: (id: string, prompt: string, options?: { model?: string }) => Promise<void>;
-  createAgent: (config: CreateAgentConfig) => Promise<AgentStatus>;
+  createAgent: (config: CreateAgentConfig) => Promise<Agent>;
   projects: { path: string; name: string }[];
-  superAgent: AgentStatus | null;
+  superAgent: Agent | null;
   setTerminalAgentId: (id: string | null) => void;
 }
 
@@ -75,7 +75,7 @@ export function useAgentActions({
     skipPermissions?: boolean
   ) => {
     try {
-      const agent = await createAgent({ projectPath, skills, worktree, character, name, secondaryProjectPath, skipPermissions });
+      const agent = await createAgent({ cwd: projectPath, skills, worktree, character, name, secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined, skipPermissions });
       setShowCreateAgentModal(false);
       setCreateAgentProjectPath(null);
 
@@ -94,7 +94,7 @@ export function useAgentActions({
 
   const handleSuperAgentClick = useCallback(async () => {
     if (superAgent) {
-      if (superAgent.status === 'idle' || superAgent.status === 'completed' || superAgent.status === 'error') {
+      if (superAgent.processState === 'inactive' || superAgent.processState === 'completed' || superAgent.processState === 'error') {
         await startAgent(superAgent.id, orchestratorPrompt);
       }
       setTerminalAgentId(superAgent.id);
@@ -126,7 +126,7 @@ export function useAgentActions({
       const projectPath = projects[0]?.path || '/tmp';
 
       const agent = await createAgent({
-        projectPath,
+        cwd: projectPath,
         skills: [],
         character: 'wizard',
         name: 'Super Agent (Orchestrator)',

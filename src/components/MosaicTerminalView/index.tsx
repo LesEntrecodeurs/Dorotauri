@@ -7,7 +7,7 @@ import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical } from 'lucide-react';
+import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical, ArrowRightFromLine, ChevronRight } from 'lucide-react';
 import type { AgentStatus as AgentStatusType, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
@@ -31,7 +31,7 @@ interface WorkspaceTab {
   layout: MosaicNode<string> | null;
 }
 
-const STORAGE_KEY = 'dorothy-workspace-tabs';
+const STORAGE_KEY = 'dorotauri-workspace-tabs';
 const MAX_TABS = 10;
 
 function loadTabs(): WorkspaceTab[] {
@@ -164,6 +164,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const [editingName, setEditingName] = useState('');
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; agentId?: string } | null>(null);
+  const [showMoveSubmenu, setShowMoveSubmenu] = useState(false);
   const [editAgentId, setEditAgentId] = useState<string | null>(null);
   const [layoutPresetIndex, setLayoutPresetIndex] = useState(0);
 
@@ -282,6 +283,54 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       const newIds = tab.agentIds.filter(id => id !== agentId);
       return { ...tab, agentIds: newIds, layout: buildGridLayout(newIds) };
     }));
+    if (maximizedAgent === agentId) setMaximizedAgent(null);
+  }, [activeTabId, maximizedAgent]);
+
+  const moveAgentToTab = useCallback((agentId: string, targetTabId: string) => {
+    setTabs(prev => {
+      const fromTab = prev.find(t => t.id === activeTabId);
+      const toTab = prev.find(t => t.id === targetTabId);
+      if (!fromTab || !toTab || !fromTab.agentIds.includes(agentId) || toTab.agentIds.includes(agentId)) return prev;
+
+      return prev.map(tab => {
+        if (tab.id === activeTabId) {
+          const newIds = tab.agentIds.filter(id => id !== agentId);
+          return { ...tab, agentIds: newIds, layout: buildGridLayout(newIds) };
+        }
+        if (tab.id === targetTabId) {
+          const newIds = [...tab.agentIds, agentId];
+          const newLayout = tab.layout
+            ? { direction: 'row' as const, first: tab.layout, second: agentId, splitPercentage: Math.round(100 * tab.agentIds.length / (tab.agentIds.length + 1)) }
+            : agentId;
+          return { ...tab, agentIds: newIds, layout: newLayout };
+        }
+        return tab;
+      });
+    });
+    if (maximizedAgent === agentId) setMaximizedAgent(null);
+  }, [activeTabId, maximizedAgent]);
+
+  const moveAgentToNewTab = useCallback((agentId: string) => {
+    setTabs(prev => {
+      if (prev.length >= MAX_TABS) return prev;
+      const fromTab = prev.find(t => t.id === activeTabId);
+      if (!fromTab || !fromTab.agentIds.includes(agentId)) return prev;
+
+      const newTab: WorkspaceTab = {
+        id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+        name: `Tab ${prev.length + 1}`,
+        agentIds: [agentId],
+        layout: agentId,
+      };
+      return [
+        ...prev.map(tab =>
+          tab.id === activeTabId
+            ? { ...tab, agentIds: tab.agentIds.filter(id => id !== agentId), layout: buildGridLayout(tab.agentIds.filter(id => id !== agentId)) }
+            : tab
+        ),
+        newTab,
+      ];
+    });
     if (maximizedAgent === agentId) setMaximizedAgent(null);
   }, [activeTabId, maximizedAgent]);
 
@@ -447,9 +496,8 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
   const layout = activeTab?.layout || null;
 
-  // Right-click context menu handler (zen mode)
+  // Right-click context menu handler (works in both zen and normal mode)
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    if (!zenMode) return;
     e.preventDefault();
     // Detect which agent tile was right-clicked
     let agentId: string | undefined;
@@ -459,7 +507,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       el = el.parentElement;
     }
     setContextMenu({ x: e.clientX, y: e.clientY, agentId });
-  }, [zenMode]);
+  }, []);
 
   return (
     <div className="flex flex-col w-full h-full" onContextMenu={handleContextMenu}>
@@ -506,15 +554,64 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
               <Plus className="w-3.5 h-3.5" />
               Add Agent
             </button>
-            <div className="border-t border-border my-1" />
-            <button
-              onClick={() => { setContextMenu(null); /* exit zen: dispatch keyboard event */ window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' })); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
-            >
-              <Minimize2 className="w-3.5 h-3.5" />
-              Exit Fullscreen
-              <span className="ml-auto text-muted-foreground text-[10px]">F11</span>
-            </button>
+
+            {/* Move to Tab — always visible when an agent tile is right-clicked */}
+            {contextMenu.agentId && (
+              <>
+                <div className="border-t border-border my-1" />
+                <div
+                  className="relative"
+                  onMouseEnter={() => setShowMoveSubmenu(true)}
+                  onMouseLeave={() => setShowMoveSubmenu(false)}
+                >
+                  <button className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary justify-between">
+                    <span className="flex items-center gap-2">
+                      <ArrowRightFromLine className="w-3.5 h-3.5" />
+                      Move to Tab
+                    </span>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                  {showMoveSubmenu && (
+                    <div
+                      className="absolute left-full top-0 bg-card border border-border rounded-md shadow-lg min-w-[140px] py-1 -ml-px"
+                      style={{ maxHeight: 240, overflowY: 'auto' }}
+                    >
+                      {tabs.filter(t => t.id !== activeTabId).map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => { moveAgentToTab(contextMenu.agentId!, tab.id); setContextMenu(null); setShowMoveSubmenu(false); }}
+                          className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+                        >
+                          <Terminal className="w-3 h-3" />
+                          {tab.name}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => { moveAgentToNewTab(contextMenu.agentId!); setContextMenu(null); setShowMoveSubmenu(false); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+                      >
+                        <Plus className="w-3 h-3" />
+                        New Tab
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {zenMode && (
+              <>
+                <div className="border-t border-border my-1" />
+                <button
+                  onClick={() => { setContextMenu(null); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' })); }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  Exit Fullscreen
+                  <span className="ml-auto text-muted-foreground text-[10px]">F11</span>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}

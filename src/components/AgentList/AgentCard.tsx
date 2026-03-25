@@ -1,7 +1,7 @@
 import { Loader2, AlertTriangle, GitBranch, Pencil, Crown, Cpu } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { STATUS_COLORS, STATUS_LABELS, CHARACTER_FACES, getProjectColor, isSuperAgentCheck } from '@/components/AgentList/constants';
 
 const PROVIDER_ICONS: Record<string, { src: string; alt: string }> = {
@@ -11,16 +11,16 @@ const PROVIDER_ICONS: Record<string, { src: string; alt: string }> = {
 };
 
 interface AgentCardProps {
-  agent: AgentStatus;
+  agent: Agent;
   isSelected: boolean;
   onSelect: () => void;
   onEdit: () => void;
 }
 
 export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProps) {
-  const statusConfig = STATUS_COLORS[agent.status];
+  const statusConfig = STATUS_COLORS[agent.processState];
   const StatusIcon = statusConfig.icon;
-  const projectName = agent.projectPath.split('/').pop() || 'Unknown';
+  const projectName = agent.cwd.split('/').pop() || 'Unknown';
   const projectColor = getProjectColor(projectName);
   const isSuper = isSuperAgentCheck(agent);
 
@@ -53,12 +53,12 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
             <span className="text-xl">🐸</span>
           ) : agent.character ? (
             <span className="text-xl">{CHARACTER_FACES[agent.character] || '🤖'}</span>
-          ) : agent.status === 'running' ? (
+          ) : agent.processState === 'running' ? (
             <Loader2 className={`w-5 h-5 ${statusConfig.text} animate-spin`} />
           ) : (
             <StatusIcon className={`w-5 h-5 ${statusConfig.text}`} />
           )}
-          {agent.status === 'running' && (agent.character || agent.name?.toLowerCase() === 'bitwonka' || isSuper) && (
+          {agent.processState === 'running' && (agent.character || agent.name?.toLowerCase() === 'bitwonka' || isSuper) && (
             <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full animate-pulse ${isSuper ? 'bg-amber-400' : 'bg-primary'}`} />
           )}
         </div>
@@ -105,12 +105,12 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
               <Badge
                 variant="secondary"
                 className={`text-[10px] px-2 py-0.5 ${
-                  isSuper && agent.status === 'running'
+                  isSuper && agent.processState === 'running'
                     ? 'bg-amber-500/20 text-amber-400'
                     : `${statusConfig.bg} ${statusConfig.text}`
                 }`}
               >
-                {STATUS_LABELS[agent.status]}
+                {STATUS_LABELS[agent.processState]}
               </Badge>
             </div>
           </div>
@@ -121,7 +121,7 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
                 Path not found
               </span>
             ) : (
-              agent.currentTask || 'Ready to work'
+              agent.businessState || agent.statusLine || 'Ready to work'
             )}
           </p>
           {/* Project badge and branch */}
@@ -129,7 +129,7 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
             <Badge
               variant="secondary"
               className={`text-[10px] px-1.5 py-0.5 font-medium truncate max-w-[100px] ${projectColor.bg} ${projectColor.text}`}
-              title={agent.projectPath}
+              title={agent.cwd}
             >
               {projectName}
             </Badge>

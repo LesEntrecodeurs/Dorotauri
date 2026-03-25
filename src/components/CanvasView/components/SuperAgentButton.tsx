@@ -7,13 +7,13 @@ import { cn } from '@/lib/utils';
 import { SUPER_AGENT_STATUS_COLORS } from '../constants';
 
 interface SuperAgentButtonProps {
-  superAgent: { id: string; status: string } | null;
+  superAgent: { id: string; processState: string } | null;
   isCreating: boolean;
   onClick: () => void;
 }
 
 export function SuperAgentButton({ superAgent, isCreating, onClick }: SuperAgentButtonProps) {
-  const statusColor = superAgent ? SUPER_AGENT_STATUS_COLORS[superAgent.status] || SUPER_AGENT_STATUS_COLORS.idle : null;
+  const statusColor = superAgent ? SUPER_AGENT_STATUS_COLORS[superAgent.processState] || SUPER_AGENT_STATUS_COLORS.inactive : null;
 
   return (
     <motion.button
@@ -22,7 +22,7 @@ export function SuperAgentButton({ superAgent, isCreating, onClick }: SuperAgent
       className={cn(
         'flex items-center gap-2 px-3 py-2 border backdrop-blur-sm transition-all duration-200',
         superAgent
-          ? superAgent.status === 'running' || superAgent.status === 'waiting'
+          ? superAgent.processState === 'running' || superAgent.processState === 'waiting'
             ? 'bg-chart-2/20 border-chart-2/50 text-chart-2 hover:bg-chart-2/30 shadow-lg shadow-chart-2/20'
             : 'bg-card/90 border-chart-2/30 text-chart-2 hover:bg-chart-2/10 hover:border-chart-2/50'
           : 'bg-card/90 border-border text-foreground hover:bg-secondary hover:border-chart-2/50',
@@ -30,7 +30,7 @@ export function SuperAgentButton({ superAgent, isCreating, onClick }: SuperAgent
       )}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      title={superAgent ? `Super Agent (${superAgent.status})` : 'Create Super Agent'}
+      title={superAgent ? `Super Agent (${superAgent.processState})` : 'Create Super Agent'}
     >
       {isCreating ? (
         <Loader2 className="w-4 h-4 animate-spin text-chart-2" />

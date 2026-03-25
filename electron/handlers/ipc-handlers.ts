@@ -910,7 +910,7 @@ function registerSkillHandlers(deps: IpcHandlerDependencies): void {
   ipcMain.handle('skill:fetch-marketplace', async () => {
     try {
       const res = await fetch('https://skills.sh/', {
-        headers: { 'User-Agent': 'Dorothy/1.0' },
+        headers: { 'User-Agent': 'Dorotauri/1.0' },
       });
       if (!res.ok) return { skills: null };
 
@@ -1310,7 +1310,7 @@ function registerAppSettingsHandlers(deps: IpcHandlerDependencies): void {
     }
 
     try {
-      await telegramBot.sendMessage(chatId, '✅ Test message from Dorothy!');
+      await telegramBot.sendMessage(chatId, '✅ Test message from Dorotauri!');
       return { success: true };
     } catch (err) {
       console.error('Telegram send test failed:', err);
@@ -1515,7 +1515,7 @@ function registerAppSettingsHandlers(deps: IpcHandlerDependencies): void {
     try {
       await slackApp.client.chat.postMessage({
         channel: appSettings.slackChannelId,
-        text: ':white_check_mark: Test message from Dorothy!',
+        text: ':white_check_mark: Test message from Dorotauri!',
         mrkdwn: true,
       });
       return { success: true };

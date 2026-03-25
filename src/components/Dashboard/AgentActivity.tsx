@@ -5,15 +5,16 @@ import { Bot, Pause, Play, Square, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useStore } from '@/store';
-import { AgentStatus } from '@/types';
+import type { AgentStatus } from '@/types';
 import { Link } from 'react-router';
 
 const statusConfig: Record<AgentStatus, { icon: typeof Bot; color: string; bg: string; label: string }> = {
-  idle: { icon: Square, color: 'text-muted-foreground', bg: 'bg-muted-foreground/20', label: 'Idle' },
+  inactive: { icon: Square, color: 'text-muted-foreground', bg: 'bg-muted-foreground/20', label: 'Idle' },
   running: { icon: Play, color: 'text-success', bg: 'bg-success/20', label: 'Running' },
   paused: { icon: Pause, color: 'text-warning', bg: 'bg-warning/20', label: 'Paused' },
   error: { icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/20', label: 'Error' },
   completed: { icon: Square, color: 'text-primary', bg: 'bg-primary/20', label: 'Completed' },
+  dormant: { icon: Square, color: 'text-muted-foreground', bg: 'bg-muted-foreground/20', label: 'Dormant' },
 };
 
 const modelColors: Record<string, string> = {
@@ -41,10 +42,10 @@ export default function AgentActivity() {
       {/* Agent List */}
       <CardContent className="p-0 divide-y divide-border">
         {agents.slice(0, 4).map((agent, index) => {
-          const config = statusConfig[agent.status];
+          const config = statusConfig[agent.processState];
           const StatusIcon = config.icon;
           const project = projects.find(p => p.id === agent.assignedProject);
-          const currentTask = tasks.find(t => t.id === agent.currentTask);
+          const currentTask = tasks.find(t => t.id === agent.businessState);
 
           return (
             <motion.div
@@ -58,7 +59,7 @@ export default function AgentActivity() {
                 {/* Avatar */}
                 <div className={`relative w-10 h-10 ${config.bg} flex items-center justify-center`}>
                   <Bot className={`w-5 h-5 ${config.color}`} />
-                  {agent.status === 'running' && (
+                  {agent.processState === 'running' && (
                     <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-success rounded-full border border-card">
                       <span className="absolute inset-0 rounded-full bg-success animate-ping opacity-75" />
                     </span>
@@ -83,7 +84,7 @@ export default function AgentActivity() {
                     </p>
                   )}
 
-                  {currentTask && agent.status === 'running' && (
+                  {currentTask && agent.processState === 'running' && (
                     <div className="mt-2 p-2 bg-muted/50 border border-border">
                       <p className="text-xs text-muted-foreground truncate">{currentTask.title}</p>
                       <div className="mt-1.5 h-1 bg-background overflow-hidden">

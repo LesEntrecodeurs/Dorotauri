@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from '@/hooks/useTauri';
-import type { AgentStatus, AgentCharacter } from '@/types/electron';
+import type { Agent, AgentCharacter } from '@/types/electron';
 import { ORCHESTRATOR_PROMPT } from '@/components/AgentList/constants';
 
 interface Project {
@@ -10,15 +10,15 @@ interface Project {
 }
 
 interface UseSuperAgentProps {
-  agents: AgentStatus[];
+  agents: Agent[];
   projects: Project[];
   createAgent: (params: {
-    projectPath: string;
+    cwd: string;
     skills: string[];
     character?: AgentCharacter;
     name?: string;
     skipPermissions?: boolean;
-  }) => Promise<AgentStatus>;
+  }) => Promise<Agent>;
   startAgent: (id: string, prompt: string) => Promise<void>;
   onAgentCreated?: (agentId: string) => void;
 }
@@ -42,8 +42,8 @@ export function useSuperAgent({
   const handleSuperAgentClick = useCallback(async () => {
     // If super agent exists
     if (superAgent) {
-      // If idle, restart it with the orchestrator prompt
-      if (superAgent.status === 'idle' || superAgent.status === 'completed' || superAgent.status === 'error') {
+      // If inactive, restart it with the orchestrator prompt
+      if (superAgent.processState === 'inactive' || superAgent.processState === 'completed' || superAgent.processState === 'error') {
         await startAgent(superAgent.id, ORCHESTRATOR_PROMPT);
       }
       onAgentCreated?.(superAgent.id);
@@ -80,10 +80,10 @@ export function useSuperAgent({
     setIsCreatingSuperAgent(true);
     try {
       // Use the first project path or a default
-      const projectPath = projects[0]?.path || '/tmp';
+      const cwd = projects[0]?.path || '/tmp';
 
       const agent = await createAgent({
-        projectPath,
+        cwd,
         skills: [],
         character: 'wizard',
         name: 'Super Agent (Orchestrator)',

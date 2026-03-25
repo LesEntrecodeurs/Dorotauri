@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { isSuperAgentCheck, getStatusPriority } from '@/components/AgentList/constants';
 
 interface UseAgentFilteringProps {
-  agents: AgentStatus[];
+  agents: Agent[];
   projectFilter: string | null;
   statusFilter?: string | null;
   searchQuery?: string;
@@ -19,25 +19,25 @@ export function useAgentFiltering({ agents, projectFilter, statusFilter, searchQ
   const uniqueProjects = useMemo(() => {
     const projectSet = new Map<string, string>();
     agents.forEach((agent) => {
-      const projectName = agent.projectPath.split('/').pop() || 'Unknown';
-      projectSet.set(agent.projectPath, projectName);
+      const projectName = agent.cwd.split('/').pop() || 'Unknown';
+      projectSet.set(agent.cwd, projectName);
     });
     return Array.from(projectSet.entries()).map(([path, name]) => ({ path, name }));
   }, [agents]);
 
   const filteredAgents = useMemo(() => {
-    let filtered = projectFilter ? agents.filter(a => a.projectPath === projectFilter) : agents;
+    let filtered = projectFilter ? agents.filter(a => a.cwd === projectFilter) : agents;
 
     if (statusFilter) {
-      filtered = filtered.filter(a => a.status === statusFilter);
+      filtered = filtered.filter(a => a.processState === statusFilter);
     }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(a => {
         const name = (a.name || '').toLowerCase();
-        const project = (a.projectPath.split('/').pop() || '').toLowerCase();
-        const task = (a.currentTask || '').toLowerCase();
+        const project = (a.cwd.split('/').pop() || '').toLowerCase();
+        const task = (a.businessState || a.statusLine || '').toLowerCase();
         return name.includes(q) || project.includes(q) || task.includes(q);
       });
     }
@@ -55,8 +55,8 @@ export function useAgentFiltering({ agents, projectFilter, statusFilter, searchQ
         return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
       }
       // Default: status priority
-      const aPriority = getStatusPriority(a.status);
-      const bPriority = getStatusPriority(b.status);
+      const aPriority = getStatusPriority(a.processState);
+      const bPriority = getStatusPriority(b.processState);
       return aPriority - bPriority;
     });
   }, [agents, projectFilter, statusFilter, searchQuery, sortBy]);

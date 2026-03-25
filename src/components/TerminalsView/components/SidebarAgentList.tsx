@@ -1,11 +1,11 @@
 
 
 import { Play, Square } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES, STATUS_COLORS } from '../constants';
 
 interface SidebarAgentListProps {
-  agents: AgentStatus[];
+  agents: Agent[];
   focusedPanelId: string | null;
   onFocusPanel: (agentId: string) => void;
   onStartAgent: (agentId: string) => void;

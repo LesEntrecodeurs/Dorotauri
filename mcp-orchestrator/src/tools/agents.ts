@@ -102,7 +102,7 @@ export function registerAgentTools(server: McpServer): void {
           content: [
             {
               type: "text",
-              text: `Agent "${agentName}" (${data.agent.status}): No clean output captured yet. The agent's terminal output is available in the Dorothy UI. Clean output is captured when the agent pauses or completes.`,
+              text: `Agent "${agentName}" (${data.agent.status}): No clean output captured yet. The agent's terminal output is available in the Dorotauri UI. Clean output is captured when the agent pauses or completes.`,
             },
           ],
         };
@@ -554,7 +554,7 @@ export function registerAgentTools(server: McpServer): void {
           content: [
             {
               type: "text",
-              text: `Agent "${agentName}" completed (${waitData.status}). No clean output captured — check the agent's terminal in Dorothy UI for details.`,
+              text: `Agent "${agentName}" completed (${waitData.status}). No clean output captured — check the agent's terminal in Dorotauri UI for details.`,
             },
           ],
         };

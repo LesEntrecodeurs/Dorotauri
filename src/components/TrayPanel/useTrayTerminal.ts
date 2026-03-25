@@ -7,7 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { attachShiftEnterHandler } from '@/lib/terminal';
 import { TERMINAL_THEME } from '@/components/AgentTerminalDialog/constants';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 interface UseTrayTerminalProps {
   agentId: string;
@@ -95,7 +95,7 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
         if (cancelled) return;
         try {
           if (isTauri()) {
-            const agentData = await invoke<AgentStatus | null>('agent_get', { id: agentId });
+            const agentData = await invoke<Agent | null>('agent_get', { id: agentId });
             if (!cancelled && agentData?.output?.length) {
               agentData.output.forEach(chunk => term.write(chunk));
               term.scrollToBottom();

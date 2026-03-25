@@ -1,20 +1,20 @@
 import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import type { AgentConfig, AgentStatus, AgentEvent } from '@/types/agent';
+import type { AgentConfig, Agent, AgentEvent } from '@/types/agent';
 
-export type { AgentConfig, AgentStatus, AgentEvent };
+export type { AgentConfig, Agent, AgentEvent };
 
 class AgentManager extends EventEmitter {
-  private agents: Map<string, AgentStatus> = new Map();
+  private agents: Map<string, Agent> = new Map();
   private processes: Map<string, ChildProcess> = new Map();
 
-  createAgent(config: Omit<AgentConfig, 'id' | 'createdAt'>): AgentStatus {
+  createAgent(config: Omit<AgentConfig, 'id' | 'createdAt'>): Agent {
     const id = uuidv4();
-    const status: AgentStatus = {
+    const status: Agent = {
       id,
-      status: 'idle',
-      projectPath: config.projectPath,
+      processState: 'inactive',
+      cwd: config.cwd,
       skills: config.skills,
       output: [],
       lastActivity: new Date().toISOString(),
@@ -23,11 +23,11 @@ class AgentManager extends EventEmitter {
     return status;
   }
 
-  getAgent(id: string): AgentStatus | undefined {
+  getAgent(id: string): Agent | undefined {
     return this.agents.get(id);
   }
 
-  getAllAgents(): AgentStatus[] {
+  getAllAgents(): Agent[] {
     return Array.from(this.agents.values());
   }
 
@@ -50,14 +50,14 @@ class AgentManager extends EventEmitter {
     args.push(prompt);
 
     // Update status
-    agent.status = 'running';
-    agent.currentTask = prompt.slice(0, 100);
+    agent.processState = 'running';
+    agent.businessState = prompt.slice(0, 100);
     agent.lastActivity = new Date().toISOString();
     agent.output = [];
 
     // Spawn the process
     const proc = spawn('claude', args, {
-      cwd: agent.projectPath,
+      cwd: agent.cwd,
       env: {
         ...process.env,
         // Enable skills
@@ -100,7 +100,7 @@ class AgentManager extends EventEmitter {
 
     // Handle exit
     proc.on('exit', (code) => {
-      agent.status = code === 0 ? 'completed' : 'error';
+      agent.processState = code === 0 ? 'completed' : 'error';
       agent.lastActivity = new Date().toISOString();
       if (code !== 0) {
         agent.error = `Process exited with code ${code}`;
@@ -132,7 +132,7 @@ class AgentManager extends EventEmitter {
 
     // Detect thinking
     if (text.includes('Thinking') || text.includes('...')) {
-      agent.status = 'running';
+      agent.processState = 'running';
       this.emit('thinking', {
         type: 'thinking',
         agentId,
@@ -143,15 +143,15 @@ class AgentManager extends EventEmitter {
 
     // Detect waiting for input
     if (text.includes('?') || text.includes('waiting')) {
-      agent.status = 'waiting';
+      agent.processState = 'waiting';
     }
 
-    // Update current task from output
+    // Update businessState from output
     const lines = text.split('\n').filter(l => l.trim());
     if (lines.length > 0) {
       const lastLine = lines[lines.length - 1];
       if (lastLine.length > 10 && lastLine.length < 200) {
-        agent.currentTask = lastLine.slice(0, 100);
+        agent.businessState = lastLine.slice(0, 100);
       }
     }
   }
@@ -164,7 +164,7 @@ class AgentManager extends EventEmitter {
     }
     const agent = this.agents.get(id);
     if (agent) {
-      agent.status = 'idle';
+      agent.processState = 'inactive';
       agent.lastActivity = new Date().toISOString();
     }
   }

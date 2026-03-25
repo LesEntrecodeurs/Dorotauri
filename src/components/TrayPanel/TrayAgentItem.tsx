@@ -73,9 +73,10 @@ export default function TrayAgentItem({
   const isWorking = agent.displayStatus === 'working';
   const isWaiting = agent.displayStatus === 'waiting';
   const isActive = isWorking || isWaiting;
+  const projectName = agent.cwd ? agent.cwd.split('/').pop() || '' : '';
   const subtitle = isActive
-    ? (agent.currentTask || agent.projectName || '')
-    : (agent.projectName || agent.currentTask || '');
+    ? (agent.businessState || agent.statusLine || projectName)
+    : (projectName || agent.businessState || agent.statusLine || '');
 
   return (
     <div className="border-b border-border">

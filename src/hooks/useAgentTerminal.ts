@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import type { AgentProvider, AgentStatus, AgentEvent } from '@/types/electron';
+import type { AgentProvider, Agent, AgentEvent } from '@/types/electron';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
 import { attachShiftEnterHandler } from '@/lib/terminal';
 
@@ -188,7 +188,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
       // Fetch latest agent data to get all stored output
       if (isTauri()) {
         try {
-          const latestAgent = await invoke<AgentStatus | null>('agent_get', { id: selectedAgentId });
+          const latestAgent = await invoke<Agent | null>('agent_get', { id: selectedAgentId });
 
           if (cancelled) return;
 

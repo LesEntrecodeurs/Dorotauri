@@ -31,7 +31,7 @@ import {
 import { useClaude, useSessionMessages } from '@/hooks/useClaude';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
 import type { ClaudeProject } from '@/lib/claude-code';
-import type { AgentStatus, AgentCharacter } from '@/types/electron';
+import type { Agent, AgentCharacter } from '@/types/electron';
 import NewChatModal from '@/components/NewChatModal';
 
 // Generate consistent colors for projects based on name
@@ -51,7 +51,7 @@ const getProjectColor = (name: string) => {
 };
 
 // Storage key (custom projects still use localStorage, favorites/hidden use app settings)
-const CUSTOM_PROJECTS_KEY = 'dorothy-custom-projects';
+const CUSTOM_PROJECTS_KEY = 'dorotauri-custom-projects';
 
 interface CustomProject {
   path: string;
@@ -75,9 +75,10 @@ const CHARACTER_EMOJIS: Record<string, string> = {
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   running: { bg: 'bg-green-500/20', text: 'text-green-400' },
   waiting: { bg: 'bg-amber-500/20', text: 'text-amber-400' },
-  idle: { bg: 'bg-white/10', text: 'text-white/60' },
+  inactive: { bg: 'bg-white/10', text: 'text-white/60' },
   completed: { bg: 'bg-blue-500/20', text: 'text-blue-400' },
   error: { bg: 'bg-red-500/20', text: 'text-red-400' },
+  dormant: { bg: 'bg-zinc-500/20', text: 'text-zinc-400' },
 };
 
 // Strip ANSI codes from git output
@@ -208,7 +209,7 @@ export default function ProjectsPage() {
     }).catch(() => {});
     // Also migrate from localStorage if present
     try {
-      const stored = localStorage.getItem('dorothy-favorite-projects');
+      const stored = localStorage.getItem('dorotauri-favorite-projects');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -217,7 +218,7 @@ export default function ProjectsPage() {
             window.electronAPI?.appSettings?.save({ favoriteProjects: merged });
             return merged;
           });
-          localStorage.removeItem('dorothy-favorite-projects');
+          localStorage.removeItem('dorotauri-favorite-projects');
         }
       }
     } catch {}
@@ -316,7 +317,7 @@ export default function ProjectsPage() {
 
   // Get agents for the selected project
   const projectAgents = selectedProject
-    ? agents.filter(a => pathsMatch(a.projectPath, selectedProject.path))
+    ? agents.filter(a => pathsMatch(a.cwd, selectedProject.path))
     : [];
 
   // Handle creating a new agent
@@ -333,12 +334,12 @@ export default function ProjectsPage() {
   ) => {
     try {
       const agent = await createAgent({
-        projectPath,
+        cwd: projectPath,
         skills,
         worktree,
         character,
         name,
-        secondaryProjectPath,
+        secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined,
         skipPermissions,
       });
 
@@ -355,7 +356,7 @@ export default function ProjectsPage() {
   };
 
   // Handle restarting an agent
-  const handleRestartAgent = async (agent: AgentStatus, resume: boolean = false) => {
+  const handleRestartAgent = async (agent: Agent, resume: boolean = false) => {
     const prompt = resume ? '/resume' : 'Continue working on the previous task';
     try {
       await startAgent(agent.id, prompt, { resume });
@@ -606,7 +607,7 @@ export default function ProjectsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {projects.map((project) => {
           const isSelected = selectedProject?.id === project.id;
-          const linkedAgents = agents.filter(a => pathsMatch(a.projectPath, project.path));
+          const linkedAgents = agents.filter(a => pathsMatch(a.cwd, project.path));
           const color = getProjectColor(project.name);
 
           return (
@@ -906,9 +907,9 @@ export default function ProjectsPage() {
 
                     <div className="space-y-2">
                       {projectAgents.map((agent) => {
-                        const statusColor = STATUS_COLORS[agent.status] || STATUS_COLORS.idle;
+                        const statusColor = STATUS_COLORS[agent.processState] || STATUS_COLORS.inactive;
                         const charEmoji = CHARACTER_EMOJIS[agent.character || 'robot'] || '🤖';
-                        const isIdle = agent.status === 'idle' || agent.status === 'completed';
+                        const isIdle = agent.processState === 'inactive' || agent.processState === 'completed';
 
                         return (
                           <div
@@ -923,7 +924,7 @@ export default function ProjectsPage() {
                                     {agent.name || `Agent ${agent.id.slice(0, 6)}`}
                                   </p>
                                   <span className={`text-[10px] px-1.5 py-0.5 ${statusColor.bg} ${statusColor.text}`}>
-                                    {agent.status}
+                                    {agent.processState}
                                   </span>
                                 </div>
                               </div>

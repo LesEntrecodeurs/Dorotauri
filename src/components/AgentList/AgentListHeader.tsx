@@ -1,9 +1,9 @@
 import { Plus, Crown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 
 interface AgentListHeaderProps {
-  superAgent: AgentStatus | null;
+  superAgent: Agent | null;
   isCreatingSuperAgent: boolean;
   onSuperAgentClick: () => void;
   onNewAgentClick: () => void;
@@ -20,7 +20,7 @@ export function AgentListHeader({
       <div>
         <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-foreground">AI Agents Control Center</h1>
         <p className="text-muted-foreground text-xs lg:text-sm mt-1 hidden sm:block">
-          Dorothy is watching you AI Agents.
+          Dorotauri is watching you AI Agents.
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -33,13 +33,13 @@ export function AgentListHeader({
           className={`
             gap-1.5 font-medium transition-all
             ${superAgent
-              ? superAgent.status === 'running' || superAgent.status === 'waiting'
+              ? superAgent.processState === 'running' || superAgent.processState === 'waiting'
                 ? 'bg-green-500/20 border-green-500/50 text-green-700 hover:bg-green-500/30 shadow-lg shadow-green-500/20'
                 : 'bg-secondary border-green-500/30 text-green-600 hover:bg-green-500/10 hover:border-green-500/50'
               : 'bg-secondary border-border text-muted-foreground hover:bg-secondary/80 hover:border-green-500/50 hover:text-green-600'
             }
           `}
-          title={superAgent ? `Super Agent (${superAgent.status})` : 'Create Super Agent'}
+          title={superAgent ? `Super Agent (${superAgent.processState})` : 'Create Super Agent'}
         >
           {isCreatingSuperAgent ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-green-500" />
@@ -47,10 +47,10 @@ export function AgentListHeader({
             <div className="relative">
               <Crown className={`w-3.5 h-3.5 ${superAgent ? 'text-amber-400' : ''}`} />
               {superAgent && (
-                <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-secondary ${superAgent.status === 'running' ? 'bg-green-400 animate-pulse' :
-                  superAgent.status === 'waiting' ? 'bg-amber-400 animate-pulse' :
-                    superAgent.status === 'error' ? 'bg-red-400' :
-                      superAgent.status === 'completed' ? 'bg-cyan-400' :
+                <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-secondary ${superAgent.processState === 'running' ? 'bg-green-400 animate-pulse' :
+                  superAgent.processState === 'waiting' ? 'bg-amber-400 animate-pulse' :
+                    superAgent.processState === 'error' ? 'bg-red-400' :
+                      superAgent.processState === 'completed' ? 'bg-cyan-400' :
                         'bg-zinc-500'
                   }`} />
               )}

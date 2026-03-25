@@ -1,5 +1,5 @@
 #!/bin/bash
-# Stop hook for dorothy
+# Stop hook for dorotauri
 # Sets agent status to "waiting" and captures clean output from transcript
 
 # Read JSON input from stdin
@@ -11,7 +11,7 @@ TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
-echo "[$(date)] STOP hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID STOP_ACTIVE=$STOP_HOOK_ACTIVE" >> /tmp/dorothy-hooks.log
+echo "[$(date)] STOP hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID STOP_ACTIVE=$STOP_HOOK_ACTIVE" >> /tmp/dorotauri-hooks.log
 
 # Don't process if stop hook is already active (prevents loops)
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
@@ -36,7 +36,7 @@ fi
 RESULT=$(curl -s --max-time 3 -X POST "$API_URL/api/hooks/status" \
   -H "Content-Type: application/json" \
   -d "{\"agent_id\": \"$AGENT_ID\", \"session_id\": \"$SESSION_ID\", \"status\": \"idle\"}" 2>&1)
-echo "[$(date)] STOP curl result: $RESULT" >> /tmp/dorothy-hooks.log
+echo "[$(date)] STOP curl result: $RESULT" >> /tmp/dorotauri-hooks.log
 
 # Send notification that agent finished a response (respects user settings)
 curl -s --max-time 3 -X POST "$API_URL/api/hooks/agent-stopped" \

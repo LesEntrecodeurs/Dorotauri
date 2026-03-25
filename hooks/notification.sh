@@ -1,5 +1,5 @@
 #!/bin/bash
-# Notification hook for dorothy
+# Notification hook for dorotauri
 # Captures and forwards Claude Code notifications
 
 # Read JSON input from stdin
@@ -18,7 +18,7 @@ API_URL="http://127.0.0.1:31415"
 # Get agent ID from environment or use session ID
 AGENT_ID="${CLAUDE_AGENT_ID:-$SESSION_ID}"
 
-echo "[$(date)] NOTIFICATION hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} TYPE=$NOTIFICATION_TYPE" >> /tmp/dorothy-hooks.log
+echo "[$(date)] NOTIFICATION hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} TYPE=$NOTIFICATION_TYPE" >> /tmp/dorotauri-hooks.log
 
 # Skip if no notification type
 if [ -z "$NOTIFICATION_TYPE" ]; then

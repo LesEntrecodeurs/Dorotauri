@@ -64,7 +64,7 @@ export default function AgentsPage() {
     sortBy,
   });
 
-  const runningCount = agents.filter(a => a.status === 'running' || a.status === 'waiting').length;
+  const runningCount = agents.filter(a => a.processState === 'running' || a.processState === 'waiting').length;
 
   // Build edit agent data from editAgentId
   const editAgentData: EditAgentData | null = useMemo(() => {
@@ -75,8 +75,8 @@ export default function AgentsPage() {
       id: agent.id,
       name: agent.name,
       character: agent.character,
-      projectPath: agent.projectPath,
-      secondaryProjectPath: agent.secondaryProjectPath,
+      projectPath: agent.cwd,
+      secondaryProjectPath: agent.secondaryPaths?.[0],
       skills: agent.skills,
       skipPermissions: agent.skipPermissions,
       provider: agent.provider,
@@ -102,7 +102,7 @@ export default function AgentsPage() {
     obsidianVaultPaths?: string[],
   ) => {
     try {
-      const agent = await createAgent({ projectPath, skills, worktree, character, name, secondaryProjectPath, skipPermissions, provider, localModel, obsidianVaultPaths });
+      const agent = await createAgent({ cwd: projectPath, skills, worktree, character, name, secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined, skipPermissions, provider, localModel, obsidianVaultPaths });
       if (prompt) {
         const options = { model: provider === 'local' ? undefined : model, provider, localModel };
         await startAgent(agent.id, prompt, options);
@@ -121,7 +121,8 @@ export default function AgentsPage() {
     character?: AgentCharacter;
   }) => {
     try {
-      await updateAgent({ id, ...updates });
+      const { secondaryProjectPath, ...rest } = updates;
+      await updateAgent({ id, ...rest, ...(secondaryProjectPath !== undefined ? { secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : [] } : {}) });
       setEditAgentId(null);
     } catch (error) {
       console.error('Failed to update agent:', error);
@@ -137,7 +138,7 @@ export default function AgentsPage() {
   }, [removeAgent]);
 
   const agentCountByProject = useCallback((path: string) => {
-    return agents.filter(a => a.projectPath === path).length;
+    return agents.filter(a => a.cwd === path).length;
   }, [agents]);
 
   const cycleSortBy = useCallback(() => {
@@ -197,7 +198,7 @@ export default function AgentsPage() {
             </span>
           </button>
           {Object.entries(STATUS_LABELS).map(([key, label]) => {
-            const count = agents.filter(a => a.status === key).length;
+            const count = agents.filter(a => a.processState === key).length;
             const colors = STATUS_COLORS[key as keyof typeof STATUS_COLORS];
             return (
               <button

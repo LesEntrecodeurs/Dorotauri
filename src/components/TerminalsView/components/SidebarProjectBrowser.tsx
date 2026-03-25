@@ -2,20 +2,20 @@
 
 import { useMemo } from 'react';
 import { FolderOpen } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import { STATUS_COLORS, CHARACTER_FACES } from '../constants';
 
 interface SidebarProjectBrowserProps {
-  agents: AgentStatus[];
+  agents: Agent[];
   onFocusPanel: (agentId: string) => void;
 }
 
 export default function SidebarProjectBrowser({ agents, onFocusPanel }: SidebarProjectBrowserProps) {
   // Group agents by project path
   const projects = useMemo(() => {
-    const grouped = new Map<string, AgentStatus[]>();
+    const grouped = new Map<string, Agent[]>();
     for (const agent of agents) {
-      const key = agent.projectPath;
+      const key = agent.cwd;
       const existing = grouped.get(key) || [];
       existing.push(agent);
       grouped.set(key, existing);
@@ -55,7 +55,7 @@ export default function SidebarProjectBrowser({ agents, onFocusPanel }: SidebarP
                 ? '🐸'
                 : CHARACTER_FACES[agent.character || 'robot'] || '🤖';
               const name = agent.name || `Agent ${agent.id.slice(0, 6)}`;
-              const status = STATUS_COLORS[agent.status] || STATUS_COLORS.idle;
+              const status = STATUS_COLORS[agent.processState] || STATUS_COLORS.inactive;
 
               return (
                 <button

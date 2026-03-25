@@ -3,8 +3,8 @@ export const CANVAS_STATE_KEY = 'canvas-board-state';
 export const STATUS_COLORS: Record<string, string> = {
   running: 'bg-success',
   waiting: 'bg-warning',
-  idle: 'bg-muted-foreground',
-  stopped: 'bg-muted-foreground/60',
+  inactive: 'bg-muted-foreground',
+  dormant: 'bg-muted-foreground/60',
   error: 'bg-destructive',
   completed: 'bg-primary',
 };
@@ -26,7 +26,8 @@ export const CHARACTER_EMOJIS: Record<string, string> = {
 export const SUPER_AGENT_STATUS_COLORS: Record<string, { dot: string; pulse: boolean }> = {
   running: { dot: 'bg-success', pulse: true },
   waiting: { dot: 'bg-warning', pulse: true },
-  idle: { dot: 'bg-muted-foreground', pulse: false },
+  inactive: { dot: 'bg-muted-foreground', pulse: false },
+  dormant: { dot: 'bg-muted-foreground/60', pulse: false },
   completed: { dot: 'bg-primary', pulse: false },
   error: { dot: 'bg-destructive', pulse: false },
 };

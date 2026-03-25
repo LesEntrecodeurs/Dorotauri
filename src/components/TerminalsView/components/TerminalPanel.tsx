@@ -81,6 +81,7 @@ export default function TerminalPanel({
         isFullscreen && 'fixed inset-0 z-50',
       )}
       onClick={handleClick}
+      onContextMenu={handleContextMenu}
     >
       {/* Header */}
       <TerminalPanelHeader

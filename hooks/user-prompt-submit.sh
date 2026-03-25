@@ -1,5 +1,5 @@
 #!/bin/bash
-# UserPromptSubmit hook for dorothy
+# UserPromptSubmit hook for dorotauri
 # Sets agent status back to "running" when user submits a new prompt mid-session
 
 # Read JSON input from stdin
@@ -9,7 +9,7 @@ INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')
 
-echo "[$(date)] USER_PROMPT_SUBMIT hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID" >> /tmp/dorothy-hooks.log
+echo "[$(date)] USER_PROMPT_SUBMIT hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID" >> /tmp/dorotauri-hooks.log
 
 # API endpoint
 API_URL="http://127.0.0.1:31415"

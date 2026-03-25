@@ -3,23 +3,24 @@ import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import type { AgentStatus } from '@/types/agent'
+import type { Agent } from '@/types/agent'
 import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants'
 import '../globals.css'
 
 const STATUS_COLORS: Record<string, string> = {
   running: 'bg-green-400',
   waiting: 'bg-yellow-400',
-  idle: 'bg-gray-400',
+  inactive: 'bg-gray-400',
   completed: 'bg-blue-400',
   error: 'bg-red-400',
+  dormant: 'bg-zinc-500',
 }
 
 export default function Console() {
   const { agentId } = useParams()
   const terminalRef = useRef<HTMLDivElement>(null)
   const [agentName, setAgentName] = useState('')
-  const [agentStatus, setAgentStatus] = useState<string>('idle')
+  const [agentStatus, setAgentStatus] = useState<string>('inactive')
 
   const handleRedock = async () => {
     try {
@@ -65,17 +66,17 @@ export default function Console() {
       }, 50)
 
       // Get agent info to find ptyId
-      let agent: AgentStatus | null = null
+      let agent: Agent | null = null
       try {
-        agent = await invoke<AgentStatus | null>('agent_get', { id: agentId })
+        agent = await invoke<Agent | null>('agent_get', { id: agentId })
         if (agent) {
           if (agent.name) setAgentName(agent.name)
-          setAgentStatus(agent.status)
+          setAgentStatus(agent.processState)
         }
       } catch {}
 
       // Look up existing PTY for this agent (shared with hub)
-      const cwd = agent?.projectPath || '/home'
+      const cwd = agent?.cwd || '/home'
       let ptyId: string
       let isShared = false
       try {
@@ -143,7 +144,7 @@ export default function Console() {
     return () => { cancelled = true; cleanup?.() }
   }, [agentId])
 
-  const statusColor = STATUS_COLORS[agentStatus] || STATUS_COLORS.idle
+  const statusColor = STATUS_COLORS[agentStatus] || STATUS_COLORS.inactive
 
   return (
     <div className="h-screen flex flex-col bg-[#1A1726]">

@@ -14,7 +14,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'idle', label: 'Idle' },
 ];
 
-const IDLE_STATUSES: DisplayStatus[] = ['stopped', 'done', 'error'];
+const IDLE_STATUSES: DisplayStatus[] = ['sleeping', 'done', 'error'];
 
 function matchesTab(tab: Tab, status: DisplayStatus): boolean {
   if (tab === 'all') return true;
@@ -42,11 +42,11 @@ export default function TrayPanel() {
         id: a.id,
         name: a.name || `Agent ${a.id.slice(0, 6)}`,
         character: a.character || 'robot',
-        status: a.status,
+        processState: a.processState,
         displayStatus: deriveDisplayStatus(a),
         statusLine: a.statusLine || '',
-        currentTask: a.currentTask || '',
-        projectName: a.projectPath ? a.projectPath.split('/').pop() || '' : '',
+        businessState: a.businessState || '',
+        cwd: a.cwd || '',
         lastActivity: a.lastActivity,
         provider: a.provider || 'claude',
       }));
@@ -116,7 +116,7 @@ export default function TrayPanel() {
     <div className="flex flex-col h-screen select-none bg-background">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex-shrink-0">
-        <div className="text-sm font-semibold text-foreground">Dorothy</div>
+        <div className="text-sm font-semibold text-foreground">Dorotauri</div>
         <div className="text-xs text-muted-foreground mt-0.5">{parts.join(', ')}</div>
       </div>
 
@@ -178,7 +178,7 @@ export default function TrayPanel() {
           onClick={() => window.electronAPI?.tray?.showMainWindow()}
           className="text-xs text-primary hover:text-primary/80 transition-colors"
         >
-          Show Dorothy
+          Show Dorotauri
         </button>
         <button
           onClick={() => window.electronAPI?.tray?.quit()}
@@ -191,11 +191,11 @@ export default function TrayPanel() {
   );
 }
 
-function deriveDisplayStatus(a: { status: string; ptyId?: string }): AgentTickItem['displayStatus'] {
-  if (a.status === 'running') return 'working';
-  if (a.status === 'waiting') return 'waiting';
-  if (a.status === 'completed') return 'done';
-  if (a.status === 'error') return 'error';
-  if (a.status === 'idle' && a.ptyId) return 'ready';
-  return 'stopped';
+function deriveDisplayStatus(a: { processState: string; ptyId?: string }): AgentTickItem['displayStatus'] {
+  if (a.processState === 'running') return 'working';
+  if (a.processState === 'waiting') return 'waiting';
+  if (a.processState === 'completed') return 'done';
+  if (a.processState === 'error') return 'error';
+  if (a.processState === 'inactive' && a.ptyId) return 'ready';
+  return 'sleeping';
 }

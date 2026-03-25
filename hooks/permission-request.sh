@@ -1,5 +1,5 @@
 #!/bin/bash
-# PermissionRequest hook for dorothy
+# PermissionRequest hook for dorotauri
 # Fires when Claude Code's permission dialog appears — sets agent to "waiting"
 
 # Read JSON input from stdin
@@ -9,7 +9,7 @@ INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 
-echo "[$(date)] PERMISSION_REQUEST hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID TOOL=$TOOL_NAME" >> /tmp/dorothy-hooks.log
+echo "[$(date)] PERMISSION_REQUEST hook. AGENT_ID=${CLAUDE_AGENT_ID:-unset} SESSION_ID=$SESSION_ID TOOL=$TOOL_NAME" >> /tmp/dorotauri-hooks.log
 
 # API endpoint
 API_URL="http://127.0.0.1:31415"

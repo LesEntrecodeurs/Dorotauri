@@ -4,6 +4,7 @@ import NotificationToast from './NotificationToast';
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useElectronAgents } from '@/hooks/useElectron';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 
 const MosaicTerminalView = lazy(() => import('./MosaicTerminalView'));
@@ -53,6 +54,7 @@ export default function ClientLayout() {
   const { darkMode, setDarkMode, setVaultUnreadCount } = useStore();
   const location = useLocation();
   const { agents } = useElectronAgents();
+  useUsageLimits();
   const isOnDashboard = location.pathname === '/';
   const [zenMode, setZenMode] = useState(false);
 
@@ -75,7 +77,7 @@ export default function ClientLayout() {
 
   // Initialize dark mode from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('dorothy-dark-mode');
+    const saved = localStorage.getItem('dorotauri-dark-mode');
     if (saved === 'true') {
       setDarkMode(true);
     }
@@ -84,7 +86,7 @@ export default function ClientLayout() {
   // Sync dark class on <html> and persist to localStorage
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
-    localStorage.setItem('dorothy-dark-mode', String(darkMode));
+    localStorage.setItem('dorotauri-dark-mode', String(darkMode));
   }, [darkMode]);
 
   // Global vault unread badge
@@ -107,8 +109,8 @@ export default function ClientLayout() {
       ) : (
         <AppSidebar />
       )}
-      <SidebarInset>
-        <main className="flex-1 overflow-auto">
+      <SidebarInset className="h-svh overflow-hidden">
+        <main className="flex-1 overflow-auto h-full">
           {/* Persistent terminal layer — always mounted, hidden when not on dashboard */}
           <div
             style={{ display: isOnDashboard ? 'flex' : 'none' }}

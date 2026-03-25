@@ -2,7 +2,7 @@ import { Play, Square, Pencil, Trash2, AlertTriangle, Crown, Clock } from 'lucid
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent } from '@/types/electron';
 import {
   STATUS_COLORS,
   STATUS_LABELS,
@@ -22,7 +22,7 @@ function formatTimeAgo(isoDate: string): string {
 }
 
 interface AgentManagementCardProps {
-  agent: AgentStatus;
+  agent: Agent;
   onClick: () => void;
   onEdit: () => void;
   onStart: () => void;
@@ -31,13 +31,13 @@ interface AgentManagementCardProps {
 }
 
 export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, onRemove }: AgentManagementCardProps) {
-  const statusConfig = STATUS_COLORS[agent.status];
+  const statusConfig = STATUS_COLORS[agent.processState];
   const isSuper = isSuperAgentCheck(agent);
-  const isRunning = agent.status === 'running' || agent.status === 'waiting';
-  const isError = agent.status === 'error';
+  const isRunning = agent.processState === 'running' || agent.processState === 'waiting';
+  const isError = agent.processState === 'error';
 
   // Show the user's last prompt, not terminal output
-  const lastPrompt = agent.currentTask || null;
+  const lastPrompt = agent.businessState || agent.statusLine || null;
 
   return (
     <Card
@@ -76,13 +76,13 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
                 : `${statusConfig.bg} ${statusConfig.text}`
             }`}
           >
-            {STATUS_LABELS[agent.status]}
+            {STATUS_LABELS[agent.processState]}
           </Badge>
         </div>
 
         {/* Row 2: Project path */}
-        <p className="text-[11px] text-muted-foreground mt-2 truncate font-mono" title={agent.projectPath}>
-          {agent.projectPath}
+        <p className="text-[11px] text-muted-foreground mt-2 truncate font-mono" title={agent.cwd}>
+          {agent.cwd}
         </p>
 
         {/* Row 3: Last user prompt */}

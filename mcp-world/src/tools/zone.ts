@@ -5,7 +5,7 @@ import * as path from "path";
 import * as os from "os";
 import type { GenerativeZone } from "../types.js";
 
-const WORLDS_DIR = path.join(os.homedir(), ".dorothy", "worlds");
+const WORLDS_DIR = path.join(os.homedir(), ".dorotauri", "worlds");
 
 // Tile IDs
 const TILE = {
@@ -114,7 +114,7 @@ function loadSpriteCatalog(): Record<string, unknown> | null {
   const candidates = [
     path.join(resourcesPath, "app.asar.unpacked", "out", "pokemon", "sprites.json"),
     path.join(process.cwd(), "public", "pokemon", "sprites.json"),
-    path.join(os.homedir(), ".dorothy", "sprites.json"),
+    path.join(os.homedir(), ".dorotauri", "sprites.json"),
   ];
   for (const p of candidates) {
     try {
@@ -185,7 +185,7 @@ export function registerZoneTools(server: McpServer): void {
   // ── create_zone ──────────────────────────────────────────────────────────
   server.tool(
     "create_zone",
-    `Create or replace a full game zone. The zone appears in Dorothy's Pokemon-style game world.
+    `Create or replace a full game zone. The zone appears in Dorotauri's Pokemon-style game world.
 
 TILE LEGEND (use these numbers in the tilemap):
   0=GRASS (walkable), 1=TREE (solid border/obstacle), 2=PATH (walkable),

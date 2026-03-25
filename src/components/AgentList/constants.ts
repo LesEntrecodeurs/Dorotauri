@@ -5,22 +5,24 @@ import {
   AlertCircle,
   Pause,
 } from 'lucide-react';
-import type { AgentStatus } from '@/types/electron';
+import type { Agent, ProcessState } from '@/types/electron';
 
-export const STATUS_COLORS: Record<AgentStatus['status'], { bg: string; text: string; icon: typeof Circle }> = {
-  idle: { bg: 'bg-emerald-500/15', text: 'text-emerald-700', icon: Circle },
+export const STATUS_COLORS: Record<ProcessState, { bg: string; text: string; icon: typeof Circle }> = {
+  inactive: { bg: 'bg-emerald-500/15', text: 'text-emerald-700', icon: Circle },
   running: { bg: 'bg-primary/10', text: 'text-primary', icon: Activity },
   completed: { bg: 'bg-blue-500/20', text: 'text-blue-400', icon: CheckCircle },
   error: { bg: 'bg-red-500/20', text: 'text-red-400', icon: AlertCircle },
   waiting: { bg: 'bg-amber-500/20', text: 'text-amber-700', icon: Pause },
+  dormant: { bg: 'bg-zinc-500/20', text: 'text-zinc-400', icon: Circle },
 };
 
-export const STATUS_LABELS: Record<AgentStatus['status'], string> = {
-  idle: 'ready to work',
+export const STATUS_LABELS: Record<ProcessState, string> = {
+  inactive: 'ready to work',
   running: 'working',
   completed: 'done',
   error: 'error',
   waiting: 'waiting for inputs',
+  dormant: 'dormant',
 };
 
 export const CHARACTER_FACES: Record<string, string> = {
@@ -74,7 +76,7 @@ IMPORTANT:
 
 Say hello and list the current agents.`;
 
-export const isSuperAgentCheck = (agent: AgentStatus) => {
+export const isSuperAgentCheck = (agent: Agent) => {
   const name = agent.name?.toLowerCase() || '';
   return name.includes('super agent') || name.includes('orchestrator');
 };

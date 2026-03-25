@@ -3,7 +3,7 @@ export interface AgentNode {
   type: 'agent';
   name: string;
   character: string;
-  status: 'running' | 'idle' | 'stopped' | 'waiting' | 'error' | 'completed';
+  status: 'running' | 'inactive' | 'dormant' | 'waiting' | 'error' | 'completed';
   skills: string[];
   projectPath: string;
   position: { x: number; y: number };

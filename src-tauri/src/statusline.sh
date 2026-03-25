@@ -1,9 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-
-const STATUSLINE_SCRIPT = `#!/usr/bin/env bash
-# Dev Bar statusline for Claude Code
+#!/usr/bin/env bash
+# Dorotauri statusline for Claude Code
 # Style: ◆ Model │ ctx: NN% ▰▰▰▱▱ (Nk/Nk) │ branch │ NNm │ +N -N │ ↑Nk ↓Nk
 # Based on https://github.com/LLRHook/claude-statusline
 
@@ -38,7 +34,7 @@ GIT_CACHE="/tmp/claude-statusline-git-cache"
 GIT_CACHE_TTL=5  # seconds
 BRANCH="?"
 if [ -f "$GIT_CACHE" ]; then
-  CACHE_AGE=$(( $(date +%s) - $(stat -f%m "$GIT_CACHE" 2>/dev/null || echo 0) ))
+  CACHE_AGE=$(( $(date +%s) - $(stat -c%Y "$GIT_CACHE" 2>/dev/null || stat -f%m "$GIT_CACHE" 2>/dev/null || echo 0) ))
   if [ "$CACHE_AGE" -lt "$GIT_CACHE_TTL" ]; then
     BRANCH=$(cat "$GIT_CACHE")
   fi
@@ -82,16 +78,15 @@ IN_FMT=$(format_tokens "$INPUT_TOKENS")
 OUT_FMT=$(format_tokens "$OUTPUT_TOKENS")
 
 # --- Colors ---
-RESET='\\033[0m'
-DIM='\\033[2m'
-BOLD='\\033[1m'
-GREEN='\\033[32m'
-YELLOW='\\033[33m'
-RED='\\033[31m'
-CYAN='\\033[36m'
-MAGENTA='\\033[35m'
-WHITE='\\033[37m'
-BLUE='\\033[34m'
+RESET='\033[0m'
+DIM='\033[2m'
+BOLD='\033[1m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+RED='\033[31m'
+CYAN='\033[36m'
+MAGENTA='\033[35m'
+WHITE='\033[37m'
 
 # Context color based on usage of usable space
 if [ "$CTX_PCT" -ge 80 ]; then
@@ -111,107 +106,18 @@ for ((i = 0; i < FILLED; i++)); do BAR+="▰"; done
 for ((i = 0; i < EMPTY; i++)); do BAR+="▱"; done
 
 # --- Separator ---
-SEP="\${DIM} │ \${RESET}"
+SEP="${DIM} │ ${RESET}"
 
 # --- Build the line ---
-# Model
-printf "\${CYAN}\${BOLD}◆\${RESET} \${WHITE}\${BOLD}%s\${RESET}" "$MODEL"
+printf "${CYAN}${BOLD}◆${RESET} ${WHITE}${BOLD}%s${RESET}" "$MODEL"
 printf "%b" "$SEP"
-# Context usage (relative to usable space)
-printf "\${CTX_COLOR}ctx: %d%% %s\${RESET} \${DIM}(%s/%s)\${RESET}" "$CTX_PCT" "$BAR" "$CTX_USED_FMT" "$CTX_USABLE_FMT"
+printf "${CTX_COLOR}ctx: %d%% %s${RESET} ${DIM}(%s/%s)${RESET}" "$CTX_PCT" "$BAR" "$CTX_USED_FMT" "$CTX_USABLE_FMT"
 printf "%b" "$SEP"
-# Git branch
-printf "\${MAGENTA}%s\${RESET}" "$BRANCH"
+printf "${MAGENTA}%s${RESET}" "$BRANCH"
 printf "%b" "$SEP"
-# Session duration
-printf "\${DIM}%s\${RESET}" "$DURATION_FMT"
+printf "${DIM}%s${RESET}" "$DURATION_FMT"
 printf "%b" "$SEP"
-# Lines changed
-printf "\${GREEN}+%s\${RESET} \${RED}-%s\${RESET}" "$LINES_ADDED" "$LINES_REMOVED"
+printf "${GREEN}+%s${RESET} ${RED}-%s${RESET}" "$LINES_ADDED" "$LINES_REMOVED"
 printf "%b" "$SEP"
-# Token throughput (input/output)
-printf "\${DIM}↑%s ↓%s\${RESET}" "$IN_FMT" "$OUT_FMT"
-printf "\\n"
-`;
-
-const SCRIPT_PATH = path.join(os.homedir(), '.dorotauri', 'statusline.sh');
-const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
-
-/**
- * Install the statusline script to ~/.dorotauri/statusline.sh
- */
-function installScript(): void {
-  const dir = path.dirname(SCRIPT_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(SCRIPT_PATH, STATUSLINE_SCRIPT, { mode: 0o755 });
-}
-
-/**
- * Remove the statusline script from ~/.dorotauri/statusline.sh
- */
-function removeScript(): void {
-  if (fs.existsSync(SCRIPT_PATH)) {
-    fs.unlinkSync(SCRIPT_PATH);
-  }
-}
-
-/**
- * Read Claude Code's settings.json
- */
-function readClaudeSettings(): Record<string, unknown> {
-  try {
-    if (fs.existsSync(CLAUDE_SETTINGS_PATH)) {
-      return JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf-8'));
-    }
-  } catch {
-    // ignore parse errors
-  }
-  return {};
-}
-
-/**
- * Write Claude Code's settings.json (preserving existing keys)
- */
-function writeClaudeSettings(settings: Record<string, unknown>): void {
-  const dir = path.dirname(CLAUDE_SETTINGS_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(CLAUDE_SETTINGS_PATH, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
-}
-
-/**
- * Enable the statusline: install script + add config to Claude settings.json
- */
-export function enableStatusLine(): void {
-  installScript();
-
-  const settings = readClaudeSettings();
-  settings.statusLine = {
-    type: 'command',
-    command: SCRIPT_PATH,
-    padding: 1,
-  };
-  writeClaudeSettings(settings);
-}
-
-/**
- * Disable the statusline: remove config from Claude settings.json + remove script
- */
-export function disableStatusLine(): void {
-  const settings = readClaudeSettings();
-  delete settings.statusLine;
-  writeClaudeSettings(settings);
-
-  removeScript();
-}
-
-/**
- * Check if statusline is currently configured in Claude settings.json
- */
-export function isStatusLineConfigured(): boolean {
-  const settings = readClaudeSettings();
-  return settings.statusLine != null;
-}
+printf "${DIM}↑%s ↓%s${RESET}" "$IN_FMT" "$OUT_FMT"
+printf "\n"

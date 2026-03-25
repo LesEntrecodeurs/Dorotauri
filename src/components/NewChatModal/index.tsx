@@ -157,7 +157,7 @@ export default function NewChatModal({
       if (editAgent) {
         // Edit mode: pre-populate from existing agent
         setStep(initialStep || 1);
-        setSelectedProject(editAgent.projectPath);
+        setSelectedProject(editAgent.cwd);
         setCustomPath('');
         setSelectedSkills(editAgent.skills || []);
         setPrompt('');
@@ -167,8 +167,8 @@ export default function NewChatModal({
           character: editAgent.character || 'robot',
           name: editAgent.name || '',
         };
-        setShowSecondaryProject(!!editAgent.secondaryProjectPath);
-        setSelectedSecondaryProject(editAgent.secondaryProjectPath || '');
+        setShowSecondaryProject(!!(editAgent.secondaryPaths && editAgent.secondaryPaths.length > 0));
+        setSelectedSecondaryProject(editAgent.secondaryPaths?.[0] || '');
         setCustomSecondaryPath('');
         setSkipPermissions(editAgent.skipPermissions || false);
         setProvider(editAgent.provider || 'claude');
@@ -345,7 +345,7 @@ export default function NewChatModal({
       // Edit mode: update existing agent
       onUpdate(editAgent.id, {
         skills: selectedSkills,
-        secondaryProjectPath: secondaryPath || null,
+        secondaryPaths: secondaryPath ? [secondaryPath] : null,
         skipPermissions,
         name: finalName,
         character: agentCharacter,

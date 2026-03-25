@@ -1,4 +1,4 @@
-import type { AgentStatus, AgentCharacter } from '@/types/electron';
+import type { Agent, AgentCharacter } from '@/types/electron';
 import type { LayoutItem } from 'react-grid-layout';
 
 export type LayoutPreset = 'single' | '2-col' | '2-row' | '2x2' | '3x2' | '3x3' | 'focus';
@@ -35,7 +35,7 @@ export interface TerminalsViewState {
   focusedPanelId: string | null;
   fullscreenPanelId: string | null;
   searchQuery: string;
-  filterStatus: AgentStatus['status'] | 'all';
+  filterStatus: Agent['processState'] | 'all';
   filterProject: string | 'all';
 }
 

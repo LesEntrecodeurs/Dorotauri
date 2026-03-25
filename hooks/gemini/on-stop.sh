@@ -1,5 +1,5 @@
 #!/bin/bash
-# Stop hook for dorothy (Gemini CLI)
+# Stop hook for dorotauri (Gemini CLI)
 # Sets agent status to "waiting"
 
 INPUT=$(cat)
@@ -14,7 +14,7 @@ fi
 
 API_URL="http://127.0.0.1:31415"
 
-AGENT_ID="${DOROTHY_AGENT_ID:-$SESSION_ID}"
+AGENT_ID="${DOROTAURI_AGENT_ID:-$SESSION_ID}"
 
 if ! curl -s --connect-timeout 1 "$API_URL/api/health" > /dev/null 2>&1; then
   echo '{"continue":true,"suppressOutput":true}'

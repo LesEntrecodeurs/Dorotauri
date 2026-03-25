@@ -19,9 +19,9 @@ const sampleAgents: Agent[] = [
   {
     id: 'agent-1',
     name: 'Alpha',
-    status: 'running',
+    processState: 'running',
     model: 'opus',
-    currentTask: 'task-1',
+    businessState: 'task-1',
     assignedProject: 'proj-1',
     skills: ['1', '2', '4'],
     tokensUsed: 125000,
@@ -37,9 +37,9 @@ const sampleAgents: Agent[] = [
   {
     id: 'agent-2',
     name: 'Beta',
-    status: 'idle',
+    processState: 'inactive',
     model: 'sonnet',
-    currentTask: null,
+    businessState: null,
     assignedProject: 'proj-1',
     skills: ['3', '5', '6'],
     tokensUsed: 89000,
@@ -51,9 +51,9 @@ const sampleAgents: Agent[] = [
   {
     id: 'agent-3',
     name: 'Gamma',
-    status: 'running',
+    processState: 'running',
     model: 'sonnet',
-    currentTask: 'task-3',
+    businessState: 'task-3',
     assignedProject: 'proj-2',
     skills: ['2', '7', '8'],
     tokensUsed: 45000,
@@ -67,9 +67,9 @@ const sampleAgents: Agent[] = [
   {
     id: 'agent-4',
     name: 'Delta',
-    status: 'paused',
+    processState: 'paused',
     model: 'haiku',
-    currentTask: 'task-4',
+    businessState: 'task-4',
     assignedProject: 'proj-2',
     skills: ['1', '5'],
     tokensUsed: 23000,
@@ -222,6 +222,12 @@ interface AppState {
   darkMode: boolean;
   vaultUnreadCount: number;
 
+  // Usage rate limits (from Claude Code statusline)
+  rateLimits: {
+    fiveHour?: { usedPercentage: number; resetsAt: number };
+    sevenDay?: { usedPercentage: number; resetsAt: number };
+  } | null;
+
   // Actions - Agents
   addAgent: (agent: Omit<Agent, 'id' | 'createdAt' | 'lastActive' | 'logs' | 'tokensUsed' | 'tasksCompleted'>) => void;
   updateAgent: (id: string, updates: Partial<Agent>) => void;
@@ -254,6 +260,7 @@ interface AppState {
   setDarkMode: (dark: boolean) => void;
   toggleDarkMode: () => void;
   setVaultUnreadCount: (count: number) => void;
+  setRateLimits: (limits: AppState['rateLimits']) => void;
 
   // Computed
   getStats: () => DashboardStats;
@@ -279,6 +286,7 @@ export const useStore = create<AppState>((set, get) => ({
   mobileMenuOpen: false,
   darkMode: false,
   vaultUnreadCount: 0,
+  rateLimits: null,
 
   // Agent Actions
   addAgent: (agent) => set((state) => ({
@@ -368,7 +376,7 @@ export const useStore = create<AppState>((set, get) => ({
       t.id === taskId ? { ...t, assignedAgent: agentId, updatedAt: new Date() } : t
     ),
     agents: state.agents.map(a =>
-      a.id === agentId ? { ...a, currentTask: taskId } : a
+      a.id === agentId ? { ...a, businessState: taskId } : a
     )
   })),
 
@@ -409,13 +417,14 @@ export const useStore = create<AppState>((set, get) => ({
   setDarkMode: (dark) => set({ darkMode: dark }),
   toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
   setVaultUnreadCount: (count) => set({ vaultUnreadCount: count }),
+  setRateLimits: (limits) => set({ rateLimits: limits }),
 
   // Computed
   getStats: () => {
     const state = get();
     return {
       totalAgents: state.agents.length,
-      activeAgents: state.agents.filter(a => a.status === 'running').length,
+      activeAgents: state.agents.filter(a => a.processState === 'running').length,
       totalTasks: state.tasks.length,
       completedTasks: state.tasks.filter(t => t.status === 'completed').length,
       totalProjects: state.projects.length,
