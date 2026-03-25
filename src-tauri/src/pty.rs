@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
@@ -29,6 +30,7 @@ pub struct PtyHandle {
     pub child: Box<dyn portable_pty::Child + Send>,
     pub agent_id: String,
     pub child_pid: Option<u32>,
+    pub paused: Arc<AtomicBool>,
 }
 
 // ---------------------------------------------------------------------------
@@ -108,12 +110,26 @@ impl PtyManager {
         let pty_id_owned = pty_id.to_string();
         let agent_id_owned = agent_id.to_string();
 
+        let paused = Arc::new(AtomicBool::new(false));
+        let paused_clone = Arc::clone(&paused);
+
         thread::spawn(move || {
             let mut buf = [0u8; 4096];
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
+                        // Flow control: wait while paused (max 500 iterations = 5s safety)
+                        let mut wait_count = 0;
+                        while paused_clone.load(Ordering::Relaxed) && wait_count < 500 {
+                            thread::sleep(std::time::Duration::from_millis(10));
+                            wait_count += 1;
+                        }
+                        // Auto-resume after safety timeout
+                        if wait_count >= 500 {
+                            paused_clone.store(false, Ordering::Relaxed);
+                        }
+
                         let event = PtyOutputEvent {
                             agent_id: agent_id_owned.clone(),
                             pty_id: pty_id_owned.clone(),
@@ -135,6 +151,7 @@ impl PtyManager {
             child,
             agent_id: agent_id.to_string(),
             child_pid,
+            paused,
         };
 
         self.handles
@@ -183,11 +200,33 @@ impl PtyManager {
     pub fn kill(&self, pty_id: &str) -> Result<(), String> {
         let mut handles = self.handles.lock().unwrap();
         if let Some(mut handle) = handles.remove(pty_id) {
+            // Resume reader thread immediately so it can exit cleanly
+            handle.paused.store(false, Ordering::Relaxed);
             handle.child.kill().ok();
         }
         // Also clean up registry entries pointing to this pty
         let mut registry = self.registry.lock().unwrap();
         registry.retain(|_, v| v != pty_id);
+        Ok(())
+    }
+
+    /// Pause PTY output emission (flow control from frontend).
+    pub fn pause(&self, pty_id: &str) -> Result<(), String> {
+        let handles = self.handles.lock().unwrap();
+        let handle = handles
+            .get(pty_id)
+            .ok_or_else(|| format!("pty not found: {pty_id}"))?;
+        handle.paused.store(true, Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// Resume PTY output emission.
+    pub fn resume(&self, pty_id: &str) -> Result<(), String> {
+        let handles = self.handles.lock().unwrap();
+        let handle = handles
+            .get(pty_id)
+            .ok_or_else(|| format!("pty not found: {pty_id}"))?;
+        handle.paused.store(false, Ordering::Relaxed);
         Ok(())
     }
 

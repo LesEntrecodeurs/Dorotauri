@@ -46,3 +46,13 @@ pub fn pty_register(pty_manager: State<'_, Arc<PtyManager>>, key: String, pty_id
 pub fn pty_lookup(pty_manager: State<'_, Arc<PtyManager>>, key: String) -> Option<String> {
     pty_manager.lookup(&key)
 }
+
+#[tauri::command]
+pub fn pty_pause(pty_manager: State<'_, Arc<PtyManager>>, pty_id: String) -> Result<(), String> {
+    pty_manager.pause(&pty_id)
+}
+
+#[tauri::command]
+pub fn pty_resume(pty_manager: State<'_, Arc<PtyManager>>, pty_id: String) -> Result<(), String> {
+    pty_manager.resume(&pty_id)
+}

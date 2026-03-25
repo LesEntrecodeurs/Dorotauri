@@ -107,6 +107,8 @@ pub fn run() {
             commands::pty::pty_kill,
             commands::pty::pty_register,
             commands::pty::pty_lookup,
+            commands::pty::pty_pause,
+            commands::pty::pty_resume,
             // Settings commands
             commands::settings::app_settings_get,
             commands::settings::app_settings_save,
