@@ -65,7 +65,3 @@ export function attachKeyHandler(
   });
 }
 
-/**
- * @deprecated Use attachKeyHandler instead
- */
-export const attachShiftEnterHandler = attachKeyHandler;

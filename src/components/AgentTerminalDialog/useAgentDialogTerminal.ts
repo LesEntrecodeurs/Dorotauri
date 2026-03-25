@@ -6,7 +6,7 @@ import type { Agent } from '@/types/electron';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { attachShiftEnterHandler, stripCursorSequences } from '@/lib/terminal';
+import { attachKeyHandler, stripCursorSequences } from '@/lib/terminal';
 import { TERMINAL_THEME } from './constants';
 
 // Clean xterm query/focus escape sequences out of user input before forwarding.
@@ -106,7 +106,7 @@ export function useAgentDialogTerminal({
         setTimeout(fitAndResize, 200);
         setTimeout(() => { fitAndResize(); term.focus(); }, 350);
 
-        attachShiftEnterHandler(term, (data) => {
+        attachKeyHandler(term, (data) => {
           const id = agentIdRef.current;
           if (id && isTauri()) {
             invoke('agent_send_input', { id, input: data }).catch(() => {});

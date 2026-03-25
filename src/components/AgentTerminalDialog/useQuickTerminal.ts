@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { attachShiftEnterHandler } from '@/lib/terminal';
+import { attachKeyHandler } from '@/lib/terminal';
 import { QUICK_TERMINAL_THEME } from './constants';
 import type { PanelType } from './AgentDialogTypes';
 
@@ -98,7 +98,7 @@ export function useQuickTerminal({
           }
         }
 
-        attachShiftEnterHandler(term, (data) => {
+        attachKeyHandler(term, (data) => {
           if (quickPtyIdRef.current && isTauri()) {
             invoke('pty_write', { ptyId: quickPtyIdRef.current, data }).catch(() => {});
           }

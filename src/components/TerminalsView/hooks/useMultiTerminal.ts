@@ -10,7 +10,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { TERMINAL_CONFIG } from '../constants';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
-import { attachShiftEnterHandler } from '@/lib/terminal';
+import { attachKeyHandler } from '@/lib/terminal';
 
 interface TerminalEntry {
   terminal: Terminal;
@@ -200,7 +200,7 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       setTimeout(() => safeFit(agentId, entry), 50);
       setTimeout(() => safeFit(agentId, entry), 200);
 
-      attachShiftEnterHandler(term, (data) => {
+      attachKeyHandler(term, (data) => {
         if (isTauri()) {
           invoke('agent_send_input', { id: agentId, input: data }).catch(() => {});
         }

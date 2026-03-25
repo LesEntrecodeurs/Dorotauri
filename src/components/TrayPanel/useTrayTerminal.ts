@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { attachShiftEnterHandler } from '@/lib/terminal';
+import { attachKeyHandler } from '@/lib/terminal';
 import { TERMINAL_THEME } from '@/components/AgentTerminalDialog/constants';
 import type { Agent } from '@/types/electron';
 
@@ -106,7 +106,7 @@ export function useTrayTerminal({ agentId, container }: UseTrayTerminalProps) {
         } catch { /* ignore */ }
       }, 400);
 
-      attachShiftEnterHandler(term, (data) => {
+      attachKeyHandler(term, (data) => {
         if (isTauri()) {
           invoke('agent_send_input', { id: agentIdRef.current, input: data }).catch(() => {});
         }

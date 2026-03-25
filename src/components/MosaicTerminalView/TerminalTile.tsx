@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { Agent } from '@/types/electron';
 import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
+import { attachKeyHandler } from '@/lib/terminal';
 
 interface TerminalTileProps {
   agentId: string;
@@ -118,6 +119,10 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
           term.write(new Uint8Array(event.payload.data));
         }
       }).then(fn => { unsubOutput = fn; });
+
+      attachKeyHandler(term, (data) => {
+        invoke('pty_write', { ptyId, data }).catch(() => {});
+      });
 
       // Forward keyboard input to PTY
       term.onData((data) => {

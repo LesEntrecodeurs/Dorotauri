@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import type { AgentProvider, Agent, AgentEvent } from '@/types/electron';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
-import { attachShiftEnterHandler } from '@/lib/terminal';
+import { attachKeyHandler, stripCursorSequences } from '@/lib/terminal';
 
 interface UseAgentTerminalProps {
   selectedAgentId: string | null;
@@ -15,28 +15,6 @@ interface UseAgentTerminalProps {
   onReady?: (agentId: string) => void;
 }
 
-/**
- * Strip Ink/ANSI cursor movement sequences that break during output replay.
- * Keeps colors and basic formatting but removes cursor positioning that
- * only makes sense in a live render context.
- */
-function stripCursorSequences(data: string): string {
-  return data
-    // Cursor movement: up/down/forward/back (\x1b[nA, \x1b[nB, etc.)
-    .replace(/\x1b\[\d*[ABCDEFGH]/g, '')
-    // Cursor position: \x1b[n;mH or \x1b[n;mf
-    .replace(/\x1b\[\d*;\d*[Hf]/g, '')
-    // Erase line: \x1b[nK
-    .replace(/\x1b\[\d*K/g, '')
-    // Erase display: \x1b[nJ
-    .replace(/\x1b\[\d*J/g, '')
-    // Save/restore cursor: \x1b[s, \x1b[u, \x1b7, \x1b8
-    .replace(/\x1b\[?[su78]/g, '')
-    // Hide/show cursor: \x1b[?25l, \x1b[?25h
-    .replace(/\x1b\[\?25[lh]/g, '')
-    // Alternate screen buffer: \x1b[?1049h/l
-    .replace(/\x1b\[\?1049[hl]/g, '');
-}
 
 export function useAgentTerminal({ selectedAgentId, terminalRef, provider, terminalTheme = 'dark', terminalFontSize = 13, onReady }: UseAgentTerminalProps) {
   const xtermRef = useRef<import('xterm').Terminal | null>(null);
@@ -124,7 +102,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
       clickHandler = () => term.focus();
       container.addEventListener('click', clickHandler);
 
-      attachShiftEnterHandler(term, (data) => {
+      attachKeyHandler(term, (data) => {
         const agentId = selectedAgentIdRef.current;
         if (agentId && isTauri()) {
           invoke('agent_send_input', { id: agentId, input: data }).catch(() => {});
