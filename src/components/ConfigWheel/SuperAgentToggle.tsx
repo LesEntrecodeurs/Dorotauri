@@ -14,8 +14,10 @@ export const SuperAgentToggle = memo(function SuperAgentToggle({
   scope = 'tab',
   onChange,
 }: SuperAgentToggleProps) {
+  const stop = (e: React.MouseEvent | React.PointerEvent) => e.stopPropagation();
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onPointerDown={stop} onClick={stop}>
       <div className="flex items-center justify-between">
         <Label htmlFor="super-agent-toggle" className="flex items-center gap-1.5 text-xs cursor-pointer">
           <Crown className="w-3 h-3 text-amber-400" />
