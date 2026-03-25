@@ -104,6 +104,12 @@ pub fn run() {
             commands::window::window_focus,
             commands::window::window_list,
             commands::window::notification_navigate,
+            // Tab commands
+            commands::tab::tab_list,
+            commands::tab::tab_create,
+            commands::tab::tab_update,
+            commands::tab::tab_delete,
+            commands::tab::tab_reorder,
             // Vault commands
             commands::vault::vault_list_documents,
             commands::vault::vault_get_document,

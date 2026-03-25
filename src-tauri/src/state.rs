@@ -143,6 +143,26 @@ pub struct AgentsFile {
 }
 
 // ---------------------------------------------------------------------------
+// Tab — groups agents into named teams
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tab {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TabsFile {
+    pub schema_version: u32,
+    pub tabs: Vec<Tab>,
+}
+
+// ---------------------------------------------------------------------------
 // NotificationSounds — nested object within AppSettings
 // ---------------------------------------------------------------------------
 
@@ -395,6 +415,7 @@ impl Default for AppSettings {
 pub struct AppState {
     pub agents: Arc<Mutex<HashMap<AgentId, Agent>>>,
     pub settings: Mutex<AppSettings>,
+    pub tabs: Arc<Mutex<Vec<Tab>>>,
 }
 
 impl AppState {
@@ -405,10 +426,12 @@ impl AppState {
 
         let agents = Self::load_agents(&dorotauri_dir);
         let settings = Self::load_settings(&dorotauri_dir);
+        let tabs = Self::load_tabs(&dorotauri_dir);
 
         Self {
             agents: Arc::new(Mutex::new(agents)),
             settings: Mutex::new(settings),
+            tabs: Arc::new(Mutex::new(tabs)),
         }
     }
 
@@ -483,6 +506,31 @@ impl AppState {
             .unwrap_or_default()
     }
 
+    fn load_tabs(dir: &PathBuf) -> Vec<Tab> {
+        let path = dir.join("tabs.json");
+        if let Ok(raw) = fs::read_to_string(&path) {
+            if let Ok(file) = serde_json::from_str::<TabsFile>(&raw) {
+                return file.tabs;
+            }
+        }
+        // No file yet — create a default "General" tab
+        let default_tab = Tab {
+            id: "general".to_string(),
+            name: "General".to_string(),
+            layout: None,
+        };
+        let tabs = vec![default_tab];
+        // Persist the default immediately
+        let file = TabsFile {
+            schema_version: 1,
+            tabs: tabs.clone(),
+        };
+        if let Ok(json) = serde_json::to_string_pretty(&file) {
+            fs::write(dir.join("tabs.json"), json).ok();
+        }
+        tabs
+    }
+
     /// Persist agents map to ~/.dorotauri/agents.json (wrapped in AgentsFile)
     pub fn save_agents(&self) {
         let dir = dorotauri_dir();
@@ -502,6 +550,19 @@ impl AppState {
         let settings = self.settings.lock().unwrap();
         if let Ok(json) = serde_json::to_string_pretty(&*settings) {
             fs::write(dir.join("app-settings.json"), json).ok();
+        }
+    }
+
+    /// Persist tabs to ~/.dorotauri/tabs.json
+    pub fn save_tabs(&self) {
+        let dir = dorotauri_dir();
+        let tabs = self.tabs.lock().unwrap();
+        let file = TabsFile {
+            schema_version: 1,
+            tabs: tabs.clone(),
+        };
+        if let Ok(json) = serde_json::to_string_pretty(&file) {
+            fs::write(dir.join("tabs.json"), json).ok();
         }
     }
 }
