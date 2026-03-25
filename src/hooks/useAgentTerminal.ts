@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
 import type { AgentProvider, Agent, AgentEvent } from '@/types/electron';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
-import { attachKeyHandler, stripCursorSequences } from '@/lib/terminal';
+import { attachKeyHandler, stripCursorSequences, attachWebGL, disposeWebGL } from '@/lib/terminal';
 
 interface UseAgentTerminalProps {
   selectedAgentId: string | null;
@@ -73,8 +73,10 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
       term.open(container);
+      attachWebGL(term);
 
       if (cancelled) {
+        disposeWebGL(term);
         term.dispose();
         return;
       }
@@ -209,6 +211,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
         clickContainer.removeEventListener('click', clickHandler);
       }
       if (xtermRef.current) {
+        disposeWebGL(xtermRef.current);
         xtermRef.current.dispose();
         xtermRef.current = null;
         fitAddonRef.current = null;

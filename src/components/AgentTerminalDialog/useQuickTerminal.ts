@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { attachKeyHandler } from '@/lib/terminal';
+import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
 import { QUICK_TERMINAL_THEME } from './constants';
 import type { PanelType } from './AgentDialogTypes';
 
@@ -71,6 +71,7 @@ export function useQuickTerminal({
 
       try {
         term.open(quickTerminalRef.current);
+        attachWebGL(term);
         if (cancelled) { term.dispose(); return; }
 
         quickXtermRef.current = term;
@@ -132,6 +133,7 @@ export function useQuickTerminal({
     return () => {
       cancelled = true;
       if (quickXtermRef.current) {
+        disposeWebGL(quickXtermRef.current);
         quickXtermRef.current.dispose();
         quickXtermRef.current = null;
         quickFitAddonRef.current = null;
@@ -144,6 +146,7 @@ export function useQuickTerminal({
   useEffect(() => {
     if (!open) {
       if (quickXtermRef.current) {
+        disposeWebGL(quickXtermRef.current);
         quickXtermRef.current.dispose();
         quickXtermRef.current = null;
         quickFitAddonRef.current = null;

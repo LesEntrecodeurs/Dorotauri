@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { Agent } from '@/types/electron';
 import { getTerminalTheme, TERMINAL_CONFIG } from '@/components/AgentTerminalDialog/constants';
-import { attachKeyHandler } from '@/lib/terminal';
+import { attachKeyHandler, attachWebGL, disposeWebGL } from '@/lib/terminal';
 
 interface TerminalTileProps {
   agentId: string;
@@ -73,13 +73,14 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
       const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
       term.open(container);
+      attachWebGL(term);
 
       // Initial fit
       try { fitAddon.fit(); } catch {}
 
       if (!isTauri()) {
         term.write('Not running in Tauri — terminal unavailable.\r\n');
-        cleanup = () => term.dispose();
+        cleanup = () => { disposeWebGL(term); term.dispose(); };
         return;
       }
 
@@ -106,7 +107,7 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
         }
       } catch (err) {
         term.write(`\x1b[31mFailed to create PTY: ${err}\x1b[0m\r\n`);
-        cleanup = () => term.dispose();
+        cleanup = () => { disposeWebGL(term); term.dispose(); };
         return;
       }
 
@@ -148,6 +149,7 @@ function TerminalTileInner({ agentId }: TerminalTileProps) {
         disposed = true;
         resizeObserver.disconnect();
         unsubOutput?.();
+        disposeWebGL(term);
         term.dispose();
       };
     })();
