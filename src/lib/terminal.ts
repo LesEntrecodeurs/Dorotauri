@@ -81,6 +81,11 @@ const webglAddons = new WeakMap<Terminal, import('xterm-addon-webgl').WebglAddon
  * @returns true if WebGL was attached, false if it fell back to DOM
  */
 export async function attachWebGL(term: Terminal): Promise<boolean> {
+  // Skip WebGL on Linux — WebKitGTK's WebGL2 is significantly slower than
+  // macOS WebKit, causing UI lag with multiple terminal contexts.
+  // The DOM/canvas renderer is performant enough for terminal rendering.
+  if (/Linux/.test(navigator.platform)) return false;
+
   // Don't double-attach
   if (webglAddons.has(term)) return true;
 
