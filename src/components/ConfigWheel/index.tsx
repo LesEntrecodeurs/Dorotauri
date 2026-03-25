@@ -1,7 +1,6 @@
 import { memo, useCallback } from 'react';
-import { Settings, Crown } from 'lucide-react';
-import type { Agent, AgentCharacter, AgentProvider } from '@/types/electron';
-import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
+import { Settings, Crown, Dices } from 'lucide-react';
+import type { Agent, AgentProvider } from '@/types/electron';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +22,8 @@ interface ConfigWheelProps {
   availableSkills?: string[];
   /** Whether another agent in the same tab is already a Super Agent */
   tabHasSuperAgent?: boolean;
+  /** Callback to re-roll the agent name (random LoL champion) */
+  onRerollName?: (id: string) => void;
 }
 
 export const ConfigWheel = memo(function ConfigWheel({
@@ -30,6 +31,7 @@ export const ConfigWheel = memo(function ConfigWheel({
   onUpdate,
   availableSkills = [],
   tabHasSuperAgent = false,
+  onRerollName,
 }: ConfigWheelProps) {
   const update = useCallback(
     (updates: Partial<Agent>) => onUpdate(agent.id, updates),
@@ -47,28 +49,44 @@ export const ConfigWheel = memo(function ConfigWheel({
     [agent.skills, update],
   );
 
+  /** Stop pointer events from reaching the mosaic drag layer */
+  const stopMosaicDrag = useCallback((e: React.PointerEvent | React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           title="Configure agent"
+          onPointerDown={stopMosaicDrag}
         >
           <Settings className="w-3.5 h-3.5" />
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" side="bottom" className="w-72 p-3 space-y-3" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
-        {/* Name */}
-        <div className="space-y-1">
-          <Label htmlFor="cw-name" className="text-xs">Name</Label>
-          <Input
-            id="cw-name"
-            value={agent.name || ''}
-            onChange={(e) => update({ name: e.target.value })}
-            placeholder="Agent name"
-            className="h-7 text-xs"
-          />
+      <PopoverContent
+        align="end"
+        side="bottom"
+        className="w-72 p-3 space-y-3 z-[200]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onPointerDown={stopMosaicDrag}
+        onClick={stopMosaicDrag}
+      >
+        {/* Name — display with dice re-roll */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-foreground truncate flex-1">{agent.name || 'Unnamed'}</span>
+          {onRerollName && (
+            <button
+              onClick={() => onRerollName(agent.id)}
+              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Random name"
+            >
+              <Dices className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Role */}
@@ -78,32 +96,10 @@ export const ConfigWheel = memo(function ConfigWheel({
             id="cw-role"
             value={agent.role || ''}
             onChange={(e) => update({ role: e.target.value })}
+            onPointerDown={stopMosaicDrag}
             placeholder="e.g. frontend engineer, reviewer..."
             className="h-7 text-xs"
           />
-        </div>
-
-        {/* Persona — emoji picker */}
-        <div className="space-y-1">
-          <Label className="text-xs">Persona</Label>
-          <div className="flex flex-wrap gap-1">
-            {(Object.entries(CHARACTER_FACES) as [AgentCharacter, string][]).map(
-              ([key, emoji]) => (
-                <button
-                  key={key}
-                  onClick={() => update({ character: key })}
-                  className={`w-7 h-7 rounded flex items-center justify-center text-sm transition-colors ${
-                    (agent.character || 'robot') === key
-                      ? 'bg-primary/20 ring-1 ring-primary'
-                      : 'hover:bg-muted'
-                  }`}
-                  title={key}
-                >
-                  {emoji}
-                </button>
-              ),
-            )}
-          </div>
         </div>
 
         {/* Skills — multi-select chips */}
@@ -138,10 +134,10 @@ export const ConfigWheel = memo(function ConfigWheel({
             value={agent.provider || 'claude'}
             onValueChange={(value: string) => update({ provider: value as AgentProvider })}
           >
-            <SelectTrigger className="h-7 text-xs">
+            <SelectTrigger className="h-7 text-xs" onPointerDown={stopMosaicDrag}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent onPointerDown={stopMosaicDrag}>
               {PROVIDERS.map((p) => (
                 <SelectItem key={p} value={p} className="text-xs">
                   {p}
