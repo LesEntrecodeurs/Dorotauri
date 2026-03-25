@@ -14,7 +14,7 @@ import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
 import { useElectronSkills } from '@/hooks/useElectron';
 import NewChatModal from '@/components/NewChatModal';
 import type { EditAgentData } from '@/components/NewChatModal/types';
-import TerminalTile from './TerminalTile';
+import TerminalTile, { disposeCachedTerminal } from './TerminalTile';
 
 type ViewId = string;
 
@@ -34,7 +34,7 @@ interface WorkspaceTab {
   layout: MosaicNode<string> | null;
 }
 
-const STORAGE_KEY = 'dorotauri-workspace-tabs';
+const STORAGE_KEY = 'dorotoring-workspace-tabs';
 const MAX_TABS = 10;
 
 function loadTabs(): WorkspaceTab[] {
@@ -255,7 +255,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
     return map;
   }, [agents]);
 
-  // Clean stale agents from tabs
+  // Clean stale agents from tabs and dispose their cached terminals
   useEffect(() => {
     const validIds = new Set(agents.map(a => a.id));
     if (validIds.size === 0) return;
@@ -265,6 +265,10 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
         const filtered = tab.agentIds.filter(id => validIds.has(id));
         if (filtered.length !== tab.agentIds.length) {
           changed = true;
+          // Dispose cached terminals for removed agents
+          for (const id of tab.agentIds) {
+            if (!validIds.has(id)) disposeCachedTerminal(id);
+          }
           return { ...tab, agentIds: filtered, layout: buildGridLayout(filtered) };
         }
         return tab;
@@ -715,10 +719,6 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
           </div>
         </>
       )}
-
-      {/* Tab bar — compact in zen mode */}
-      {/* macOS traffic light spacer + drag region */}
-      <div className="shrink-0 bg-secondary/80 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
 
       {/* Tab bar — compact in zen mode */}
       <div className={`flex items-center gap-0.5 px-2 bg-secondary/80 border-b border-border shrink-0 ${zenMode ? 'py-0 h-6 text-[10px]' : 'py-1'}`}>
