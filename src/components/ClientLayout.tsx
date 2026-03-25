@@ -9,8 +9,8 @@ import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sideb
 
 const MosaicTerminalView = lazy(() => import('./MosaicTerminalView'));
 
-/** In zen mode, sidebar is hidden but slides in as overlay on left-edge hover */
-function ZenSidebarOverlay({ children }: { children: React.ReactNode }) {
+/** Overlay sidebar — slides in from left edge on hover, dismisses on mouse leave or nav click */
+function SidebarOverlay({ children }: { children: React.ReactNode }) {
   const [show, setShow] = useState(false);
   const { setOpen } = useSidebar();
 
@@ -31,6 +31,12 @@ function ZenSidebarOverlay({ children }: { children: React.ReactNode }) {
           show ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
         onMouseLeave={() => setShow(false)}
+        onClick={(e) => {
+          // Dismiss overlay when a nav link is clicked
+          if ((e.target as HTMLElement).closest('a')) {
+            setTimeout(() => setShow(false), 150);
+          }
+        }}
       >
         {children}
       </div>
@@ -56,7 +62,26 @@ export default function ClientLayout() {
   const { agents, createAgent, updateAgent } = useElectronAgents();
   useUsageLimits();
   const isOnDashboard = location.pathname === '/';
+
+  // --- Zen mode ---
   const [zenMode, setZenMode] = useState(false);
+
+  // --- Sidebar hidden mode (persisted) ---
+  const [sidebarHidden, setSidebarHidden] = useState(() => {
+    return localStorage.getItem('sidebar_hidden') === 'true';
+  });
+
+  // Persist hidden state
+  useEffect(() => {
+    localStorage.setItem('sidebar_hidden', String(sidebarHidden));
+  }, [sidebarHidden]);
+
+  // Listen for sidebar-hide event from Sidebar.tsx X button
+  useEffect(() => {
+    const handleHide = () => setSidebarHidden(true);
+    window.addEventListener('sidebar-hide', handleHide);
+    return () => window.removeEventListener('sidebar-hide', handleHide);
+  }, []);
 
   // Toggle zen mode with F11 or Ctrl+Shift+F
   const toggleZen = useCallback(() => setZenMode(prev => !prev), []);
@@ -74,6 +99,18 @@ export default function ClientLayout() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [toggleZen]);
+
+  // Cmd+Shift+B: toggle hidden mode
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'b') {
+        e.preventDefault();
+        setSidebarHidden(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Initialize dark mode from localStorage on mount
   useEffect(() => {
@@ -98,14 +135,19 @@ export default function ClientLayout() {
     void setVaultUnreadCount;
   }, [setVaultUnreadCount]);
 
+  // Zen mode on dashboard → use overlay
   const zenDashboard = zenMode && isOnDashboard;
+  const showOverlay = zenDashboard || sidebarHidden;
 
   return (
-    <SidebarProvider defaultOpen={!zenDashboard}>
-      {zenDashboard ? (
-        <ZenSidebarOverlay>
+    <SidebarProvider
+      key={showOverlay ? 'overlay' : 'normal'}
+      defaultOpen={!showOverlay}
+    >
+      {showOverlay ? (
+        <SidebarOverlay>
           <AppSidebar />
-        </ZenSidebarOverlay>
+        </SidebarOverlay>
       ) : (
         <AppSidebar />
       )}
