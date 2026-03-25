@@ -193,7 +193,7 @@ export default function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       {/* macOS traffic light spacer */}
-      <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} />
+      <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
       <SidebarHeader className="group-data-[collapsible=icon]:p-0">
         <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <div className="w-8 h-8 overflow-hidden shrink-0 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
