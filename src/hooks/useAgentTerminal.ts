@@ -5,6 +5,7 @@ import { isTauri } from '@/hooks/useTauri';
 import type { AgentProvider, Agent, AgentEvent } from '@/types/electron';
 import { getTerminalTheme } from '@/components/AgentTerminalDialog/constants';
 import { attachKeyHandler, stripCursorSequences, attachWebGL, disposeWebGL } from '@/lib/terminal';
+import { TerminalWriteManager } from '@/lib/terminal-write';
 
 interface UseAgentTerminalProps {
   selectedAgentId: string | null;
@@ -158,6 +159,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
 
       setTerminalReady(true);
       onReadyRef.current?.(selectedAgentId);
+      TerminalWriteManager.subscribe(selectedAgentId, term, selectedAgentId);
 
       // Write a welcome message
       term.writeln('\x1b[36m● Terminal connected to agent\x1b[0m');
@@ -210,6 +212,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
       if (clickContainer && clickHandler) {
         clickContainer.removeEventListener('click', clickHandler);
       }
+      if (selectedAgentId) TerminalWriteManager.unsubscribe(selectedAgentId);
       if (xtermRef.current) {
         disposeWebGL(xtermRef.current);
         xtermRef.current.dispose();
@@ -220,7 +223,7 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
     };
   }, [selectedAgentId, terminalRef, provider, terminalTheme, terminalFontSize]);
 
-  // Listen for agent output events (Rust PTY sends bytes as number[])
+  // Listen for agent output events — route through TerminalWriteManager
   useEffect(() => {
     if (!isTauri()) {
       console.log('Agent output listener not set up - Tauri API not available');
@@ -231,15 +234,17 @@ export function useAgentTerminal({ selectedAgentId, terminalRef, provider, termi
 
     listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
       const { agent_id, data } = event.payload;
-      if (agent_id === selectedAgentIdRef.current && xtermRef.current) {
+      if (agent_id === selectedAgentIdRef.current) {
         const bytes = new Uint8Array(data);
-        xtermRef.current.write(bytes);
+        if (TerminalWriteManager.has(agent_id)) {
+          TerminalWriteManager.write(agent_id, bytes);
+        } else if (xtermRef.current) {
+          xtermRef.current.write(bytes);
+        }
       }
     }).then(fn => { unlisten = fn; });
 
-    return () => {
-      unlisten?.();
-    };
+    return () => { unlisten?.(); };
   }, []);
 
   // Listen for agent error events
