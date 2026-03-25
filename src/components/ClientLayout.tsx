@@ -152,10 +152,6 @@ export default function ClientLayout() {
         <AppSidebar />
       )}
       <SidebarInset className="h-svh overflow-hidden">
-        {/* Window drag region across the top for macOS overlay titlebar */}
-        {!isOnDashboard && (
-          <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
-        )}
         <main className="flex-1 overflow-auto h-full">
           {/* Persistent terminal layer — always mounted, hidden when not on dashboard */}
           <div
