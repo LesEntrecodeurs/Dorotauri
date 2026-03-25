@@ -2,117 +2,78 @@ export interface Release {
   id: number;
   version: string;
   date: string;
+  description?: string;
   updates: string[];
 }
 
 export const CHANGELOG: Release[] = [
   {
-    id: 8,
-    version: '1.2.5',
-    date: '2026-03-17',
+    id: 1,
+    version: '1.0.0',
+    date: '2026-03-25',
+    description:
+      'Dorotauri is a fork of Dorothy (github.com/Charlie85270/Dorothy), rewritten from Electron + Next.js to Tauri v2 + Vite + React Router with a full shadcn/ui redesign.',
     updates: [
-      'Add support of PI agent provider',
-      'Add support of OpenCode agent provider',
-      'Add support of JIRA self hosted domain',
-      'Added macOS menu bar tray with live agent status panel',
-      'Status tabs in tray: Working, Waiting for inputs, Ready to work, Idle',
-      'Manage all your external MCP servers (outside of Dorothy) from the settings page',
-      'Live task preview next to agent name when working or waiting',
-      'Full-color Dorothy logo in the macOS menu bar',
-      'Revamped agents page with improved layout and filtering',
-      'Add new Status line option (in settings) to display model, context usage, git branch, session time, and token stats in live on your Claude Code terminal',
-      'Custom MP3/audio file support per notification type',
-      'New "Response Finished" notification toggle (Stop hook)',
-      'Dedicated PermissionRequest and TaskCompleted hook events',
-      'Fixed agent status lifecycle: idle on start, working only after user prompt',
-      'Added pinned and favorites projects to the project page, quickly select your default project on create agent and kanban task',
-    ],
-  },
-  {
-    id: 7,
-    version: '1.2.4',
-    date: '2026-02-26',
-    updates: [
-      'Multi-provider support: Claude, Codex, and Gemini agents',
+      // Architecture — Tauri rewrite
+      'Full rewrite from Electron + Next.js to Tauri v2 + Vite + React Router',
+      'Rust backend core with Node.js sidecar for third-party integrations',
+      'Multi-window console management with react-mosaic tiling layout',
+      'PTY managed in Rust for lower-latency terminal output',
+
+      // UI — shadcn/ui violet reskin
+      'Complete UI redesign with shadcn/ui and violet theme (#7A33E0)',
+      'Source Code Pro monospace font throughout — dev-tool aesthetic',
+      'Near-black dark mode',
+      'Zen / fullscreen mode (F11 / Ctrl+Shift+F)',
+      'Collapsible sidebar with compact icon-only state',
+      'macOS native traffic light inset support',
+
+      // Multi-provider
+      'Multi-provider support: Claude Code, Codex, Gemini CLI, PI, and OpenCode',
       'Provider selector in agent creation flow',
-      'Memory page now shows projects across all providers',
+      'Memory page shows projects across all providers',
       'Custom MCP server configuration per provider',
       'CLI Paths settings for all provider binaries',
-    ],
-  },
-  {
-    id: 6,
-    version: '1.2.3',
-    date: '2026-02-19',
-    updates: [
-      'React app preview tab in agent detail panel',
-      'Live preview of react-app code blocks from agent output',
-      'File watcher for .dorothy-preview/ directory',
-      'Window drag regions for macOS',
-      'Modular API routes for better maintainability',
-    ],
-  },
-  {
-    id: 5,
-    version: '1.2.2',
-    date: '2026-02-10',
-    updates: [
+
+      // Layout & terminal UX
+      'Layout presets, split terminals, drag-and-drop reordering',
+      'Quick terminal shortcut (Ctrl+T)',
+      'React app preview tab with live preview of react-app code blocks',
+      'Settings cog opens agent edit modal directly from hub',
+      'Revamped agents page with improved layout and filtering',
+
+      // Skills
       'Skills marketplace with community skill browser',
       'Skill installation progress terminal',
       'Link skills to specific providers',
-      'Improved agent management with NPC zones',
-    ],
-  },
-  {
-    id: 4,
-    version: '1.2.1',
-    date: '2026-01-28',
-    updates: [
-      'Vault — shared document storage for agents and users',
-      'Folder organization and full-text search in Vault',
-      'Kanban board with agent task assignment',
-      'Auto-spawn agents from Kanban card moves',
-      'Scheduler improvements with cron expressions',
-    ],
-  },
-  {
-    id: 3,
-    version: '1.2.0',
-    date: '2026-01-10',
-    updates: [
-      'Telegram bot integration for remote agent control',
-      'Slack bot support with channel notifications',
-      'JIRA integration for issue tracking',
-      'Automations engine for event-driven workflows',
-      'Super Agent / Orchestrator mode',
-    ],
-  },
-  {
-    id: 2,
-    version: '1.0.1',
-    date: '2025-12-20',
-    updates: [
-      'Desktop notifications for agent events',
-      'Memory browser for Claude project memory files',
-      'Obsidian vault integration',
-      'Dark mode support',
-      'Worktree support for isolated git branches',
-    ],
-  },
-  {
-    id: 1,
-    version: '1.0.0',
-    date: '2025-12-01',
-    updates: [
-      'Initial release of Dorothy',
-      'Multi-agent management with persistent PTY sessions',
-      'Agent creation with project path, skills, and character',
-      'Terminal view with live output streaming',
-      'Dashboard with agent status overview',
-      'Scheduled tasks with cron support',
+
+      // Notifications & hooks
+      'Custom MP3/audio file support per notification type',
+      '"Response Finished" notification toggle (Stop hook)',
+      'Dedicated PermissionRequest and TaskCompleted hook events',
+      'Status line option: model, context usage, git branch, session time, and token stats live in terminal',
+
+      // Projects & MCP
+      'Pinned and favorite projects with quick default selection',
+      'JIRA self-hosted domain support',
+      'Manage external MCP servers (outside Dorotauri) from settings',
+
+      // macOS tray
+      'macOS menu bar tray with live agent status panel',
+      'Status tabs in tray: Working, Waiting for inputs, Ready to work, Idle',
+      'Live task preview next to agent name',
+      'Full-color Dorotauri logo in the macOS menu bar',
+
+      // Agent lifecycle
+      'Fixed agent status lifecycle: idle on start, working only after user prompt',
+
+      // In progress
+      '🔵 Agent-terminal unification — single Agent primitive replacing separate Agent + Terminal concepts, with dormant state and tab-based teams',
+      '🔵 Sidebar usage widget — live API rate-limit consumption display',
+      '🔵 Backend Rust migration — Slack/Telegram bots, cron parser, MCP config, and process spawning rewritten in native Rust',
     ],
   },
 ];
 
 export const LATEST_RELEASE = CHANGELOG[0];
-export const WHATS_NEW_STORAGE_KEY = 'dorothy_whats_new_last_seen';
+export const WHATS_NEW_STORAGE_KEY = 'dorotauri_whats_new_last_seen';

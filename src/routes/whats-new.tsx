@@ -16,7 +16,7 @@ export default function WhatsNewPage() {
     <div className="flex-1 overflow-y-auto p-6 max-w-2xl mx-auto w-full">
       <div className="mb-8">
         <h1 className="text-2xl font-bold mb-1">What&apos;s New</h1>
-        <p className="text-sm text-muted-foreground">Release history and recent improvements to Dorothy</p>
+        <p className="text-sm text-muted-foreground">Release history and recent improvements to Dorotauri</p>
       </div>
 
       <div className="relative">
@@ -42,6 +42,28 @@ export default function WhatsNewPage() {
                 )}
                 <span className="text-xs text-muted-foreground ml-auto">{formatDate(release.date)}</span>
               </div>
+
+              {release.description && (
+                <p className="text-sm text-muted-foreground mb-3">
+                  {release.description.split('github.com/Charlie85270/Dorothy').map((part, k, arr) =>
+                    k < arr.length - 1 ? (
+                      <span key={k}>
+                        {part}
+                        <a
+                          href="https://github.com/Charlie85270/Dorothy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          github.com/Charlie85270/Dorothy
+                        </a>
+                      </span>
+                    ) : (
+                      <span key={k}>{part}</span>
+                    ),
+                  )}
+                </p>
+              )}
 
               <ul className="space-y-1.5">
                 {release.updates.map((update, j) => (
