@@ -49,9 +49,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-// macOS: add class for traffic light padding (titleBarStyle: Overlay)
+// macOS: restore native decorations (config has decorations:false for Linux/Windows)
 if (/Mac/.test(navigator.platform)) {
   document.documentElement.classList.add('macos-titlebar');
+  import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+    getCurrentWindow().setDecorations(true);
+  });
 }
 
 createRoot(document.getElementById('root')!).render(

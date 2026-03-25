@@ -348,7 +348,7 @@ export default function AppSidebar({
           {/* Mode toggle — hidden in icon mode */}
           <button
             onClick={onToggleMode}
-            className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors opacity-60 hover:opacity-100 group-data-[collapsible=icon]/sidebar:hidden"
+            className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors opacity-60 hover:opacity-100"
             title={sidebarMode === 'full' ? 'Icon mode' : 'Full menu'}
           >
             <Columns2 className="w-3.5 h-3.5" />
