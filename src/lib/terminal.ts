@@ -15,21 +15,57 @@ export function stripCursorSequences(data: string): string {
 }
 
 /**
- * Attach Shift+Enter handler to a terminal so it inserts a newline
- * (via ESC+CR) instead of submitting the current line.
+ * Attach unified keyboard handler to a terminal.
  *
- * @param term     - The xterm Terminal instance
- * @param sendFn   - Callback that forwards the escape sequence to the PTY/agent
+ * - Shift+Enter → insert newline (ESC+CR) instead of submitting
+ * - Ctrl+C → copy selection to clipboard if text selected, else send SIGINT
+ * - Ctrl+V → paste from clipboard into terminal
+ *
+ * xterm v5 only supports one attachCustomKeyEventHandler at a time.
+ * All custom key logic MUST live here.
+ *
+ * @param term    - The xterm Terminal instance
+ * @param sendFn  - Callback that forwards data to the PTY/agent (used for Shift+Enter)
  */
-export function attachShiftEnterHandler(
+export function attachKeyHandler(
   term: Terminal,
   sendFn: (data: string) => void,
 ): void {
   term.attachCustomKeyEventHandler((event) => {
+    // Shift+Enter: insert newline
     if (event.key === 'Enter' && event.shiftKey && event.type === 'keydown') {
       sendFn('\x1b\r');
       return false;
     }
+
+    // Only handle keydown for Ctrl shortcuts (ignore keyup to avoid double-fire)
+    if (event.type !== 'keydown' || !event.ctrlKey) return true;
+
+    // Ctrl+C: copy if selection exists, else let SIGINT through
+    if (event.key === 'c') {
+      if (term.hasSelection()) {
+        const text = term.getSelection();
+        navigator.clipboard.writeText(text).then(() => {
+          term.clearSelection();
+        });
+        return false; // prevent SIGINT
+      }
+      return true; // no selection → send \x03 to PTY
+    }
+
+    // Ctrl+V: paste from clipboard
+    if (event.key === 'v') {
+      navigator.clipboard.readText().then((text) => {
+        if (text) term.paste(text);
+      });
+      return false; // prevent default
+    }
+
     return true;
   });
 }
+
+/**
+ * @deprecated Use attachKeyHandler instead
+ */
+export const attachShiftEnterHandler = attachKeyHandler;
