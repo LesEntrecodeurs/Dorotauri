@@ -26,27 +26,84 @@
 - `mcp-orchestrator/src/tools/business-state.ts` — new MCP tools for businessState and team status
 
 ### Files to modify
+
+**Rust backend:**
 - `src-tauri/src/state.rs` — `AgentStatus` → `Agent` struct, `AgentState` → `ProcessState` enum, `AgentsFile` wrapper
 - `src-tauri/src/commands/agent.rs` — update all commands for new model, add reanimation, dormant transitions
+- `src-tauri/src/commands/mod.rs` — add `pub mod tab;`
 - `src-tauri/src/pty.rs` — store child PID for cwd tracking, integrate cwd polling
 - `src-tauri/src/lib.rs` — register new commands (tab CRUD, cwd, businessState), migration on startup
+- `src-tauri/src/notifications.rs` — update agent field references
+- `src-tauri/Cargo.toml` — verify `uuid` and `chrono` crate dependencies
+
+**TypeScript types:**
 - `src/types/electron.d.ts` — `AgentStatus` → `Agent` interface, `ProcessState` type, tab IPC types, `DisplayStatus` update
 - `src/types/agent.ts` — update or consolidate with electron.d.ts
+- `src/types/index.ts` — update local `AgentStatus`/`Agent` type to re-export from electron.d.ts (avoid conflict)
+
+**Hooks:**
 - `src/hooks/useElectron.ts` — update `useElectronAgents()` for new model, add tab IPC methods
 - `src/hooks/useAgentTerminal.ts` — dormant agent output replay, config wheel integration
 - `src/hooks/useAgentFiltering.ts` — filter by `processState`/`businessState` instead of `status`/`projectPath`
 - `src/hooks/useSuperAgent.ts` — use `isSuperAgent` + `superAgentScope` instead of name-based detection
+- `src/hooks/useAgents.ts` — update `AgentStatus` references
+
+**TerminalsView:**
 - `src/components/TerminalsView/index.tsx` — integrate backend tabs, config wheel, dormant agents, Super Agent visuals
 - `src/components/TerminalsView/types.ts` — remove `CustomTab.agentIds`, drop `ActiveTab` project variant, update `TerminalPanelState`
 - `src/components/TerminalsView/hooks/useTabManager.ts` — rewrite as thin IPC wrapper over backend
 - `src/components/TerminalsView/components/ContextMenu.tsx` — add config wheel entry point
 - `src/components/TerminalsView/components/TerminalPanel.tsx` — Super Agent bold styling + crown badge
+
+**AgentList:**
 - `src/components/AgentList/constants.ts` — update status colors/labels for `ProcessState` + `DisplayStatus`
 - `src/components/AgentList/AgentManagementCard.tsx` — show `businessState`, Super Agent badge
+
+**CanvasView (7 files):**
+- `src/components/CanvasView/types.ts` — update `AgentNode.status` and `projectPath` fields
+- `src/components/CanvasView/hooks/useAgentActions.ts` — update agent field references
+- `src/components/CanvasView/hooks/useCanvasNodes.ts` — update agent field references
+- `src/components/CanvasView/hooks/useTerminalDialog.ts` — update agent field references
+- `src/components/CanvasView/components/AgentNodeCard.tsx` — update status display
+- `src/components/CanvasView/components/NotificationPanel.tsx` — update agent field references
+- `src/components/CanvasView/index.tsx` — update agent field references
+
+**AgentTerminalDialog (4+ files):**
+- `src/components/AgentTerminalDialog/AgentDialogTypes.ts` — update type definitions
+- `src/components/AgentTerminalDialog/AgentDialogSuperAgentSidebar.tsx` — update Super Agent detection
+- `src/components/AgentTerminalDialog/AgentDialogSecondaryProject.tsx` — `secondaryProjectPath` → `secondaryPaths`
+- `src/components/AgentTerminalDialog/index.tsx` — update agent field references
+
+**MosaicTerminalView:**
+- `src/components/MosaicTerminalView/index.tsx` — update `AgentStatus`, `status`, `projectPath` references
+- `src/components/MosaicTerminalView/TerminalTile.tsx` — update agent field references
+
+**Dashboard:**
+- `src/components/Dashboard/AgentActivity.tsx` — update `agent.status`, `agent.projectPath`
+- `src/components/Dashboard/index.tsx` — update agent references
+- `src/components/Dashboard/LiveTaskFeed.tsx` — update `currentTask` references
+
+**TrayPanel:**
+- `src/components/TrayPanel/TrayPanel.tsx` — update `AgentStatus`, `currentTask`
+- `src/components/TrayPanel/useTrayTerminal.ts` — update agent field references
+
+**Other components/routes:**
 - `src/routes/agents.tsx` — combined active + dormant view, filter by `processState`
+- `src/routes/console.tsx` — update `AgentStatus`/`projectPath` references
+- `src/routes/projects.tsx` — update `AgentStatus`/`projectPath` references
+- `src/store/index.ts` — update `a.status === 'running'` references
+- `src/lib/agent-manager.ts` — update `AgentStatus`, `projectPath`, `currentTask`, `progress` references
 - `src/components/NewChatModal/index.tsx` — simplify to quick-create form
+- `src/components/NewChatModal/types.ts` — remove `projectPath` from `EditAgentData`, update `onSubmit` signature
+- `src/components/NewChatModal/StepTask.tsx` — remove `projectPath` prop
+- `src/components/NewChatModal/StepModel.tsx` — remove `projectPath` prop
+- `src/components/NewChatModal/AgentPersonaEditor.tsx` — remove `projectPath` prop
 - `src/components/NewChatModal/StepProject.tsx` — remove (project = cwd)
-- `mcp-orchestrator/src/tools/agents.ts` — update for new Agent model fields
+- `src/components/RecurringTasks/` — review `projectPath` references in UI display
+
+**MCP Orchestrator:**
+- `mcp-orchestrator/src/tools/agents.ts` — update field references (`status`→`processState`, `projectPath`→`cwd`, `lastCleanOutput`→`statusLine`)
+- `mcp-orchestrator/src/index.ts` — register new tools
 
 ### Files to delete (after migration)
 - `src/components/NewChatModal/StepProject.tsx` — project picker no longer needed
@@ -57,7 +114,17 @@
 
 **Files:**
 - Modify: `src-tauri/src/state.rs`
+- Modify: `src-tauri/Cargo.toml` (verify `uuid` and `chrono` crate dependencies)
 - Create: `src-tauri/src/migration.rs`
+
+- [ ] **Step 0: Verify Cargo.toml dependencies**
+
+Check that `uuid` (with `v4` feature) and `chrono` are in `src-tauri/Cargo.toml` dependencies. Add them if missing:
+
+```toml
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+```
 
 - [ ] **Step 1: Update `AgentState` enum to `ProcessState`**
 
@@ -92,27 +159,38 @@ Replace the `AgentStatus` struct with the new `Agent` struct. Keep all existing 
 pub struct Agent {
     pub id: String,
     // Identity
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub character: Option<String>,
     pub skills: Vec<String>,
     // Project context
     pub cwd: String,
     pub secondary_paths: Vec<String>,
     // Process
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pty_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub local_model: Option<String>,
     pub skip_permissions: bool,
     // States
     pub process_state: ProcessState,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_state_updated_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_state_updated_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status_line: Option<String>,
     // Coordination
     pub tab_id: String,
     pub is_super_agent: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub super_agent_scope: Option<String>,
     // Scheduling
     pub scheduled_task_ids: Vec<String>,
@@ -122,15 +200,24 @@ pub struct Agent {
     pub last_activity: String,
     pub created_at: String,
     // Carried forward
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub worktree_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub obsidian_vault_paths: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub path_missing: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub kanban_task_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub current_session_id: Option<String>,
 }
 ```
+
+**Important:** Preserve `#[serde(skip_serializing_if)]` annotations from the current `AgentStatus` struct on all `Option` fields. This keeps serialized JSON clean and file sizes small.
 
 - [ ] **Step 3: Create `AgentsFile` wrapper struct**
 
@@ -278,7 +365,27 @@ pub fn load_agents(path: &Path) -> AgentsFile {
                 return new_file;
             }
             Err(e) => {
-                eprintln!("Migration failed: {}. Starting fresh.", e);
+                eprintln!("Migration failed: {}. Loading backup as dormant agents.", e);
+                // Load backup using old format, present all agents as dormant
+                let backup_path = path.with_extension("json.v0.backup");
+                if let Ok(backup_data) = fs::read_to_string(&backup_path) {
+                    if let Ok(backup_agents) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&backup_data) {
+                        // Minimal migration: just set all to dormant with basic fields
+                        let agents = backup_agents.into_iter().map(|(id, v)| {
+                            let agent = Agent {
+                                id: id.clone(),
+                                cwd: v.get("projectPath").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                name: v.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                process_state: ProcessState::Dormant,
+                                tab_id: "general".to_string(),
+                                // ... all other fields default
+                                ..Default::default()
+                            };
+                            (id, agent)
+                        }).collect();
+                        return AgentsFile { schema_version: 1, agents };
+                    }
+                }
             }
         }
     }
@@ -391,7 +498,7 @@ Replace all references to `AgentState::Running` with `ProcessState::Running`, `a
 
 - [ ] **Step 3: Update `agent_stop` to use `ProcessState`**
 
-Replace `AgentState::Idle`/`AgentState::Completed` with `ProcessState::Completed`. When the terminal stays open after stop, set to `ProcessState::Inactive` instead.
+Replace `AgentState::Idle` with `ProcessState::Inactive` (the agent was manually stopped, not completed — the terminal stays open). Replace `AgentState::Completed` with `ProcessState::Completed` for natural process exit.
 
 - [ ] **Step 4: Add dormant transition command**
 
@@ -441,7 +548,9 @@ pub async fn agent_reanimate(
     };
 
     let pty_id = uuid::Uuid::new_v4().to_string();
-    pty_manager.spawn(&pty_id, &agent.id, &cwd, app.clone())
+    // Note: spawn() takes (pty_id, agent_id, cwd, app_handle, cols, rows)
+    // Use default terminal size; frontend will send resize after mount
+    pty_manager.spawn(&pty_id, &agent.id, &cwd, &app, 120, 30)
         .map_err(|e| format!("Failed to spawn PTY: {}", e))?;
 
     agent.pty_id = Some(pty_id);
@@ -547,15 +656,23 @@ impl CwdTracker {
             loop {
                 std::thread::sleep(Duration::from_secs(2));
                 let pids_snapshot = pids.lock().unwrap().clone();
-                let mut agents = state.lock().unwrap();
 
+                // Collect cwd updates outside the agents lock to minimize contention
+                let mut updates: Vec<(String, String)> = Vec::new(); // (pty_id, new_cwd)
                 for (pty_id, pid) in &pids_snapshot {
                     if let Some(cwd) = Self::get_cwd(*pid) {
-                        // Find agent with this pty_id and update cwd
+                        updates.push((pty_id.clone(), cwd));
+                    }
+                }
+
+                // Briefly acquire agents lock to apply updates
+                if !updates.is_empty() {
+                    let mut agents = state.lock().unwrap();
+                    for (pty_id, cwd) in &updates {
                         for agent in agents.values_mut() {
                             if agent.pty_id.as_deref() == Some(pty_id) {
-                                if agent.cwd != cwd {
-                                    let dir_exists = std::path::Path::new(&cwd).exists();
+                                if agent.cwd != *cwd {
+                                    let dir_exists = std::path::Path::new(cwd).exists();
                                     agent.cwd = cwd.clone();
                                     agent.path_missing = Some(!dir_exists);
                                     let _ = app.emit("agent:cwd-changed", serde_json::json!({
@@ -596,9 +713,15 @@ let child_pid = child.process_id().unwrap_or(0) as u32;
 
 Return `child_pid` from `spawn()` so the caller can register it with `CwdTracker`.
 
-- [ ] **Step 3: Wire cwd tracker in `lib.rs`**
+- [ ] **Step 3: Wire cwd tracker in `lib.rs` and update `agent.rs`**
 
-Initialize `CwdTracker` as managed state, start polling on app startup. In `agent_start` and `agent_reanimate`, register the PID. In `agent_stop` and `agent_set_dormant`, unregister.
+Initialize `CwdTracker` as managed state, start polling on app startup. Update `agent_start` and `agent_reanimate` in `commands/agent.rs` to:
+1. Capture the child PID from the updated `spawn()` return value
+2. Register the PID with `CwdTracker`
+
+In `agent_stop` and `agent_set_dormant`, unregister the PID from `CwdTracker`.
+
+**Note:** This re-edits `agent.rs` from Task 2 — the PID registration was intentionally deferred to this task because it depends on the updated `spawn()` signature.
 
 - [ ] **Step 4: Build and verify**
 
@@ -630,7 +753,7 @@ pub fn infer_business_state(status_line: &str) -> Option<String> {
     let lower = status_line.to_lowercase();
 
     // Order matters — more specific patterns first
-    if lower.contains("running tests") || lower.contains("test") && lower.contains("running") {
+    if lower.contains("running tests") || (lower.contains("test") && lower.contains("running")) {
         return Some("testing".to_string());
     }
     if lower.contains("reviewing") || lower.contains("review") {
@@ -732,6 +855,7 @@ git commit -m "feat(backend): add businessState inference from statusLine patter
 
 **Files:**
 - Create: `src-tauri/src/commands/tab.rs`
+- Modify: `src-tauri/src/commands/mod.rs` (add `pub mod tab;`)
 - Modify: `src-tauri/src/state.rs`
 - Modify: `src-tauri/src/lib.rs`
 
@@ -781,7 +905,7 @@ pub async fn tab_delete(state: State<'_, AppState>, id: String) -> Result<(), St
 pub async fn tab_reorder(state: State<'_, AppState>, tab_ids: Vec<String>) -> Result<(), String> { ... }
 ```
 
-- [ ] **Step 3: Register tab commands in `lib.rs`**
+- [ ] **Step 3: Add `pub mod tab;` to `commands/mod.rs` and register tab commands in `lib.rs`**
 
 - [ ] **Step 4: Ensure default "General" tab on first load**
 
@@ -1224,23 +1348,130 @@ git commit -m "feat(ui): integrate terminal lifecycle with Agent model — creat
 
 ---
 
-## Task 13: Frontend — Simplify NewChatModal
+## Task 13: Frontend — Codebase-Wide Field Rename Sweep
+
+**Files:**
+- Modify: `src/components/CanvasView/types.ts`
+- Modify: `src/components/CanvasView/hooks/useAgentActions.ts`
+- Modify: `src/components/CanvasView/hooks/useCanvasNodes.ts`
+- Modify: `src/components/CanvasView/hooks/useTerminalDialog.ts`
+- Modify: `src/components/CanvasView/components/AgentNodeCard.tsx`
+- Modify: `src/components/CanvasView/components/NotificationPanel.tsx`
+- Modify: `src/components/CanvasView/index.tsx`
+- Modify: `src/components/AgentTerminalDialog/AgentDialogTypes.ts`
+- Modify: `src/components/AgentTerminalDialog/AgentDialogSuperAgentSidebar.tsx`
+- Modify: `src/components/AgentTerminalDialog/AgentDialogSecondaryProject.tsx`
+- Modify: `src/components/AgentTerminalDialog/index.tsx`
+- Modify: `src/components/MosaicTerminalView/index.tsx`
+- Modify: `src/components/MosaicTerminalView/TerminalTile.tsx`
+- Modify: `src/components/Dashboard/AgentActivity.tsx`
+- Modify: `src/components/Dashboard/index.tsx`
+- Modify: `src/components/Dashboard/LiveTaskFeed.tsx`
+- Modify: `src/components/TrayPanel/TrayPanel.tsx`
+- Modify: `src/components/TrayPanel/useTrayTerminal.ts`
+- Modify: `src/routes/console.tsx`
+- Modify: `src/routes/projects.tsx`
+- Modify: `src/store/index.ts`
+- Modify: `src/lib/agent-manager.ts`
+- Modify: `src/types/index.ts`
+- Modify: `src/hooks/useAgents.ts`
+
+This task covers all files missed in earlier tasks that reference old field names.
+
+- [ ] **Step 1: Search and list all remaining old references**
+
+Run these searches to find every remaining old reference:
+
+```bash
+# In src/ directory (TypeScript/React)
+rg "AgentStatus" src/ --type ts --type tsx -l
+rg "\.status\b" src/ --type ts --type tsx -l  # careful: may match CSS
+rg "projectPath" src/ --type ts --type tsx -l
+rg "currentTask" src/ --type ts --type tsx -l
+rg "lastCleanOutput" src/ --type ts --type tsx -l
+rg "secondaryProjectPath" src/ --type ts --type tsx -l
+```
+
+- [ ] **Step 2: Update CanvasView (7 files)**
+
+In all CanvasView files:
+- Replace `AgentStatus` type with `Agent`
+- Replace `agent.status` with `agent.processState`
+- Replace `agent.projectPath` with `agent.cwd`
+- Update `AgentNode.status` type in `types.ts`
+- Update status display in `AgentNodeCard.tsx` to use `processStateConfig`
+
+- [ ] **Step 3: Update AgentTerminalDialog (4 files)**
+
+- Replace `AgentStatus` with `Agent` in type definitions
+- Update `AgentDialogSuperAgentSidebar.tsx` to use `agent.isSuperAgent` flag
+- Replace `secondaryProjectPath` with `secondaryPaths` in `AgentDialogSecondaryProject.tsx`
+- Update `index.tsx` field references
+
+- [ ] **Step 4: Update MosaicTerminalView (2 files)**
+
+- Replace `AgentStatus` with `Agent`
+- Replace `agent.status` with `agent.processState`
+- Replace `projectPath` with `cwd` in agent creation calls
+
+- [ ] **Step 5: Update Dashboard (3 files)**
+
+- Replace `agent.status` with `agent.processState`
+- Replace `agent.projectPath` with `agent.cwd`
+- Replace `currentTask` with `businessState`/`statusLine` in `LiveTaskFeed.tsx`
+
+- [ ] **Step 6: Update TrayPanel (2 files)**
+
+- Replace `AgentStatus` with `Agent`
+- Replace `currentTask` with `businessState`/`statusLine`
+
+- [ ] **Step 7: Update remaining files**
+
+- `src/routes/console.tsx` — update `AgentStatus`/`projectPath` references
+- `src/routes/projects.tsx` — update `AgentStatus`/`projectPath` references
+- `src/store/index.ts` — replace `a.status === 'running'` with `a.processState === 'running'`
+- `src/lib/agent-manager.ts` — update all old field references, remove `progress`
+- `src/types/index.ts` — update or remove conflicting `AgentStatus`/`Agent` types, re-export from `electron.d.ts`
+- `src/hooks/useAgents.ts` — update `AgentStatus` references
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/components/CanvasView/ src/components/AgentTerminalDialog/ src/components/MosaicTerminalView/ src/components/Dashboard/ src/components/TrayPanel/ src/routes/ src/store/ src/lib/ src/types/index.ts src/hooks/useAgents.ts
+git commit -m "refactor: codebase-wide rename AgentStatus→Agent, status→processState, projectPath→cwd"
+```
+
+---
+
+## Task 14: Frontend — Simplify NewChatModal
 
 **Files:**
 - Modify: `src/components/NewChatModal/index.tsx`
+- Modify: `src/components/NewChatModal/types.ts`
+- Modify: `src/components/NewChatModal/StepTask.tsx`
+- Modify: `src/components/NewChatModal/StepModel.tsx`
+- Modify: `src/components/NewChatModal/AgentPersonaEditor.tsx`
 - Delete: `src/components/NewChatModal/StepProject.tsx`
 
-- [ ] **Step 1: Remove project step from wizard**
+- [ ] **Step 1: Update types.ts**
 
-Remove the `StepProject` import and step from the wizard flow. The project is now derived from `cwd`.
+Remove `projectPath` and `secondaryProjectPath` from `EditAgentData`. Update `onSubmit` callback signature to not require `projectPath` as first parameter.
 
-- [ ] **Step 2: Simplify to quick-create form**
+- [ ] **Step 2: Remove project step from wizard**
+
+Remove the `StepProject` import and step from the wizard flow in `index.tsx`. The project is now derived from `cwd`.
+
+- [ ] **Step 3: Update remaining step components**
+
+Remove `projectPath` prop from `StepTask.tsx`, `StepModel.tsx`, and `AgentPersonaEditor.tsx`.
+
+- [ ] **Step 4: Simplify to quick-create form**
 
 Reduce the wizard to a single-page form with optional fields: name, role, provider, skills, prompt, persona. All fields optional — user can fill what they want and go.
 
-- [ ] **Step 3: Delete `StepProject.tsx`**
+- [ ] **Step 5: Delete `StepProject.tsx`**
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/components/NewChatModal/ && git rm src/components/NewChatModal/StepProject.tsx
@@ -1249,44 +1480,56 @@ git commit -m "feat(ui): simplify NewChatModal — remove project step, single-p
 
 ---
 
-## Task 14: MCP Orchestrator — New Tools
+## Task 15: MCP Orchestrator — New Tools + API Routes
 
 **Files:**
 - Create: `mcp-orchestrator/src/tools/business-state.ts`
 - Modify: `mcp-orchestrator/src/tools/agents.ts`
+- Modify: `mcp-orchestrator/src/index.ts`
+- Modify: `src-tauri/src/lib.rs` (or wherever the HTTP API server routes are defined)
+
+**Important:** The MCP orchestrator is a separate Node.js process that communicates with Dorothy via HTTP REST API (`http://127.0.0.1:31415/api/...`), NOT via Tauri IPC. New MCP tools need corresponding HTTP API routes in the Tauri backend.
 
 - [ ] **Step 1: Update existing MCP agent tools**
 
-In `agents.ts`, update field references: `agent.status` → `agent.processState`, `agent.projectPath` → `agent.cwd`. Update `create_agent` tool to not require `projectPath`.
+In `agents.ts`, update field references: `agent.status` → `agent.processState`, `agent.projectPath` → `agent.cwd`, `agent.lastCleanOutput` → `agent.statusLine`. Update `create_agent` tool to not require `projectPath`.
 
-- [ ] **Step 2: Create businessState MCP tools**
+- [ ] **Step 2: Add HTTP API routes for new commands**
+
+Add API routes that the MCP server can call:
+- `POST /api/agents/:id/business-state` → calls `agent_update_business_state`
+- `GET /api/agents/team-status?tabId=X` → returns agents filtered by tab with processState + businessState
+- `POST /api/agents/:id/promote` → calls `agent_update` with `isSuperAgent: true`
+- `POST /api/agents/:id/demote` → calls `agent_update` with `isSuperAgent: false`
+
+- [ ] **Step 3: Create businessState MCP tools**
 
 Create `mcp-orchestrator/src/tools/business-state.ts`:
 
 ```typescript
 // Tools:
-// - update_agent_business_state(agentId, state) — Super Agent sets an agent's businessState
-// - get_team_status(tabId?) — returns all agents in a tab with processState + businessState
-// - promote_super_agent(agentId, scope) — promote an agent to Super Agent
-// - demote_super_agent(agentId) — demote a Super Agent
+// - update_agent_business_state(agentId, state) — calls POST /api/agents/:id/business-state
+// - get_team_status(tabId?) — calls GET /api/agents/team-status
+// - promote_super_agent(agentId, scope) — calls POST /api/agents/:id/promote
+// - demote_super_agent(agentId) — calls POST /api/agents/:id/demote
 ```
 
-Each tool calls the corresponding Dorothy API endpoint.
+Each tool calls the corresponding Dorothy HTTP API endpoint via `apiRequest()`.
 
-- [ ] **Step 3: Register new tools in MCP server**
+- [ ] **Step 4: Register new tools in MCP server**
 
 Add the new tools to the MCP server initialization in `mcp-orchestrator/src/index.ts`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add mcp-orchestrator/src/tools/business-state.ts mcp-orchestrator/src/tools/agents.ts mcp-orchestrator/src/index.ts
-git commit -m "feat(mcp): add businessState, team status, and Super Agent promotion tools"
+git add mcp-orchestrator/src/tools/business-state.ts mcp-orchestrator/src/tools/agents.ts mcp-orchestrator/src/index.ts src-tauri/src/
+git commit -m "feat(mcp): add businessState, team status, and Super Agent promotion tools + API routes"
 ```
 
 ---
 
-## Task 15: Tab Migration (Frontend → Backend)
+## Task 16: Tab Migration (Frontend → Backend)
 
 **Files:**
 - Modify: `src/components/TerminalsView/index.tsx`
@@ -1327,7 +1570,7 @@ git commit -m "feat(migration): one-shot localStorage tabs → backend tabs.json
 
 ---
 
-## Task 16: Integration Testing & Cleanup
+## Task 17: Integration Testing & Cleanup
 
 **Files:**
 - Modify: `__tests__/` test files as needed
