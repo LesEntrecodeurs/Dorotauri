@@ -201,7 +201,7 @@ export default function AppSidebar() {
           <img
             src="/dorotoring-large.svg"
             alt="Dorotoring"
-            className="h-5 w-auto object-contain dark:invert group-data-[collapsible=icon]:hidden"
+            className="w-full object-contain dark:invert group-data-[collapsible=icon]:hidden"
           />
           <img
             src="/dorotoing.svg"
