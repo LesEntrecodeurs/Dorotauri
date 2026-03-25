@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Bot,
+  Columns2,
   Columns3,
   Brain,
   Archive,
@@ -16,7 +17,6 @@ import {
   Sun,
   PanelLeft,
   PanelLeftClose,
-  X,
   Container,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,6 +36,11 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 import { LATEST_RELEASE, WHATS_NEW_STORAGE_KEY } from '@/data/changelog';
 import { useStore } from '@/store';
@@ -104,6 +109,12 @@ function barTrackColor(pct: number): string {
   if (pct >= 80) return 'bg-red-500/20';
   if (pct >= 50) return 'bg-yellow-500/20';
   return 'bg-sidebar-accent';
+}
+
+function barTextColor(pct: number): string {
+  if (pct >= 80) return 'text-red-500';
+  if (pct >= 50) return 'text-yellow-500';
+  return 'text-sidebar-foreground-faint';
 }
 
 // --- Hooks ---
@@ -180,12 +191,80 @@ function NavBadge({ href }: { href: string }) {
 
 function UsageBars() {
   const rateLimits = useStore((s) => s.rateLimits);
+  const { state } = useSidebar();
+  const collapsed = state === 'collapsed';
+
   if (!rateLimits) return null;
   const { fiveHour, sevenDay } = rateLimits;
   if (!fiveHour && !sevenDay) return null;
 
+  // Collapsed / icon mode: compact stacked percentages with tooltip
+  if (collapsed) {
+    const tooltipContent = (
+      <div className="space-y-2 min-w-[160px]">
+        {fiveHour && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-muted-foreground">Session 5h</span>
+              <span className="text-[10px] text-muted-foreground">
+                {Math.round(fiveHour.usedPercentage)}% · {formatSessionReset(fiveHour.resetsAt)}
+              </span>
+            </div>
+            <div className={`h-[3px] w-full rounded-full overflow-hidden ${barTrackColor(fiveHour.usedPercentage)}`}>
+              <div
+                className={`h-full rounded-full transition-all ${barColor(fiveHour.usedPercentage)}`}
+                style={{ width: `${Math.min(100, fiveHour.usedPercentage)}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {sevenDay && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-muted-foreground">Week</span>
+              <span className="text-[10px] text-muted-foreground">
+                {Math.round(sevenDay.usedPercentage)}% · {formatWeekReset(sevenDay.resetsAt)}
+              </span>
+            </div>
+            <div className={`h-[3px] w-full rounded-full overflow-hidden ${barTrackColor(sevenDay.usedPercentage)}`}>
+              <div
+                className={`h-full rounded-full transition-all ${barColor(sevenDay.usedPercentage)}`}
+                style={{ width: `${Math.min(100, sevenDay.usedPercentage)}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+
+    return (
+      <div className="border-t border-sidebar-border pt-1.5 pb-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex flex-col items-center gap-0.5 cursor-default px-1">
+              {fiveHour && (
+                <span className={`text-[9px] font-medium leading-none ${barTextColor(fiveHour.usedPercentage)}`}>
+                  {Math.round(fiveHour.usedPercentage)}%
+                </span>
+              )}
+              {sevenDay && (
+                <span className={`text-[9px] font-medium leading-none ${barTextColor(sevenDay.usedPercentage)}`}>
+                  {Math.round(sevenDay.usedPercentage)}%
+                </span>
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="p-3">
+            {tooltipContent}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
+
+  // Expanded mode: full inline bars
   return (
-    <div className="px-2 py-1.5 space-y-1.5 group-data-[collapsible=icon]/sidebar:hidden border-t border-sidebar-border pt-2">
+    <div className="px-2 py-1.5 space-y-1.5 border-t border-sidebar-border pt-2">
       {fiveHour && (
         <div>
           <div className="flex items-center justify-between mb-1">
@@ -236,55 +315,58 @@ function ConnectionIndicator() {
 
 // --- Main Component ---
 
-export default function AppSidebar() {
+interface AppSidebarProps {
+  sidebarHidden?: boolean;
+  onToggleHidden?: () => void;
+  sidebarMode?: 'full' | 'icons';
+  onToggleMode?: () => void;
+}
+
+export default function AppSidebar({
+  sidebarHidden = false,
+  onToggleHidden,
+  sidebarMode = 'full',
+  onToggleMode,
+}: AppSidebarProps) {
   const pathname = useLocation().pathname;
   const { darkMode, toggleDarkMode } = useStore();
-  const { toggleSidebar, state } = useSidebar();
-  const collapsed = state === 'collapsed';
 
   return (
     <Sidebar collapsible="icon">
-      {/* Header: logo + hover-reveal collapse buttons */}
-      <SidebarHeader className="group/header group-data-[collapsible=icon]/sidebar:p-1">
-        <div className="flex items-center px-2 py-2 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
+      {/* Header: action icons row above logo */}
+      <SidebarHeader className="group-data-[collapsible=icon]/sidebar:p-1">
+        {/* Action icons row */}
+        <div className="flex items-center justify-between px-2 pt-1 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
+          {/* Hide / Pin button */}
+          <button
+            onClick={onToggleHidden}
+            className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors opacity-60 hover:opacity-100"
+            title={sidebarHidden ? 'Pin sidebar (⌘B)' : 'Hide sidebar (⌘B)'}
+          >
+            {sidebarHidden ? <PanelLeft className="w-3.5 h-3.5" /> : <PanelLeftClose className="w-3.5 h-3.5" />}
+          </button>
+          {/* Mode toggle — hidden in icon mode */}
+          <button
+            onClick={onToggleMode}
+            className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors opacity-60 hover:opacity-100 group-data-[collapsible=icon]/sidebar:hidden"
+            title={sidebarMode === 'full' ? 'Icon mode' : 'Full menu'}
+          >
+            <Columns2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {/* Logo below action icons */}
+        <div className="flex items-center px-2 py-1 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
           <img
             src="/dorotoring-large.svg"
             alt="Dorothy"
-            className="h-6 w-auto text-sidebar-foreground group-data-[collapsible=icon]/sidebar:hidden"
+            className="h-5 w-auto dark:invert group-data-[collapsible=icon]/sidebar:hidden"
           />
           <img
             src="/dorotoing.svg"
             alt="Dorothy"
-            className="w-6 h-6 text-sidebar-foreground hidden group-data-[collapsible=icon]/sidebar:block"
+            className="w-5 h-5 dark:invert hidden group-data-[collapsible=icon]/sidebar:block"
           />
-          {/* Collapse buttons — visible on hover of header */}
-          <div className="ml-auto flex gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity duration-150 group-data-[collapsible=icon]/sidebar:hidden">
-            <button
-              onClick={toggleSidebar}
-              className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-              title="Collapse to icons (⌘B)"
-            >
-              <PanelLeftClose className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('sidebar-hide'))}
-              className="p-1 rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-              title="Hide sidebar (⌘⇧B)"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
         </div>
-        {/* When collapsed: show expand button */}
-        {collapsed && (
-          <button
-            onClick={toggleSidebar}
-            className="p-1 mx-auto rounded-[6px] text-sidebar-foreground-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-            title="Expand sidebar (⌘B)"
-          >
-            <PanelLeft className="w-3.5 h-3.5" />
-          </button>
-        )}
       </SidebarHeader>
 
       {/* Navigation */}
