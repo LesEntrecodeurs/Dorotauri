@@ -189,6 +189,24 @@ pub fn agent_start(
         }
     }
 
+    // Super Agent: add MCP config so Claude Code has orchestrator tools
+    if agent_snapshot.is_super_agent {
+        let mcp_config = dirs::home_dir()
+            .unwrap_or_default()
+            .join(".claude")
+            .join("mcp.json");
+        if mcp_config.exists() {
+            cmd_parts.push("--mcp-config".into());
+            cmd_parts.push(mcp_config.to_string_lossy().to_string());
+        }
+    }
+
+    // Add secondary paths (--add-dir)
+    for path in &agent_snapshot.secondary_paths {
+        cmd_parts.push("--add-dir".into());
+        cmd_parts.push(path.clone());
+    }
+
     // Add prompt if provided
     if let Some(ref p) = prompt {
         cmd_parts.push("--print".into());
@@ -220,6 +238,7 @@ pub fn agent_start(
     };
 
     state.save_agents();
+    let _ = state.status_tx.send((id.clone(), "running".into()));
 
     // Emit status event
     app_handle
@@ -265,6 +284,7 @@ pub fn agent_stop(
     };
 
     state.save_agents();
+    let _ = state.status_tx.send((id.clone(), "inactive".into()));
 
     app_handle
         .emit("agent:status", &updated_agent)
@@ -428,6 +448,7 @@ pub fn agent_update(
     };
 
     state.save_agents();
+    let _ = state.status_tx.send((id.clone(), "updated".into()));
 
     app_handle
         .emit("agent:status", &updated_agent)
@@ -468,6 +489,7 @@ pub fn agent_set_dormant(
         agent.last_activity = now;
     }
     state.save_agents();
+    let _ = state.status_tx.send((id.clone(), "dormant".into()));
     app_handle.emit("agent:status", serde_json::json!({"id": id, "processState": "dormant"})).ok();
     Ok(())
 }
