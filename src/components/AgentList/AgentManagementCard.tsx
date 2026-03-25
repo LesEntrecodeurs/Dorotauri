@@ -1,4 +1,4 @@
-import { Play, Square, Pencil, Trash2, AlertTriangle, Crown, Clock } from 'lucide-react';
+import { Play, Square, Pencil, Trash2, AlertTriangle, Clock } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,8 @@ interface AgentManagementCardProps {
 export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, onRemove }: AgentManagementCardProps) {
   const statusConfig = STATUS_COLORS[agent.processState];
   const isSuper = isSuperAgentCheck(agent);
+  const isGlobalScope = isSuper && agent.superAgentScope === 'all';
+  const crownBadge = isSuper ? (isGlobalScope ? '\u{1F451}\u{1F451}' : '\u{1F451}') : '';
   const isRunning = agent.processState === 'running' || agent.processState === 'waiting';
   const isError = agent.processState === 'error';
 
@@ -47,6 +49,7 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
         ${isSuper ? 'border-l-[3px] border-l-amber-500/60' : ''}
         ${isRunning && !isSuper ? 'border-l-[3px] border-l-primary/60' : ''}
         ${isError ? 'border-l-[3px] border-l-red-500/60' : ''}
+        ${isGlobalScope ? 'ring-2 ring-amber-500/50' : ''}
       `}
     >
       <CardContent className="p-3">
@@ -55,13 +58,13 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
           <div className={`w-8 h-8 flex items-center justify-center shrink-0 text-base ${
             isSuper ? 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20' : statusConfig.bg
           }`}>
-            {isSuper ? '👑' : agent.character ? (CHARACTER_FACES[agent.character] || '🤖') : '🤖'}
+            {isSuper ? (isGlobalScope ? '\u{1F451}\u{1F451}' : '\u{1F451}') : agent.character ? (CHARACTER_FACES[agent.character] || '\u{1F916}') : '\u{1F916}'}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              {isSuper && <Crown className="w-3 h-3 text-amber-600 shrink-0" />}
-              <span className="font-medium text-sm truncate text-foreground">
+              {crownBadge && <span className="text-xs shrink-0">{crownBadge}</span>}
+              <span className={`text-sm truncate text-foreground ${isSuper ? 'font-bold' : 'font-medium'}`}>
                 {agent.name || 'Unnamed Agent'}
               </span>
             </div>

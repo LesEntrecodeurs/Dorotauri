@@ -8,7 +8,7 @@ import { useStore } from '@/store';
 import type { AgentStatus } from '@/types';
 import { Link } from 'react-router';
 
-const statusConfig: Record<AgentStatus, { icon: typeof Bot; color: string; bg: string; label: string }> = {
+const statusConfig: Record<AgentStatus | string, { icon: typeof Bot; color: string; bg: string; label: string }> = {
   inactive: { icon: Square, color: 'text-muted-foreground', bg: 'bg-muted-foreground/20', label: 'Idle' },
   running: { icon: Play, color: 'text-success', bg: 'bg-success/20', label: 'Running' },
   paused: { icon: Pause, color: 'text-warning', bg: 'bg-warning/20', label: 'Paused' },
@@ -45,7 +45,7 @@ export default function AgentActivity() {
           const config = statusConfig[agent.processState];
           const StatusIcon = config.icon;
           const project = projects.find(p => p.id === agent.assignedProject);
-          const currentTask = tasks.find(t => t.id === agent.businessState);
+          const agentTask = tasks.find(t => t.id === agent.businessState);
 
           return (
             <motion.div
@@ -84,13 +84,13 @@ export default function AgentActivity() {
                     </p>
                   )}
 
-                  {currentTask && agent.processState === 'running' && (
+                  {agentTask && agent.processState === 'running' && (
                     <div className="mt-2 p-2 bg-muted/50 border border-border">
-                      <p className="text-xs text-muted-foreground truncate">{currentTask.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">{agentTask.title}</p>
                       <div className="mt-1.5 h-1 bg-background overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
-                          animate={{ width: `${currentTask.progress}%` }}
+                          animate={{ width: `${agentTask.progress}%` }}
                           className="h-full bg-primary"
                         />
                       </div>

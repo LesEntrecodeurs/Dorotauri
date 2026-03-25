@@ -11,7 +11,7 @@ interface SavedLayouts {
 export function useLayout() {
   const [layout, setLayout] = useState<MosaicNode<string> | null>(null)
   const [savedLayouts, setSavedLayouts] = useState<Record<string, MosaicNode<string>>>({})
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // Load layout from disk on mount
   useEffect(() => {

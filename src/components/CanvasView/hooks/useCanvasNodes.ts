@@ -30,7 +30,7 @@ export function useCanvasNodes(
           character: agent.character || 'robot',
           status: agent.processState as AgentNode['status'],
           skills: agent.skills || [],
-          projectPath: agent.cwd,
+          cwd: agent.cwd,
           position: pos,
         };
       });
@@ -95,8 +95,8 @@ export function useCanvasNodes(
         (filter === 'inactive' && agent.status === 'inactive') ||
         (filter === 'dormant' && (agent.status === 'dormant' || agent.status === 'completed' || agent.status === 'error'));
       const searchMatch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        agent.projectPath.toLowerCase().includes(searchQuery.toLowerCase());
-      const projectMatch = projectFilter === 'all' || agent.projectPath === projectFilter;
+        agent.cwd.toLowerCase().includes(searchQuery.toLowerCase());
+      const projectMatch = projectFilter === 'all' || agent.cwd === projectFilter;
 
       return statusMatch && searchMatch && projectMatch;
     });
@@ -115,7 +115,7 @@ export function useCanvasNodes(
     const lines: ConnectionData[] = [];
 
     filteredAgents.forEach((agent) => {
-      const project = filteredProjects.find((p) => p.id === agent.projectPath);
+      const project = filteredProjects.find((p) => p.id === agent.cwd);
       if (project) {
         lines.push({
           from: { x: agent.position.x + 144, y: agent.position.y + 170 },

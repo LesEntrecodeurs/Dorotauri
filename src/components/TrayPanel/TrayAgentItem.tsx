@@ -52,7 +52,7 @@ function StatusIndicator({ displayStatus }: { displayStatus: DisplayStatus }) {
       return (
         <span className="inline-flex rounded-full h-2.5 w-2.5 flex-shrink-0" style={{ background: 'var(--success)' }} />
       );
-    case 'stopped':
+    case 'sleeping':
     default:
       return (
         <span className="inline-flex rounded-full h-2.5 w-2.5 bg-border flex-shrink-0" />

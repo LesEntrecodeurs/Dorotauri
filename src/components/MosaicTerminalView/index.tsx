@@ -7,10 +7,11 @@ import './mosaic-theme.css';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, Settings, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical, ArrowRightFromLine, ChevronRight } from 'lucide-react';
-import type { Agent as AgentStatusType, AgentCharacter } from '@/types/electron';
+import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, LayoutGrid, Columns, Rows, PanelLeft, PanelTop, SplitSquareHorizontal, SplitSquareVertical, ArrowRightFromLine, ChevronRight } from 'lucide-react';
+import { ConfigWheel } from '@/components/ConfigWheel';
+import type { Agent, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
-import { useElectronAgents, useElectronFS, useElectronSkills } from '@/hooks/useElectron';
+import { useElectronAgents, useElectronSkills } from '@/hooks/useElectron';
 import NewChatModal from '@/components/NewChatModal';
 import type { EditAgentData } from '@/components/NewChatModal/types';
 import TerminalTile from './TerminalTile';
@@ -18,7 +19,7 @@ import TerminalTile from './TerminalTile';
 type ViewId = string;
 
 interface MosaicTerminalViewProps {
-  agents: AgentStatusType[];
+  agents: Agent[];
   zenMode?: boolean;
 }
 
@@ -138,6 +139,67 @@ function splitNodeInTree(
   };
 }
 
+// --- LoL champion names + Data Dragon icon keys ---
+
+const CHAMPIONS: { name: string; key: string }[] = [
+  { name: 'Aatrox', key: 'Aatrox' }, { name: 'Ahri', key: 'Ahri' }, { name: 'Akali', key: 'Akali' },
+  { name: 'Akshan', key: 'Akshan' }, { name: 'Alistar', key: 'Alistar' }, { name: 'Amumu', key: 'Amumu' },
+  { name: 'Anivia', key: 'Anivia' }, { name: 'Annie', key: 'Annie' }, { name: 'Aphelios', key: 'Aphelios' },
+  { name: 'Ashe', key: 'Ashe' }, { name: 'Azir', key: 'Azir' }, { name: 'Bard', key: 'Bard' },
+  { name: 'Blitzcrank', key: 'Blitzcrank' }, { name: 'Brand', key: 'Brand' }, { name: 'Braum', key: 'Braum' },
+  { name: 'Caitlyn', key: 'Caitlyn' }, { name: 'Camille', key: 'Camille' }, { name: 'Darius', key: 'Darius' },
+  { name: 'Diana', key: 'Diana' }, { name: 'Draven', key: 'Draven' }, { name: 'Ekko', key: 'Ekko' },
+  { name: 'Elise', key: 'Elise' }, { name: 'Evelynn', key: 'Evelynn' }, { name: 'Ezreal', key: 'Ezreal' },
+  { name: 'Fiora', key: 'Fiora' }, { name: 'Fizz', key: 'Fizz' }, { name: 'Galio', key: 'Galio' },
+  { name: 'Garen', key: 'Garen' }, { name: 'Gnar', key: 'Gnar' }, { name: 'Gragas', key: 'Gragas' },
+  { name: 'Graves', key: 'Graves' }, { name: 'Gwen', key: 'Gwen' }, { name: 'Hecarim', key: 'Hecarim' },
+  { name: 'Heimerdinger', key: 'Heimerdinger' }, { name: 'Illaoi', key: 'Illaoi' }, { name: 'Irelia', key: 'Irelia' },
+  { name: 'Ivern', key: 'Ivern' }, { name: 'Janna', key: 'Janna' }, { name: 'Jarvan IV', key: 'JarvanIV' },
+  { name: 'Jax', key: 'Jax' }, { name: 'Jayce', key: 'Jayce' }, { name: 'Jhin', key: 'Jhin' },
+  { name: 'Jinx', key: 'Jinx' }, { name: "Kai'Sa", key: 'Kaisa' }, { name: 'Karma', key: 'Karma' },
+  { name: 'Kassadin', key: 'Kassadin' }, { name: 'Katarina', key: 'Katarina' }, { name: 'Kayn', key: 'Kayn' },
+  { name: 'Kennen', key: 'Kennen' }, { name: "Kha'Zix", key: 'Khazix' }, { name: 'Kindred', key: 'Kindred' },
+  { name: 'Kled', key: 'Kled' }, { name: 'LeBlanc', key: 'Leblanc' }, { name: 'Leona', key: 'Leona' },
+  { name: 'Lillia', key: 'Lillia' }, { name: 'Lissandra', key: 'Lissandra' }, { name: 'Lucian', key: 'Lucian' },
+  { name: 'Lulu', key: 'Lulu' }, { name: 'Lux', key: 'Lux' }, { name: 'Malphite', key: 'Malphite' },
+  { name: 'Morgana', key: 'Morgana' }, { name: 'Nami', key: 'Nami' }, { name: 'Nasus', key: 'Nasus' },
+  { name: 'Nautilus', key: 'Nautilus' }, { name: 'Nidalee', key: 'Nidalee' }, { name: 'Orianna', key: 'Orianna' },
+  { name: 'Ornn', key: 'Ornn' }, { name: 'Pantheon', key: 'Pantheon' }, { name: 'Pyke', key: 'Pyke' },
+  { name: 'Qiyana', key: 'Qiyana' }, { name: 'Quinn', key: 'Quinn' }, { name: 'Rakan', key: 'Rakan' },
+  { name: 'Rammus', key: 'Rammus' }, { name: 'Renata Glasc', key: 'Renata' }, { name: 'Renekton', key: 'Renekton' },
+  { name: 'Riven', key: 'Riven' }, { name: 'Rumble', key: 'Rumble' }, { name: 'Ryze', key: 'Ryze' },
+  { name: 'Samira', key: 'Samira' }, { name: 'Senna', key: 'Senna' }, { name: 'Seraphine', key: 'Seraphine' },
+  { name: 'Sett', key: 'Sett' }, { name: 'Shen', key: 'Shen' }, { name: 'Shyvana', key: 'Shyvana' },
+  { name: 'Singed', key: 'Singed' }, { name: 'Sion', key: 'Sion' }, { name: 'Sivir', key: 'Sivir' },
+  { name: 'Sona', key: 'Sona' }, { name: 'Soraka', key: 'Soraka' }, { name: 'Swain', key: 'Swain' },
+  { name: 'Syndra', key: 'Syndra' }, { name: 'Taliyah', key: 'Taliyah' }, { name: 'Talon', key: 'Talon' },
+  { name: 'Taric', key: 'Taric' }, { name: 'Thresh', key: 'Thresh' }, { name: 'Tristana', key: 'Tristana' },
+  { name: 'Twisted Fate', key: 'TwistedFate' }, { name: 'Twitch', key: 'Twitch' }, { name: 'Varus', key: 'Varus' },
+  { name: 'Vayne', key: 'Vayne' }, { name: 'Veigar', key: 'Veigar' }, { name: 'Vex', key: 'Vex' },
+  { name: 'Vi', key: 'Vi' }, { name: 'Viego', key: 'Viego' }, { name: 'Viktor', key: 'Viktor' },
+  { name: 'Vladimir', key: 'Vladimir' }, { name: 'Warwick', key: 'Warwick' }, { name: 'Xayah', key: 'Xayah' },
+  { name: 'Yasuo', key: 'Yasuo' }, { name: 'Yone', key: 'Yone' }, { name: 'Yorick', key: 'Yorick' },
+  { name: 'Yuumi', key: 'Yuumi' }, { name: 'Zed', key: 'Zed' }, { name: 'Zeri', key: 'Zeri' },
+  { name: 'Ziggs', key: 'Ziggs' }, { name: 'Zilean', key: 'Zilean' }, { name: 'Zoe', key: 'Zoe' },
+  { name: 'Zyra', key: 'Zyra' },
+];
+
+// Lookup: agent name → Data Dragon icon key
+const CHAMPION_KEYS = new Map(CHAMPIONS.map(c => [c.name, c.key]));
+
+const DDRAGON_VERSION = '15.6.1';
+
+function getChampionIconUrl(name: string): string | null {
+  const key = CHAMPION_KEYS.get(name);
+  if (!key) return null;
+  return `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}/img/champion/${key}.png`;
+}
+
+function randomAgentName(): string {
+  const champ = CHAMPIONS[Math.floor(Math.random() * CHAMPIONS.length)];
+  return champ.name;
+}
+
 // --- Status colors ---
 
 const STATUS_DOTS: Record<string, string> = {
@@ -158,6 +220,11 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-primary/20 text-primary',
 };
 
+function getSuperAgentBadge(agent: Agent | undefined): string {
+  if (!agent?.isSuperAgent) return '';
+  return agent.superAgentScope === 'all' ? '\u{1F451}\u{1F451}' : '\u{1F451}';
+}
+
 export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTerminalViewProps) {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(loadTabs);
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
@@ -172,7 +239,6 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
   // Hooks for the edit modal
   const { updateAgent } = useElectronAgents();
-  const { projects, openFolderDialog } = useElectronFS();
   const { installedSkills } = useElectronSkills();
 
   // Persist tabs
@@ -183,7 +249,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
 
   // Agent lookup
   const agentMap = useMemo(() => {
-    const map = new Map<string, AgentStatusType>();
+    const map = new Map<string, Agent>();
     for (const agent of agents) map.set(agent.id, agent);
     return map;
   }, [agents]);
@@ -381,15 +447,10 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const addQuickTerminal = useCallback(async () => {
     if (!isTauri()) return;
     try {
-      const home = await invoke<{ path: string }[]>('projects_list').then(
-        projects => projects[0]?.path || '/home'
-      ).catch(() => '/home');
-
-      const agent = await invoke<AgentStatusType>('agent_create', {
+      const agent = await invoke<Agent>('agent_create', {
         config: {
-          cwd: typeof home === 'string' ? home : '/home',
           skills: [],
-          name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+          name: randomAgentName(),
           character: 'robot',
         }
       });
@@ -399,19 +460,19 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     }
   }, [addAgentToTab]);
 
-  // Split terminal: create a new terminal next to a target agent
+  // Split terminal: create a new terminal next to a target agent (inherits cwd)
   const handleSplitTerminal = useCallback(async (targetAgentId: string, direction: 'row' | 'column') => {
     if (!isTauri()) return;
     try {
-      const home = await invoke<{ path: string }[]>('projects_list').then(
-        projects => projects[0]?.path || '/home'
-      ).catch(() => '/home');
+      // Inherit cwd from the source agent
+      const sourceAgent = agentMap.get(targetAgentId);
+      const cwd = sourceAgent?.cwd || undefined;
 
-      const agent = await invoke<AgentStatusType>('agent_create', {
+      const agent = await invoke<Agent>('agent_create', {
         config: {
-          cwd: typeof home === 'string' ? home : '/home',
+          ...(cwd ? { cwd } : {}),
           skills: [],
-          name: `Terminal ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+          name: randomAgentName(),
           character: 'robot',
         }
       });
@@ -427,7 +488,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     } catch (err) {
       console.error('Failed to split terminal:', err);
     }
-  }, [activeTabId]);
+  }, [activeTabId, agentMap]);
 
   // Keyboard shortcut: Ctrl/Cmd+T for quick terminal
   useEffect(() => {
@@ -453,7 +514,6 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
       id: agent.id,
       name: agent.name,
       character: agent.character as AgentCharacter | undefined,
-      cwd: agent.cwd,
       secondaryPaths: agent.secondaryPaths,
       skills: agent.skills,
       skipPermissions: agent.skipPermissions,
@@ -479,6 +539,15 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     }
   }, [updateAgent]);
 
+  // ConfigWheel inline update (no modal close)
+  const handleConfigUpdate = useCallback(async (id: string, updates: Partial<Agent>) => {
+    try {
+      await updateAgent({ id, ...updates });
+    } catch (err) {
+      console.error('Failed to update agent config:', err);
+    }
+  }, [updateAgent]);
+
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
     if (!agent) return `Agent ${id.slice(0, 6)}`;
@@ -490,6 +559,13 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
     return CHARACTER_FACES[agent?.character || 'robot'] || '\uD83E\uDD16';
   }, [agentMap]);
 
+  /** Returns champion icon URL or null (falls back to emoji) */
+  const getAgentIconUrl = useCallback((id: string): string | null => {
+    const agent = agentMap.get(id);
+    if (!agent?.name) return null;
+    return getChampionIconUrl(agent.name);
+  }, [agentMap]);
+
   // Agents not in the current tab (for the picker)
   const availableAgents = useMemo(() => {
     const inTab = new Set(activeTab?.agentIds || []);
@@ -497,6 +573,12 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   }, [agents, activeTab]);
 
   const layout = activeTab?.layout || null;
+
+  // Check if the current tab already has a Super Agent
+  const tabHasSuperAgent = useMemo(() => {
+    const ids = activeTab?.agentIds || [];
+    return ids.some(id => agentMap.get(id)?.isSuperAgent);
+  }, [activeTab, agentMap]);
 
   // Right-click context menu handler (works in both zen and normal mode)
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -727,12 +809,19 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                   <button
                     key={agent.id}
                     onClick={() => addAgentToTab(agent.id)}
-                    className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0"
+                    className={`flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0 ${agent.isSuperAgent && agent.superAgentScope === 'all' ? 'bg-amber-500/5' : ''}`}
                   >
                     <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOTS[agent.processState] || STATUS_DOTS.inactive}`} />
-                    <span className="text-sm">{getAgentEmoji(agent.id)}</span>
+                    {getAgentIconUrl(agent.id) ? (
+                      <img src={getAgentIconUrl(agent.id)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
+                    ) : (
+                      <span className="text-sm">{getAgentEmoji(agent.id)}</span>
+                    )}
                     <div className="flex flex-col min-w-0">
-                      <span className="truncate font-medium">{agent.name || agent.id.slice(0, 8)}</span>
+                      <span className={`truncate ${agent.isSuperAgent ? 'font-bold' : 'font-medium'}`}>
+                        {getSuperAgentBadge(agent) && <span className="mr-1">{getSuperAgentBadge(agent)}</span>}
+                        {agent.name || agent.id.slice(0, 8)}
+                      </span>
                       <span className="text-[10px] text-muted-foreground truncate">{agent.cwd?.split('/').pop()}</span>
                     </div>
                     <span className="ml-auto text-muted-foreground">+</span>
@@ -771,10 +860,15 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
             </button>
           </div>
         ) : maximizedAgent && activeTab?.agentIds.includes(maximizedAgent) ? (
-          <div className="w-full h-full flex flex-col">
-            <div className="flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0">
-              <span className="text-sm">{getAgentEmoji(maximizedAgent)}</span>
-              <span className="text-xs font-medium text-foreground">{getAgentTitle(maximizedAgent)}</span>
+          <div className={`w-full h-full flex flex-col ${agentMap.get(maximizedAgent)?.isSuperAgent && agentMap.get(maximizedAgent)?.superAgentScope === 'all' ? 'ring-2 ring-amber-500/50 rounded' : ''}`}>
+            <div className={`flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0 ${agentMap.get(maximizedAgent)?.isSuperAgent && agentMap.get(maximizedAgent)?.superAgentScope === 'all' ? 'bg-amber-500/5' : ''}`}>
+              {getAgentIconUrl(maximizedAgent) ? (
+                <img src={getAgentIconUrl(maximizedAgent)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
+              ) : (
+                <span className="text-sm">{getAgentEmoji(maximizedAgent)}</span>
+              )}
+              <span className={`text-xs text-foreground truncate ${agentMap.get(maximizedAgent)?.isSuperAgent ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(maximizedAgent)}</span>
+              {getSuperAgentBadge(agentMap.get(maximizedAgent)) && <span className="text-xs shrink-0">{getSuperAgentBadge(agentMap.get(maximizedAgent))}</span>}
               <div className="flex-1" />
               <button onClick={() => handlePopout(maximizedAgent)} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                 <ExternalLink className="w-3 h-3" />
@@ -801,11 +895,10 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                     renderToolbar={() => zenMode ? (
                       /* Zen mode: floating overlay toolbar, visible on hover */
                       <div className="group/toolbar relative w-full h-0" data-agent-id={id}>
-                        <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border border-border/50 rounded px-1 py-0.5 z-10 backdrop-blur-sm">
-                          <span className="text-[10px] text-muted-foreground px-1">{getAgentTitle(id)}</span>
-                          <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Settings">
-                            <Settings className="w-3 h-3" />
-                          </button>
+                        <div className={`absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border rounded px-1 py-0.5 z-10 backdrop-blur-sm ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'border-amber-500/50' : 'border-border/50'}`}>
+                          {getSuperAgentBadge(agent) && <span className="text-[10px] px-0.5">{getSuperAgentBadge(agent)}</span>}
+                          <span className={`text-[10px] px-1 ${agent?.isSuperAgent ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>{getAgentTitle(id)}</span>
+                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} />}
                           <button onClick={(e) => { e.stopPropagation(); handlePopout(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                             <ExternalLink className="w-3 h-3" />
                           </button>
@@ -816,14 +909,17 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                       </div>
                     ) : (
                       /* Normal mode: fixed toolbar */
-                      <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar" data-agent-id={id}>
-                        <span className="text-sm">{getAgentEmoji(id)}</span>
-                        <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{getAgentTitle(id)}</span>
+                      <div className={`flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b select-none mosaic-custom-toolbar ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'border-amber-500/50 bg-amber-500/5' : 'border-border'}`} data-agent-id={id}>
+                        {getAgentIconUrl(id) ? (
+                          <img src={getAgentIconUrl(id)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
+                        ) : (
+                          <span className="text-sm">{getAgentEmoji(id)}</span>
+                        )}
+                        <span className={`text-xs text-foreground truncate max-w-[120px] ${agent?.isSuperAgent ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(id)}</span>
+                        {getSuperAgentBadge(agent) && <span className="text-xs shrink-0">{getSuperAgentBadge(agent)}</span>}
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
                         <div className="flex-1" />
-                        <button onClick={(e) => { e.stopPropagation(); handleOpenAgentSettings(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Agent settings">
-                          <Settings className="w-3 h-3" />
-                        </button>
+                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} />}
                         <button onClick={(e) => { e.stopPropagation(); handleMaximize(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Maximize">
                           <Maximize2 className="w-3 h-3" />
                         </button>
@@ -836,7 +932,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
                       </div>
                     )}
                   >
-                    <div data-agent-id={id} className="h-full">
+                    <div data-agent-id={id} className={`h-full ${agent?.isSuperAgent && agent?.superAgentScope === 'all' ? 'ring-2 ring-amber-500/50' : ''}`}>
                       <TerminalTile agentId={id} />
                     </div>
                   </MosaicWindow>
@@ -858,8 +954,6 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
         onSubmit={() => {}}
         onUpdate={handleUpdateAgent}
         editAgent={editAgentData}
-        projects={projects.map(p => ({ path: p.path, name: p.name }))}
-        onBrowseFolder={isTauri() ? openFolderDialog : undefined}
         installedSkills={installedSkills}
         initialStep={1}
       />

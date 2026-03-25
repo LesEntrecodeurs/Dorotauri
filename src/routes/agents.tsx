@@ -1,7 +1,7 @@
 
 
 import { useState, useCallback, useMemo } from 'react';
-import { Bot, Loader2, Search, ArrowUpDown } from 'lucide-react';
+import { Bot, Loader2, Search, ArrowUpDown, Moon } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
 import { isTauri } from '@/hooks/useTauri';
@@ -12,6 +12,7 @@ import type { AgentCharacter, AgentProvider } from '@/types/electron';
 import NewChatModal from '@/components/NewChatModal';
 import type { EditAgentData } from '@/components/NewChatModal/types';
 import AgentTerminalDialog from '@/components/AgentTerminalDialog';
+import DormantAgentsList from '@/components/DormantAgentsList';
 import {
   DesktopRequiredMessage,
   AgentListHeader,
@@ -32,6 +33,7 @@ export default function AgentsPage() {
     startAgent,
     stopAgent,
     removeAgent,
+    reanimateAgent,
   } = useElectronAgents();
   const { projects, openFolderDialog } = useElectronFS();
   const { installedSkills, refresh: refreshSkills } = useElectronSkills();
@@ -50,7 +52,6 @@ export default function AgentsPage() {
   // Custom hooks
   const { superAgent, isCreatingSuperAgent, handleSuperAgentClick } = useSuperAgent({
     agents,
-    projects: projects.map(p => ({ path: p.path, name: p.name })),
     createAgent,
     startAgent,
     onAgentCreated: (id) => setEditAgentId(id),
@@ -65,6 +66,8 @@ export default function AgentsPage() {
   });
 
   const runningCount = agents.filter(a => a.processState === 'running' || a.processState === 'waiting').length;
+  const dormantAgents = useMemo(() => agents.filter(a => a.processState === 'dormant'), [agents]);
+  const [showDormant, setShowDormant] = useState(false);
 
   // Build edit agent data from editAgentId
   const editAgentData: EditAgentData | null = useMemo(() => {
@@ -75,7 +78,6 @@ export default function AgentsPage() {
       id: agent.id,
       name: agent.name,
       character: agent.character,
-      cwd: agent.cwd,
       secondaryPaths: agent.secondaryPaths,
       skills: agent.skills,
       skipPermissions: agent.skipPermissions,
@@ -88,21 +90,19 @@ export default function AgentsPage() {
 
   // Handlers
   const handleCreateAgent = useCallback(async (
-    projectPath: string,
     skills: string[],
     prompt: string,
     model?: string,
     worktree?: { enabled: boolean; branchName: string },
     character?: AgentCharacter,
     name?: string,
-    secondaryProjectPath?: string,
     skipPermissions?: boolean,
     provider?: AgentProvider,
     localModel?: string,
     obsidianVaultPaths?: string[],
   ) => {
     try {
-      const agent = await createAgent({ cwd: projectPath, skills, worktree, character, name, secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined, skipPermissions, provider, localModel, obsidianVaultPaths });
+      const agent = await createAgent({ skills, worktree, character, name, skipPermissions, provider, localModel, obsidianVaultPaths });
       if (prompt) {
         const options = { model: provider === 'local' ? undefined : model, provider, localModel };
         await startAgent(agent.id, prompt, options);
@@ -133,6 +133,18 @@ export default function AgentsPage() {
   }, [startAgent]);
 
   const handleRemoveAgent = useCallback((agentId: string) => {
+    removeAgent(agentId);
+  }, [removeAgent]);
+
+  const handleReanimateAgent = useCallback(async (agentId: string) => {
+    try {
+      await reanimateAgent(agentId);
+    } catch (error) {
+      console.error('Failed to reanimate agent:', error);
+    }
+  }, [reanimateAgent]);
+
+  const handleDeleteDormantAgent = useCallback((agentId: string) => {
     removeAgent(agentId);
   }, [removeAgent]);
 
@@ -292,13 +304,35 @@ export default function AgentsPage() {
         )}
       </div>
 
+      {/* Dormant Agents Section */}
+      {dormantAgents.length > 0 && (
+        <div className="border-t border-border/40 pt-3 mt-1">
+          <button
+            onClick={() => setShowDormant(!showDormant)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+          >
+            <Moon className="w-3.5 h-3.5" />
+            <span>Dormant agents</span>
+            <span className="text-[10px] bg-zinc-500/20 text-zinc-400 px-1.5 py-0.5 rounded-full">
+              {dormantAgents.length}
+            </span>
+            <span className="text-xs">{showDormant ? '\u25B4' : '\u25BE'}</span>
+          </button>
+          {showDormant && (
+            <DormantAgentsList
+              agents={dormantAgents}
+              onReanimate={handleReanimateAgent}
+              onDelete={handleDeleteDormantAgent}
+            />
+          )}
+        </div>
+      )}
+
       {/* Create Modal */}
       <NewChatModal
         open={showNewChatModal}
         onClose={() => setShowNewChatModal(false)}
         onSubmit={handleCreateAgent}
-        projects={projects.map(p => ({ path: p.path, name: p.name }))}
-        onBrowseFolder={isElectron() ? openFolderDialog : undefined}
         installedSkills={installedSkills}
         allInstalledSkills={claudeData?.skills || []}
         onRefreshSkills={refreshSkills}
@@ -311,8 +345,6 @@ export default function AgentsPage() {
         onSubmit={handleCreateAgent}
         onUpdate={handleUpdateAgent}
         editAgent={editAgentData}
-        projects={projects.map(p => ({ path: p.path, name: p.name }))}
-        onBrowseFolder={isElectron() ? openFolderDialog : undefined}
         installedSkills={installedSkills}
         allInstalledSkills={claudeData?.skills || []}
         onRefreshSkills={refreshSkills}

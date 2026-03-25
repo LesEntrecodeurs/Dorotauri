@@ -77,8 +77,7 @@ IMPORTANT:
 Say hello and list the current agents.`;
 
 export const isSuperAgentCheck = (agent: Agent) => {
-  const name = agent.name?.toLowerCase() || '';
-  return name.includes('super agent') || name.includes('orchestrator');
+  return agent.isSuperAgent === true;
 };
 
 export const PROVIDER_LABELS: Record<string, string> = {

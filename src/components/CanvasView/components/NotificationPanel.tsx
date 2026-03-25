@@ -86,7 +86,7 @@ function AgentItem({
             )}
           </div>
           <p className="text-xs text-muted-foreground truncate mt-0.5">
-            {agent.projectPath.split('/').pop()}
+            {agent.cwd.split('/').pop()}
           </p>
           {showAction && agent.status === 'waiting' && (
             <Button

@@ -25,8 +25,8 @@ export interface ScheduledTask {
 export interface Agent {
   id: string;
   name?: string;
-  projectPath: string;
-  status: string;
+  cwd: string;
+  processState: string;
 }
 
 export interface ScheduleFormFields {

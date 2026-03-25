@@ -34,8 +34,8 @@ export function useScheduledTasks(showToast: (msg: string, type: 'success' | 'er
         setAgents(agentList.map(a => ({
           id: a.id,
           name: a.name,
-          projectPath: a.projectPath,
-          status: a.status,
+          cwd: a.cwd,
+          processState: a.processState,
         })));
       }
     } catch (err) {

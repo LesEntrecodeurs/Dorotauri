@@ -322,24 +322,20 @@ export default function ProjectsPage() {
 
   // Handle creating a new agent
   const handleCreateAgent = async (
-    projectPath: string,
     skills: string[],
     prompt: string,
     model?: string,
     worktree?: { enabled: boolean; branchName: string },
     character?: AgentCharacter,
     name?: string,
-    secondaryProjectPath?: string,
     skipPermissions?: boolean
   ) => {
     try {
       const agent = await createAgent({
-        cwd: projectPath,
         skills,
         worktree,
         character,
         name,
-        secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined,
         skipPermissions,
       });
 
@@ -1121,12 +1117,8 @@ export default function ProjectsPage() {
         open={showAgentDialog}
         onClose={() => setShowAgentDialog(false)}
         onSubmit={handleCreateAgent}
-        projects={electronProjects.map(p => ({ path: p.path, name: p.name }))}
-        onBrowseFolder={isElectron() ? openFolderDialog : undefined}
         installedSkills={installedSkills}
         onRefreshSkills={refreshSkills}
-        initialProjectPath={selectedProject?.path}
-        initialStep={2}
       />
     </div>
   );

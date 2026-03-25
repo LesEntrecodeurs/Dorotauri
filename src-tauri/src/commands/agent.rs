@@ -383,6 +383,13 @@ pub fn agent_update(
         if let Some(is_super) = params.get("isSuperAgent").and_then(|v| v.as_bool()) {
             agent.is_super_agent = is_super;
         }
+        if let Some(scope) = params.get("superAgentScope") {
+            if scope.is_null() {
+                agent.super_agent_scope = None;
+            } else if let Some(s) = scope.as_str() {
+                agent.super_agent_scope = Some(s.to_string());
+            }
+        }
         if let Some(bs) = params.get("businessState").and_then(|v| v.as_str()) {
             agent.business_state = Some(bs.to_string());
         }

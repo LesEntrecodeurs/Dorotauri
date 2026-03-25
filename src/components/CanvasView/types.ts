@@ -5,7 +5,7 @@ export interface AgentNode {
   character: string;
   status: 'running' | 'inactive' | 'dormant' | 'waiting' | 'error' | 'completed';
   skills: string[];
-  projectPath: string;
+  cwd: string;
   position: { x: number; y: number };
 }
 

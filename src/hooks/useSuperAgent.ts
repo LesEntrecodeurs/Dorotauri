@@ -4,17 +4,10 @@ import { isTauri } from '@/hooks/useTauri';
 import type { Agent, AgentCharacter } from '@/types/electron';
 import { ORCHESTRATOR_PROMPT } from '@/components/AgentList/constants';
 
-interface Project {
-  path: string;
-  name: string;
-}
-
 interface UseSuperAgentProps {
   agents: Agent[];
-  projects: Project[];
   createAgent: (params: {
-    cwd: string;
-    skills: string[];
+    skills?: string[];
     character?: AgentCharacter;
     name?: string;
     skipPermissions?: boolean;
@@ -25,7 +18,6 @@ interface UseSuperAgentProps {
 
 export function useSuperAgent({
   agents,
-  projects,
   createAgent,
   startAgent,
   onAgentCreated,
@@ -33,10 +25,7 @@ export function useSuperAgent({
   const [isCreatingSuperAgent, setIsCreatingSuperAgent] = useState(false);
 
   const superAgent = useMemo(() => {
-    return agents.find(a =>
-      a.name?.toLowerCase().includes('super agent') ||
-      a.name?.toLowerCase().includes('orchestrator')
-    ) || null;
+    return agents.find(a => a.isSuperAgent === true) || null;
   }, [agents]);
 
   const handleSuperAgentClick = useCallback(async () => {
@@ -79,11 +68,7 @@ export function useSuperAgent({
     // Create a new super agent
     setIsCreatingSuperAgent(true);
     try {
-      // Use the first project path or a default
-      const cwd = projects[0]?.path || '/tmp';
-
       const agent = await createAgent({
-        cwd,
         skills: [],
         character: 'wizard',
         name: 'Super Agent (Orchestrator)',
@@ -101,7 +86,7 @@ export function useSuperAgent({
     } finally {
       setIsCreatingSuperAgent(false);
     }
-  }, [superAgent, projects, createAgent, startAgent, onAgentCreated]);
+  }, [superAgent, createAgent, startAgent, onAgentCreated]);
 
   return {
     superAgent,

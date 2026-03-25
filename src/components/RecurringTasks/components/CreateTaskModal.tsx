@@ -97,7 +97,7 @@ export function CreateTaskModal({
                     onFormChange({
                       ...formData,
                       agentId: e.target.value,
-                      projectPath: selectedAgent?.projectPath || formData.projectPath,
+                      projectPath: selectedAgent?.cwd || formData.projectPath,
                     });
                   }}
                   className="w-full px-3 py-2 bg-secondary border border-border"
@@ -105,7 +105,7 @@ export function CreateTaskModal({
                   <option value="">No agent (use project path below)</option>
                   {agents.map(agent => (
                     <option key={agent.id} value={agent.id}>
-                      {agent.name || agent.id} - {agent.projectPath.split('/').pop()}
+                      {agent.name || agent.id} - {agent.cwd.split('/').pop()}
                     </option>
                   ))}
                 </select>

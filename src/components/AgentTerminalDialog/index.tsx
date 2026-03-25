@@ -136,13 +136,13 @@ export default function AgentTerminalDialog({
         console.error('Failed to send /add-dir command:', err);
       }
     }
-    if (window.electronAPI?.agent?.setSecondaryProject) {
+    if (window.electronAPI?.agent?.update) {
       try {
-        const result = await window.electronAPI.agent.setSecondaryProject({ id: agent.id, secondaryPaths: path ? [path] : [] });
+        const result = await window.electronAPI.agent.update({ id: agent.id, secondaryPaths: path ? [path] : [] });
         if (result.success && result.agent && onAgentUpdated) onAgentUpdated(result.agent as Agent);
         if (result.success) setCustomSecondaryPath('');
       } catch (err) {
-        console.error('Failed to set secondary project:', err);
+        console.error('Failed to update secondary paths:', err);
       }
     }
   }, [agent, onAgentUpdated]);

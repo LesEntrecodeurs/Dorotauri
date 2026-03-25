@@ -3,12 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import type { AgentCharacter, Agent } from '@/types/electron';
 
 interface CreateAgentConfig {
-  cwd: string;
   skills: string[];
   worktree?: { enabled: boolean; branchName: string };
   character?: AgentCharacter;
   name?: string;
-  secondaryPaths?: string[];
   skipPermissions?: boolean;
 }
 
@@ -16,7 +14,6 @@ interface UseAgentActionsProps {
   stopAgent: (id: string) => void;
   startAgent: (id: string, prompt: string, options?: { model?: string }) => Promise<void>;
   createAgent: (config: CreateAgentConfig) => Promise<Agent>;
-  projects: { path: string; name: string }[];
   superAgent: Agent | null;
   setTerminalAgentId: (id: string | null) => void;
 }
@@ -25,7 +22,6 @@ export function useAgentActions({
   stopAgent,
   startAgent,
   createAgent,
-  projects,
   superAgent,
   setTerminalAgentId,
 }: UseAgentActionsProps) {
@@ -64,18 +60,16 @@ export function useAgentActions({
   }, []);
 
   const handleCreateAgent = useCallback(async (
-    projectPath: string,
     skills: string[],
     prompt: string,
     model?: string,
     worktree?: { enabled: boolean; branchName: string },
     character?: AgentCharacter,
     name?: string,
-    secondaryProjectPath?: string,
     skipPermissions?: boolean
   ) => {
     try {
-      const agent = await createAgent({ cwd: projectPath, skills, worktree, character, name, secondaryPaths: secondaryProjectPath ? [secondaryProjectPath] : undefined, skipPermissions });
+      const agent = await createAgent({ skills, worktree, character, name, skipPermissions });
       setShowCreateAgentModal(false);
       setCreateAgentProjectPath(null);
 
@@ -123,10 +117,7 @@ export function useAgentActions({
 
     setIsCreatingSuperAgent(true);
     try {
-      const projectPath = projects[0]?.path || '/tmp';
-
       const agent = await createAgent({
-        cwd: projectPath,
         skills: [],
         character: 'wizard',
         name: 'Super Agent (Orchestrator)',
@@ -140,7 +131,7 @@ export function useAgentActions({
     } finally {
       setIsCreatingSuperAgent(false);
     }
-  }, [superAgent, projects, createAgent, startAgent, setTerminalAgentId]);
+  }, [superAgent, createAgent, startAgent, setTerminalAgentId]);
 
   const closeCreateAgentModal = useCallback(() => {
     setShowCreateAgentModal(false);

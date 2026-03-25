@@ -58,7 +58,7 @@ export function useTaskForm(
       }
 
       const selectedAgent = agents.find(a => a.id === formData.agentId);
-      const projectPath = formData.projectPath || selectedAgent?.projectPath || '';
+      const projectPath = formData.projectPath || selectedAgent?.cwd || '';
 
       if (!formData.title.trim()) {
         setCreateError('Please enter a title for this task');

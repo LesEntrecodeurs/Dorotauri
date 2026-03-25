@@ -139,7 +139,7 @@ export function AgentNodeCard({
         <div className="p-3 space-y-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <FolderGit2 className="w-3 h-3 text-chart-2" />
-            <span className="truncate">{node.projectPath.split('/').pop()}</span>
+            <span className="truncate">{node.cwd.split('/').pop()}</span>
           </div>
 
           {node.skills.length > 0 && (
