@@ -153,6 +153,11 @@ function ProjectSection({
           <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
 
+        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+          group.runningCount === group.containers.length ? 'bg-green-500' :
+          group.runningCount > 0 ? 'bg-orange-500' : 'bg-gray-500'
+        }`} />
+
         {isStandalone ? (
           <Box className="w-4 h-4 text-muted-foreground shrink-0" />
         ) : (
