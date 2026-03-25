@@ -1,230 +1,123 @@
 
-
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import type { CustomTab, ActiveTab, LayoutPreset } from '../types';
-import { LAYOUT_PRESETS, getAutoLayout } from '../constants';
+import { invoke } from '@tauri-apps/api/core';
+import type { Tab, Agent } from '../../../types/electron.d';
+import type { LayoutPreset } from '../types';
 import { deleteTabLayouts } from './useGridLayoutStorage';
 
-const STORAGE_KEY = 'terminals-tab-manager';
 const MAX_TABS = 6;
 
-interface TabManagerState {
-  customTabs: CustomTab[];
-  activeTab: ActiveTab;
-}
-
-function createDefaultState(): TabManagerState {
-  const mainTab: CustomTab = {
-    id: crypto.randomUUID(),
-    name: 'Main',
-    agentIds: [],
-    layout: '2x2',
-  };
-  return {
-    customTabs: [mainTab],
-    activeTab: { type: 'custom', tabId: mainTab.id },
-  };
-}
-
-function loadState(): TabManagerState {
-  if (typeof window === 'undefined') return createDefaultState();
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved) as TabManagerState;
-      if (parsed.customTabs && parsed.activeTab) {
-        return parsed;
-      }
-    }
-  } catch { /* ignore */ }
-  return createDefaultState();
-}
-
-function saveState(state: TabManagerState) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch { /* ignore */ }
-}
-
 interface UseTabManagerOptions {
-  existingAgentIds: string[];
-  isLoading: boolean;
+  agents: Agent[];
 }
 
-export function useTabManager({ existingAgentIds, isLoading }: UseTabManagerOptions) {
-  const [state, setState] = useState<TabManagerState>(loadState);
+export function useTabManager({ agents }: UseTabManagerOptions) {
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
-  // Persist on every state change
+  // Load tabs from backend on mount
   useEffect(() => {
-    saveState(state);
-  }, [state]);
-
-  // Sync stale agent IDs: remove agents that no longer exist from all tabs.
-  // SKIP while loading — agents haven't been fetched yet, so the set would be
-  // empty and wipe every board.
-  useEffect(() => {
-    if (isLoading) return;
-    if (existingAgentIds.length === 0) return; // nothing loaded yet
-
-    const validIds = new Set(existingAgentIds);
-    setState(prev => {
-      let changed = false;
-      const updatedTabs = prev.customTabs.map(tab => {
-        const filtered = tab.agentIds.filter(id => validIds.has(id));
-        if (filtered.length !== tab.agentIds.length) {
-          changed = true;
-          return { ...tab, agentIds: filtered };
-        }
-        return tab;
-      });
-      if (!changed) return prev;
-      return { ...prev, customTabs: updatedTabs };
+    invoke<Tab[]>('tab_list').then(loadedTabs => {
+      setTabs(loadedTabs);
+      if (loadedTabs.length > 0) {
+        setActiveTabId(prev => prev ?? loadedTabs[0].id);
+      }
+    }).catch(err => {
+      console.error('[useTabManager] Failed to load tabs:', err);
     });
-  }, [existingAgentIds, isLoading]);
+  }, []);
+
+  // Derive agents for the active tab from Agent.tabId
+  const activeTabAgents = useMemo(
+    () => agents.filter(a => a.tabId === activeTabId),
+    [agents, activeTabId]
+  );
 
   // --- Tab CRUD ---
 
-  const createTab = useCallback((name: string) => {
-    setState(prev => {
-      if (prev.customTabs.length >= MAX_TABS) return prev;
-      const newTab: CustomTab = {
-        id: crypto.randomUUID(),
-        name: name || `Tab ${prev.customTabs.length + 1}`,
-        agentIds: [],
-        layout: '2x2',
-      };
-      return {
-        customTabs: [...prev.customTabs, newTab],
-        activeTab: { type: 'custom', tabId: newTab.id },
-      };
+  const createTab = useCallback(async (name: string): Promise<Tab> => {
+    const tab = await invoke<Tab>('tab_create', { name: name || `Tab ${tabs.length + 1}` });
+    setTabs(prev => {
+      if (prev.length >= MAX_TABS) return prev;
+      return [...prev, tab];
+    });
+    setActiveTabId(tab.id);
+    return tab;
+  }, [tabs.length]);
+
+  const deleteTab = useCallback(async (id: string): Promise<void> => {
+    deleteTabLayouts(id);
+    await invoke('tab_delete', { id });
+    setTabs(prev => {
+      const idx = prev.findIndex(t => t.id === id);
+      const remaining = prev.filter(t => t.id !== id);
+      setActiveTabId(current => {
+        if (current !== id) return current;
+        if (remaining.length === 0) return null;
+        const nextIdx = Math.min(idx, remaining.length - 1);
+        return remaining[nextIdx].id;
+      });
+      return remaining;
     });
   }, []);
 
-  const deleteTab = useCallback((tabId: string) => {
-    deleteTabLayouts(tabId);
-    setState(prev => {
-      const idx = prev.customTabs.findIndex(t => t.id === tabId);
-      if (idx === -1) return prev;
-      const remaining = prev.customTabs.filter(t => t.id !== tabId);
-      let activeTab = prev.activeTab;
-      // If we're deleting the active tab, switch to next board or first project tab
-      if (prev.activeTab.type === 'custom' && prev.activeTab.tabId === tabId) {
-        if (remaining.length > 0) {
-          const nextIdx = Math.min(idx, remaining.length - 1);
-          activeTab = { type: 'custom', tabId: remaining[nextIdx].id };
-        } else {
-          // No boards left — activeTab stays as-is, UI will show empty + create prompt
-          activeTab = { type: 'custom', tabId: '' };
-        }
-      }
-      return { customTabs: remaining, activeTab };
-    });
+  const renameTab = useCallback(async (id: string, name: string): Promise<void> => {
+    await invoke('tab_update', { id, name });
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, name } : t));
   }, []);
 
-  const renameTab = useCallback((tabId: string, name: string) => {
-    setState(prev => ({
-      ...prev,
-      customTabs: prev.customTabs.map(t =>
-        t.id === tabId ? { ...t, name: name || t.name } : t
-      ),
-    }));
+  const updateLayout = useCallback(async (id: string, layout: LayoutPreset): Promise<void> => {
+    await invoke('tab_update', { id, layout });
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, layout } : t));
   }, []);
 
-  const reorderTabs = useCallback((fromIndex: number, toIndex: number) => {
-    setState(prev => {
-      const tabs = [...prev.customTabs];
-      const [moved] = tabs.splice(fromIndex, 1);
-      tabs.splice(toIndex, 0, moved);
-      return { ...prev, customTabs: tabs };
-    });
+  const reorderTabs = useCallback(async (tabIds: string[]): Promise<void> => {
+    await invoke('tab_reorder', { tabIds });
+    setTabs(prev => tabIds.map(id => prev.find(t => t.id === id)!).filter(Boolean));
   }, []);
 
-  // --- Agent membership ---
-
-  const addAgentToTab = useCallback((tabId: string, agentId: string) => {
-    setState(prev => {
-      const tab = prev.customTabs.find(t => t.id === tabId);
-      if (!tab || tab.agentIds.includes(agentId)) return prev;
-
-      const newAgentIds = [...tab.agentIds, agentId];
-      // Auto-upgrade layout if agents exceed maxPanels
-      let newLayout = tab.layout;
-      const currentMax = LAYOUT_PRESETS[newLayout].maxPanels;
-      if (newAgentIds.length > currentMax) {
-        newLayout = getAutoLayout(newAgentIds.length);
-      }
-
-      return {
-        ...prev,
-        customTabs: prev.customTabs.map(t =>
-          t.id === tabId ? { ...t, agentIds: newAgentIds, layout: newLayout } : t
-        ),
-      };
-    });
+  // Move agent to tab — updates the agent's tabId via agent_update
+  const moveAgentToTab = useCallback(async (agentId: string, tabId: string): Promise<void> => {
+    await invoke('agent_update', { id: agentId, tabId });
   }, []);
 
-  const removeAgentFromTab = useCallback((tabId: string, agentId: string) => {
-    setState(prev => ({
-      ...prev,
-      customTabs: prev.customTabs.map(t =>
-        t.id === tabId
-          ? { ...t, agentIds: t.agentIds.filter(id => id !== agentId) }
-          : t
-      ),
-    }));
-  }, []);
-
-  // --- Layout ---
-
-  const setTabLayout = useCallback((tabId: string, preset: LayoutPreset) => {
-    setState(prev => ({
-      ...prev,
-      customTabs: prev.customTabs.map(t =>
-        t.id === tabId ? { ...t, layout: preset } : t
-      ),
-    }));
-  }, []);
-
-  // --- Active tab ---
-
-  const setActiveTab = useCallback((tab: ActiveTab) => {
-    setState(prev => ({ ...prev, activeTab: tab }));
-  }, []);
+  // Create a new tab and move an agent into it
+  const createTabAndMoveAgent = useCallback(async (agentId: string): Promise<void> => {
+    if (tabs.length >= MAX_TABS) return;
+    const newTab = await invoke<Tab>('tab_create', { name: `Tab ${tabs.length + 1}` });
+    setTabs(prev => [...prev, newTab]);
+    await invoke('agent_update', { id: agentId, tabId: newTab.id });
+  }, [tabs.length]);
 
   // --- Derived values ---
 
-  const activeCustomTab = useMemo(() => {
-    const tab = state.activeTab;
-    if (tab.type !== 'custom') return null;
-    return state.customTabs.find(t => t.id === tab.tabId) || null;
-  }, [state.customTabs, state.activeTab]);
+  const activeTab = useMemo(
+    () => tabs.find(t => t.id === activeTabId) ?? null,
+    [tabs, activeTabId]
+  );
 
-  const activeProjectPath = useMemo(() => {
-    const tab = state.activeTab;
-    if (tab.type !== 'project') return null;
-    return tab.projectPath;
-  }, [state.activeTab]);
-
-  const isCustomTabActive = state.activeTab.type === 'custom';
-  const isProjectTabActive = state.activeTab.type === 'project';
-  const canCreateTab = state.customTabs.length < MAX_TABS;
+  const canCreateTab = tabs.length < MAX_TABS;
 
   return {
-    customTabs: state.customTabs,
-    activeTab: state.activeTab,
+    // Tab state
+    tabs,
+    activeTabId,
+    setActiveTabId,
+    activeTab,
+    activeTabAgents,
+
+    // Tab CRUD
     createTab,
     deleteTab,
     renameTab,
+    updateLayout,
     reorderTabs,
-    addAgentToTab,
-    removeAgentFromTab,
-    setTabLayout,
-    setActiveTab,
-    activeCustomTab,
-    activeProjectPath,
-    isCustomTabActive,
-    isProjectTabActive,
+
+    // Agent ↔ tab membership
+    moveAgentToTab,
+    createTabAndMoveAgent,
+
+    // Guards
     canCreateTab,
   };
 }

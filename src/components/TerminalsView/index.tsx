@@ -68,34 +68,17 @@ export default function TerminalsView() {
     }).catch(() => { setTerminalSettingsLoaded(true); });
   }, []);
 
-  // Tab manager — core state for two-tier tab system
-  const allAgentIds = useMemo(() => agents.map(a => a.id), [agents]);
-  const tabManager = useTabManager({ existingAgentIds: allAgentIds, isLoading });
+  // Tab manager — core state backed by Tauri IPC
+  const tabManager = useTabManager({ agents });
 
-  // Derive agents for current active tab
-  const filteredAgents = useMemo(() => {
-    if (tabManager.isCustomTabActive && tabManager.activeCustomTab) {
-      // Custom tab: agents in tab order
-      const idSet = new Set(tabManager.activeCustomTab.agentIds);
-      const agentMap = new Map(agents.map(a => [a.id, a]));
-      return tabManager.activeCustomTab.agentIds
-        .map(id => agentMap.get(id))
-        .filter((a): a is NonNullable<typeof a> => !!a);
-    }
-    if (tabManager.isProjectTabActive && tabManager.activeProjectPath) {
-      // Project tab: all agents for that project
-      return agents.filter(a => a.projectPath === tabManager.activeProjectPath);
-    }
-    return [];
-  }, [agents, tabManager.isCustomTabActive, tabManager.isProjectTabActive, tabManager.activeCustomTab, tabManager.activeProjectPath]);
+  // Agents for the active tab are derived from Agent.tabId
+  const filteredAgents = tabManager.activeTabAgents;
 
   // Derive grid preset and editable state
-  const gridPreset: LayoutPreset = tabManager.activeCustomTab?.layout || '3x3';
-  const isEditable = tabManager.isCustomTabActive;
-  const tabType: 'custom' | 'project' = tabManager.isCustomTabActive ? 'custom' : 'project';
-  const tabId = tabManager.isCustomTabActive && tabManager.activeCustomTab
-    ? tabManager.activeCustomTab.id
-    : tabManager.activeProjectPath || 'default';
+  const gridPreset: LayoutPreset = (tabManager.activeTab?.layout as LayoutPreset) || '3x3';
+  const isEditable = !!tabManager.activeTabId;
+  const tabType: 'custom' | 'project' = 'custom';
+  const tabId = tabManager.activeTabId || 'default';
 
   // Compute disabled presets for layout selector
   const agentCount = filteredAgents.length;
@@ -105,8 +88,11 @@ export default function TerminalsView() {
     );
   }, [agentCount]);
 
-  // Current tab agent IDs (for AddAgentDropdown)
-  const currentTabAgentIds = tabManager.activeCustomTab?.agentIds || [];
+  // Current tab agent IDs (for AddAgentDropdown) — derived from Agent.tabId
+  const currentTabAgentIds = useMemo(
+    () => filteredAgents.map(a => a.id),
+    [filteredAgents]
+  );
 
   // Agent IDs for grid
   const agentIds = useMemo(() => filteredAgents.map(a => a.id), [filteredAgents]);
@@ -176,31 +162,31 @@ export default function TerminalsView() {
     await stopAgent(agentId);
   }, [stopAgent]);
 
-  // Remove from tab (custom tabs): stop agent + remove from tab membership
+  // Remove agent from its tab by clearing tabId, then stop it
   const handleRemoveFromTab = useCallback(async (agentId: string) => {
-    if (tabManager.isCustomTabActive && tabManager.activeCustomTab) {
-      await stopAgent(agentId);
-      tabManager.removeAgentFromTab(tabManager.activeCustomTab.id, agentId);
-    }
+    await stopAgent(agentId);
+    await tabManager.moveAgentToTab(agentId, '');
   }, [stopAgent, tabManager]);
 
-  // For project tabs: full remove (backwards compat)
+  // Full remove: unregister terminal and delete agent
   const handleRemoveAgent = useCallback(async (agentId: string) => {
-    if (tabManager.isCustomTabActive && tabManager.activeCustomTab) {
-      // Custom tab: remove from tab, stop agent
-      await stopAgent(agentId);
-      tabManager.removeAgentFromTab(tabManager.activeCustomTab.id, agentId);
-    } else {
-      // Project tab: actual remove
-      multiTerminal.unregisterContainer(agentId);
-      await removeAgent(agentId);
-    }
-  }, [stopAgent, removeAgent, multiTerminal, tabManager]);
+    multiTerminal.unregisterContainer(agentId);
+    await removeAgent(agentId);
+  }, [removeAgent, multiTerminal]);
 
-  const handleAddAgentToTab = useCallback((agentId: string) => {
-    if (tabManager.activeCustomTab) {
-      tabManager.addAgentToTab(tabManager.activeCustomTab.id, agentId);
+  // Add agent to active tab by updating its tabId
+  const handleAddAgentToTab = useCallback(async (agentId: string) => {
+    if (tabManager.activeTabId) {
+      await tabManager.moveAgentToTab(agentId, tabManager.activeTabId);
     }
+  }, [tabManager]);
+
+  const handleMoveToTab = useCallback(async (agentId: string, targetTabId: string) => {
+    await tabManager.moveAgentToTab(agentId, targetTabId);
+  }, [tabManager]);
+
+  const handleMoveToNewTab = useCallback(async (agentId: string) => {
+    await tabManager.createTabAndMoveAgent(agentId);
   }, [tabManager]);
 
   const handleFocusPanel = useCallback((agentId: string) => {
@@ -232,8 +218,8 @@ export default function TerminalsView() {
   }, [agents]);
 
   const handleLayoutChange = useCallback((preset: LayoutPreset) => {
-    if (tabManager.activeCustomTab) {
-      tabManager.setTabLayout(tabManager.activeCustomTab.id, preset);
+    if (tabManager.activeTabId) {
+      tabManager.updateLayout(tabManager.activeTabId, preset);
     }
   }, [tabManager]);
 
@@ -256,11 +242,9 @@ export default function TerminalsView() {
       name,
       secondaryProjectPath,
       skipPermissions,
+      tabId: tabManager.activeTabId ?? undefined,
     });
-    // Auto-add to active custom tab
-    if (tabManager.isCustomTabActive && tabManager.activeCustomTab) {
-      tabManager.addAgentToTab(tabManager.activeCustomTab.id, agent.id);
-    }
+    // Agent is created with tabId — no separate addAgentToTab needed
     // Defer start until the terminal for this agent is initialized.
     // The onTerminalReady callback will fire startAgent once xterm is ready.
     if (prompt) {
@@ -325,7 +309,7 @@ export default function TerminalsView() {
           onZoomReset={multiTerminal.zoomReset}
           isViewFullscreen={viewFullscreen}
           onToggleViewFullscreen={() => setViewFullscreen(prev => !prev)}
-          isCustomTabActive={tabManager.isCustomTabActive}
+          isCustomTabActive={!!tabManager.activeTabId}
           allAgents={agents}
           currentTabAgentIds={currentTabAgentIds}
           onAddAgentToTab={handleAddAgentToTab}
@@ -334,14 +318,19 @@ export default function TerminalsView() {
 
         {/* Custom tab bar — top */}
         <CustomTabBar
-          tabs={tabManager.customTabs}
-          activeTab={tabManager.activeTab}
+          tabs={tabManager.tabs}
+          activeTab={tabManager.activeTabId}
           canCreateTab={tabManager.canCreateTab}
-          onSelectTab={(tabId) => tabManager.setActiveTab({ type: 'custom', tabId })}
+          onSelectTab={tabManager.setActiveTabId}
           onCreateTab={tabManager.createTab}
           onDeleteTab={tabManager.deleteTab}
           onRenameTab={tabManager.renameTab}
-          onReorderTabs={tabManager.reorderTabs}
+          onReorderTabs={async (fromIndex, toIndex) => {
+            const reordered = [...tabManager.tabs];
+            const [moved] = reordered.splice(fromIndex, 1);
+            reordered.splice(toIndex, 0, moved);
+            await tabManager.reorderTabs(reordered.map(t => t.id));
+          }}
         />
 
         {/* Terminal grid — takes full space, relative for sidebar panel */}
@@ -387,8 +376,8 @@ export default function TerminalsView() {
         {/* Project tab bar — bottom */}
         <ProjectTabBar
           agents={agents}
-          activeTab={tabManager.activeTab}
-          onSelectProject={(path) => tabManager.setActiveTab({ type: 'project', projectPath: path })}
+          activeTab={tabManager.activeTabId}
+          onSelectProject={() => {/* project tabs are deprecated — no-op */}}
           panelOpen={panelOpen}
           onTogglePanel={() => setPanelOpen(prev => !prev)}
         />
@@ -406,6 +395,11 @@ export default function TerminalsView() {
           onClear={multiTerminal.clearTerminal}
           onFullscreen={grid.fullscreenPanel}
           onCopyOutput={handleCopyOutput}
+          tabs={tabManager.tabs}
+          activeTabId={tabManager.activeTabId}
+          onMoveToTab={handleMoveToTab}
+          onMoveToNewTab={handleMoveToNewTab}
+          onNewAgent={() => setShowNewChatModal(true)}
         />
 
         {/* New Chat Modal */}

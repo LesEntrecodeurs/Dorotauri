@@ -3,11 +3,10 @@
 import { useMemo } from 'react';
 import { FolderOpen, List } from 'lucide-react';
 import type { AgentStatus } from '@/types/electron';
-import type { ActiveTab } from '../types';
 
 interface ProjectTabBarProps {
   agents: AgentStatus[];
-  activeTab: ActiveTab;
+  activeTab: string | null;
   onSelectProject: (projectPath: string) => void;
   panelOpen: boolean;
   onTogglePanel: () => void;
@@ -37,8 +36,10 @@ export default function ProjectTabBar({
   }, [agents]);
 
   const running = agents.filter(a => a.status === 'running' || a.status === 'waiting').length;
-  const isActive = (path: string) =>
-    activeTab.type === 'project' && activeTab.projectPath === path;
+  // ProjectTabBar is a legacy view; with the new tab system all agents belong
+  // to a custom tab via Agent.tabId. Project filtering is no longer surfaced
+  // here, so nothing is ever "active" in this bar.
+  const isActive = (_path: string) => false;
 
   return (
     <div className="flex items-center gap-0.5 px-3 py-1.5 bg-secondary border-t border-border !rounded-none">

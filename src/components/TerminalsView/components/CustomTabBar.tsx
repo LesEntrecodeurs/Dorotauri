@@ -2,10 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
-import type { CustomTab, ActiveTab } from '../types';
+import type { ActiveTab } from '../types';
+import type { Tab } from '../../../types/electron.d';
 
 interface CustomTabBarProps {
-  tabs: CustomTab[];
+  tabs: Tab[];
   activeTab: ActiveTab;
   canCreateTab: boolean;
   onSelectTab: (tabId: string) => void;
@@ -25,6 +26,7 @@ export default function CustomTabBar({
   onRenameTab,
   onReorderTabs,
 }: CustomTabBarProps) {
+  // activeTab is now a string (tab ID) or null
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -63,7 +65,7 @@ export default function CustomTabBar({
     return () => window.removeEventListener('mousedown', handler);
   }, [showCreateDialog]);
 
-  const startEditing = useCallback((tab: CustomTab) => {
+  const startEditing = useCallback((tab: Tab) => {
     setEditingId(tab.id);
     setEditValue(tab.name);
   }, []);
@@ -127,8 +129,7 @@ export default function CustomTabBar({
     setDragOverIdx(null);
   }, []);
 
-  const isActive = (tabId: string) =>
-    activeTab.type === 'custom' && activeTab.tabId === tabId;
+  const isActive = (tabId: string) => activeTab === tabId;
 
   return (
     <div className="flex items-center gap-0.5 py-1 !rounded-none bg-secondary border-b border-border overflow-x-auto scrollbar-none">
@@ -165,9 +166,6 @@ export default function CustomTabBar({
           ) : (
             <span>{tab.name}</span>
           )}
-
-          {/* Agent count badge */}
-          <span className="text-[10px] opacity-50">{tab.agentIds.length}</span>
 
           {/* Delete button */}
           <button

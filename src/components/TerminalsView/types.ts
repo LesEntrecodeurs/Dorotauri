@@ -72,20 +72,18 @@ export interface ContextMenuState {
   agentId: string | null;
 }
 
-// --- Two-tier tab system ---
+// --- Tab system ---
 
 export interface CustomTab {
-  id: string;           // crypto.randomUUID()
+  id: string;           // from backend
   name: string;         // user-editable
-  agentIds: string[];   // ordered list of agents on this tab
-  layout: LayoutPreset; // per-tab layout preset
+  layout?: LayoutPreset; // per-tab layout preset (stored in backend tab.layout)
 }
 
-export type ActiveTab =
-  | { type: 'custom'; tabId: string }
-  | { type: 'project'; projectPath: string };
+// Active tab is simply the tab ID string (or null when no tabs exist)
+export type ActiveTab = string | null;
 
 export interface TabManagerState {
   customTabs: CustomTab[];
-  activeTab: ActiveTab;
+  activeTabId: ActiveTab;
 }
