@@ -191,7 +191,7 @@ function UsageBars() {
           <div className="flex items-center justify-between mb-1">
             <span className="text-[9px] text-sidebar-foreground-faint">Session 5h</span>
             <span className="text-[9px] text-sidebar-foreground-faint">
-              {formatSessionReset(fiveHour.resetsAt)}
+              {Math.round(fiveHour.usedPercentage)}% · {formatSessionReset(fiveHour.resetsAt)}
             </span>
           </div>
           <div className={`h-[3px] w-full rounded-full overflow-hidden ${barTrackColor(fiveHour.usedPercentage)}`}>
@@ -207,7 +207,7 @@ function UsageBars() {
           <div className="flex items-center justify-between mb-1">
             <span className="text-[9px] text-sidebar-foreground-faint">Week</span>
             <span className="text-[9px] text-sidebar-foreground-faint">
-              {formatWeekReset(sevenDay.resetsAt)}
+              {Math.round(sevenDay.usedPercentage)}% · {formatWeekReset(sevenDay.resetsAt)}
             </span>
           </div>
           <div className={`h-[3px] w-full rounded-full overflow-hidden ${barTrackColor(sevenDay.usedPercentage)}`}>
@@ -244,9 +244,6 @@ export default function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      {/* macOS traffic light spacer */}
-      <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
-
       {/* Header: logo + hover-reveal collapse buttons */}
       <SidebarHeader className="group/header group-data-[collapsible=icon]/sidebar:p-1">
         <div className="flex items-center px-2 py-2 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
