@@ -177,6 +177,8 @@ pub fn agent_start(
     // Add prompt if provided
     if let Some(ref p) = prompt {
         cmd_parts.push("--print".into());
+        // Sanitize newlines to prevent breaking the shell command
+        let p = p.replace('\n', " ");
         // Shell-escape the prompt by wrapping in single quotes
         let escaped = p.replace('\'', "'\\''");
         cmd_parts.push(format!("'{escaped}'"));
@@ -239,7 +241,7 @@ pub fn agent_stop(
             pty_manager.kill(pty_id).ok();
         }
 
-        agent.process_state = ProcessState::Dormant;
+        agent.process_state = ProcessState::Inactive;
         agent.pty_id = None;
         agent.last_activity = now;
         (agent.clone(), was_running)
