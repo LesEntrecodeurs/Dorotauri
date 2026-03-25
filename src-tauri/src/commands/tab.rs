@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tauri::State;
 
 use crate::state::{AppState, ProcessState, Tab};
@@ -7,7 +8,7 @@ use crate::state::{AppState, ProcessState, Tab};
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn tab_list(state: State<'_, AppState>) -> Vec<Tab> {
+pub fn tab_list(state: State<'_, Arc<AppState>>) -> Vec<Tab> {
     let tabs = state.tabs.lock().unwrap();
     tabs.clone()
 }
@@ -17,7 +18,7 @@ pub fn tab_list(state: State<'_, AppState>) -> Vec<Tab> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn tab_create(state: State<'_, AppState>, name: String) -> Result<Tab, String> {
+pub fn tab_create(state: State<'_, Arc<AppState>>, name: String) -> Result<Tab, String> {
     let mut tabs = state.tabs.lock().unwrap();
 
     if tabs.len() >= 6 {
@@ -44,7 +45,7 @@ pub fn tab_create(state: State<'_, AppState>, name: String) -> Result<Tab, Strin
 
 #[tauri::command]
 pub fn tab_update(
-    state: State<'_, AppState>,
+    state: State<'_, Arc<AppState>>,
     id: String,
     name: Option<String>,
     layout: Option<serde_json::Value>,
@@ -75,7 +76,7 @@ pub fn tab_update(
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn tab_delete(state: State<'_, AppState>, id: String) -> Result<(), String> {
+pub fn tab_delete(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
     {
         let tabs = state.tabs.lock().unwrap();
         if tabs.len() <= 1 {
@@ -112,7 +113,7 @@ pub fn tab_delete(state: State<'_, AppState>, id: String) -> Result<(), String> 
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn tab_reorder(state: State<'_, AppState>, tab_ids: Vec<String>) -> Result<(), String> {
+pub fn tab_reorder(state: State<'_, Arc<AppState>>, tab_ids: Vec<String>) -> Result<(), String> {
     let mut tabs = state.tabs.lock().unwrap();
 
     if tab_ids.len() != tabs.len() {

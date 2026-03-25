@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tauri::{AppHandle, State};
 use crate::pty::PtyManager;
 
@@ -5,7 +6,7 @@ use crate::pty::PtyManager;
 /// skill install dialogs, plugin install dialogs, etc.
 #[tauri::command]
 pub fn pty_create(
-    pty_manager: State<'_, PtyManager>,
+    pty_manager: State<'_, Arc<PtyManager>>,
     app_handle: AppHandle,
     cwd: Option<String>,
     cols: Option<u16>,
@@ -20,28 +21,28 @@ pub fn pty_create(
 }
 
 #[tauri::command]
-pub fn pty_write(pty_manager: State<'_, PtyManager>, pty_id: String, data: String) -> Result<(), String> {
+pub fn pty_write(pty_manager: State<'_, Arc<PtyManager>>, pty_id: String, data: String) -> Result<(), String> {
     pty_manager.write(&pty_id, data.as_bytes())
 }
 
 #[tauri::command]
-pub fn pty_resize(pty_manager: State<'_, PtyManager>, pty_id: String, cols: u16, rows: u16) -> Result<(), String> {
+pub fn pty_resize(pty_manager: State<'_, Arc<PtyManager>>, pty_id: String, cols: u16, rows: u16) -> Result<(), String> {
     pty_manager.resize(&pty_id, cols, rows)
 }
 
 #[tauri::command]
-pub fn pty_kill(pty_manager: State<'_, PtyManager>, pty_id: String) -> Result<(), String> {
+pub fn pty_kill(pty_manager: State<'_, Arc<PtyManager>>, pty_id: String) -> Result<(), String> {
     pty_manager.kill(&pty_id)
 }
 
 /// Register a key (e.g. agentId) → ptyId mapping so other windows can find the PTY.
 #[tauri::command]
-pub fn pty_register(pty_manager: State<'_, PtyManager>, key: String, pty_id: String) {
+pub fn pty_register(pty_manager: State<'_, Arc<PtyManager>>, key: String, pty_id: String) {
     pty_manager.register(&key, &pty_id);
 }
 
 /// Look up ptyId by key (e.g. agentId). Returns the ptyId if found and still alive.
 #[tauri::command]
-pub fn pty_lookup(pty_manager: State<'_, PtyManager>, key: String) -> Option<String> {
+pub fn pty_lookup(pty_manager: State<'_, Arc<PtyManager>>, key: String) -> Option<String> {
     pty_manager.lookup(&key)
 }

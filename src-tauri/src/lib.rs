@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use tauri::Manager;
 
+pub mod api_server;
 pub mod business_state;
 mod commands;
 mod cwd_tracker;
@@ -13,14 +14,19 @@ mod usage_watcher;
 mod windows;
 
 pub fn run() {
-    let app_state = state::AppState::load();
-    let pty_manager = pty::PtyManager::new();
+    let app_state = Arc::new(state::AppState::load());
+    let pty_manager = Arc::new(pty::PtyManager::new());
     let window_registry = windows::WindowRegistry::new();
     let vault_db = db::VaultDb::open().expect("Failed to initialize vault database");
-    let cwd_tracker = cwd_tracker::CwdTracker::new();
+    let cwd_tracker = Arc::new(cwd_tracker::CwdTracker::new());
 
     // Clone the agents Arc so the polling thread can share it
     let agents_arc = Arc::clone(&app_state.agents);
+
+    // Clone Arcs for the API server
+    let api_app_state = Arc::clone(&app_state);
+    let api_pty_manager = Arc::clone(&pty_manager);
+    let api_cwd_tracker = Arc::clone(&cwd_tracker);
 
     tauri::Builder::default()
         .manage(app_state)
@@ -44,8 +50,17 @@ pub fn run() {
                 },
             );
 
+            // Start API server for MCP orchestrator
+            let handle = app.handle().clone();
+            tokio::spawn(api_server::start(
+                api_app_state,
+                api_pty_manager,
+                api_cwd_tracker,
+                handle,
+            ));
+
             // Start the cwd polling thread
-            let tracker = app.state::<cwd_tracker::CwdTracker>();
+            let tracker = app.state::<Arc<cwd_tracker::CwdTracker>>();
             tracker.start_polling(app.handle().clone(), agents_arc);
 
             // Install statusline script & configure Claude Code

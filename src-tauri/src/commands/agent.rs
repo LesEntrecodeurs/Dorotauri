@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::cwd_tracker::CwdTracker;
@@ -11,7 +12,7 @@ use crate::windows::WindowRegistry;
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn agent_list(state: State<'_, AppState>) -> Vec<Agent> {
+pub fn agent_list(state: State<'_, Arc<AppState>>) -> Vec<Agent> {
     let agents = state.agents.lock().unwrap();
     agents.values().cloned().collect()
 }
@@ -21,7 +22,7 @@ pub fn agent_list(state: State<'_, AppState>) -> Vec<Agent> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn agent_get(id: AgentId, state: State<'_, AppState>) -> Option<Agent> {
+pub fn agent_get(id: AgentId, state: State<'_, Arc<AppState>>) -> Option<Agent> {
     let agents = state.agents.lock().unwrap();
     agents.get(&id).cloned()
 }
@@ -33,7 +34,7 @@ pub fn agent_get(id: AgentId, state: State<'_, AppState>) -> Option<Agent> {
 #[tauri::command]
 pub fn agent_create(
     config: serde_json::Value,
-    state: State<'_, AppState>,
+    state: State<'_, Arc<AppState>>,
 ) -> Result<Agent, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
@@ -133,9 +134,9 @@ pub fn agent_create(
 
 #[tauri::command]
 pub fn agent_start(
-    state: State<'_, AppState>,
-    pty_manager: State<'_, PtyManager>,
-    cwd_tracker: State<'_, CwdTracker>,
+    state: State<'_, Arc<AppState>>,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    cwd_tracker: State<'_, Arc<CwdTracker>>,
     app_handle: AppHandle,
     id: String,
     prompt: Option<String>,
@@ -255,9 +256,9 @@ pub fn agent_start(
 #[tauri::command]
 pub fn agent_stop(
     id: AgentId,
-    state: State<'_, AppState>,
-    pty_manager: State<'_, PtyManager>,
-    cwd_tracker: State<'_, CwdTracker>,
+    state: State<'_, Arc<AppState>>,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    cwd_tracker: State<'_, Arc<CwdTracker>>,
     registry: State<'_, WindowRegistry>,
     app_handle: AppHandle,
 ) -> Result<Agent, String> {
@@ -315,8 +316,8 @@ pub fn agent_stop(
 #[tauri::command]
 pub fn agent_remove(
     id: AgentId,
-    state: State<'_, AppState>,
-    pty_manager: State<'_, PtyManager>,
+    state: State<'_, Arc<AppState>>,
+    pty_manager: State<'_, Arc<PtyManager>>,
 ) -> Result<(), String> {
     let removed = {
         let mut agents = state.agents.lock().unwrap();
@@ -340,7 +341,7 @@ pub fn agent_remove(
 #[tauri::command]
 pub fn agent_update(
     params: serde_json::Value,
-    state: State<'_, AppState>,
+    state: State<'_, Arc<AppState>>,
     app_handle: AppHandle,
 ) -> Result<serde_json::Value, String> {
     let now = chrono::Utc::now().to_rfc3339();
@@ -468,9 +469,9 @@ pub fn agent_update(
 #[tauri::command]
 pub fn agent_set_dormant(
     id: AgentId,
-    state: State<'_, AppState>,
-    pty_manager: State<'_, PtyManager>,
-    cwd_tracker: State<'_, CwdTracker>,
+    state: State<'_, Arc<AppState>>,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    cwd_tracker: State<'_, Arc<CwdTracker>>,
     app_handle: AppHandle,
 ) -> Result<(), String> {
     let now = chrono::Utc::now().to_rfc3339();
@@ -501,9 +502,9 @@ pub fn agent_set_dormant(
 #[tauri::command]
 pub fn agent_reanimate(
     id: AgentId,
-    state: State<'_, AppState>,
-    pty_manager: State<'_, PtyManager>,
-    cwd_tracker: State<'_, CwdTracker>,
+    state: State<'_, Arc<AppState>>,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    cwd_tracker: State<'_, Arc<CwdTracker>>,
     app_handle: AppHandle,
 ) -> Result<Agent, String> {
     let now = chrono::Utc::now().to_rfc3339();
@@ -558,7 +559,7 @@ pub fn agent_reanimate(
 pub fn agent_update_business_state(
     id: AgentId,
     business_state: String,
-    state: State<'_, AppState>,
+    state: State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
     let now = chrono::Utc::now().to_rfc3339();
     {
@@ -580,8 +581,8 @@ pub fn agent_update_business_state(
 pub fn agent_send_input(
     id: AgentId,
     input: String,
-    state: State<'_, AppState>,
-    pty_manager: State<'_, PtyManager>,
+    state: State<'_, Arc<AppState>>,
+    pty_manager: State<'_, Arc<PtyManager>>,
 ) -> Result<(), String> {
     let pty_id = {
         let agents = state.agents.lock().unwrap();
