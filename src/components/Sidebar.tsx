@@ -87,7 +87,7 @@ function UsageBars() {
   if (!fiveHour && !sevenDay) return null;
 
   return (
-    <div className="px-2 py-1.5 space-y-2 group-data-[collapsible=icon]:hidden border-t border-border pt-2">
+    <div className="px-2 py-1.5 space-y-2 group-data-[collapsible=icon]/sidebar:hidden border-t border-border pt-2">
       {fiveHour && (
         <div>
           <div className="flex items-center justify-between mb-1">
@@ -196,17 +196,17 @@ export default function AppSidebar() {
     <Sidebar collapsible="icon">
       {/* macOS traffic light spacer */}
       <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
-      <SidebarHeader className="group-data-[collapsible=icon]:p-0">
-        <div className="flex items-center justify-center px-2 py-2 group-data-[collapsible=icon]:px-0">
+      <SidebarHeader className="group-data-[collapsible=icon]/sidebar:p-0">
+        <div className="flex items-center justify-center px-2 py-2 group-data-[collapsible=icon]/sidebar:px-0">
           <img
             src="/dorotoring-large.svg"
             alt="Dorotoring"
-            className="h-6 w-auto dark:invert group-data-[collapsible=icon]:hidden"
+            className="h-6 w-auto dark:invert group-data-[collapsible=icon]/sidebar:hidden"
           />
           <img
             src="/dorotoing.svg"
             alt="Dorotoring"
-            className="w-6 h-6 dark:invert hidden group-data-[collapsible=icon]:block"
+            className="w-6 h-6 dark:invert hidden group-data-[collapsible=icon]/sidebar:block"
           />
         </div>
         <CollapseToggle />
@@ -285,7 +285,7 @@ export default function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
         <UsageBars />
-        <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+        <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]/sidebar:hidden">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
