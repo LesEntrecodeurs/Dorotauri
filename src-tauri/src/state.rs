@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
 
 pub type AgentId = String;
 pub type PtyId = String;
+pub type StatusTx = broadcast::Sender<(String, String)>;
 
 // ---------------------------------------------------------------------------
 // ProcessState enum — lifecycle state of an agent/terminal process
@@ -416,6 +418,7 @@ pub struct AppState {
     pub agents: Arc<Mutex<HashMap<AgentId, Agent>>>,
     pub settings: Mutex<AppSettings>,
     pub tabs: Arc<Mutex<Vec<Tab>>>,
+    pub status_tx: StatusTx,
 }
 
 impl AppState {
@@ -427,11 +430,13 @@ impl AppState {
         let agents = Self::load_agents(&dorotauri_dir);
         let settings = Self::load_settings(&dorotauri_dir);
         let tabs = Self::load_tabs(&dorotauri_dir);
+        let (status_tx, _) = broadcast::channel::<(String, String)>(64);
 
         Self {
             agents: Arc::new(Mutex::new(agents)),
             settings: Mutex::new(settings),
             tabs: Arc::new(Mutex::new(tabs)),
+            status_tx,
         }
     }
 
