@@ -17,6 +17,17 @@ Core improvements and integrations that are next in line.
 | ⚪ | **Multi-provider project detection** | Detect projects from Codex (`~/.codex/`), OpenCode (`~/.opencode/`), and Gemini CLI alongside Claude Code. Unified project view regardless of which agent CLI created the session. |
 | ⚪ | **Discord integration** | Remote control of the agent fleet via Discord bot — start agents, check status, receive notifications, delegate tasks from a Discord server. Complements existing Telegram and Slack support. |
 
+## Near-term — Backend Rust Migration
+
+Migrate remaining Electron/Node.js services to native Rust within Tauri for lower memory usage, better concurrency, and eliminating the Node.js dependency.
+
+| Status | Feature | Description |
+|--------|---------|-------------|
+| ⚪ | **Slack & Telegram bots** | Rewrite bot services using `reqwest` + `tokio` instead of `@slack/bolt` and `node-telegram-bot-api`. |
+| ⚪ | **Cron parser** | Replace the JS cron parser with the `cron` crate for native scheduling. |
+| ⚪ | **MCP config handling** | Migrate MCP configuration read/write to `serde` + native `std::fs`. |
+| ⚪ | **Process spawning** | Replace Node.js child process management with `tokio::process` for agent lifecycle control. |
+
 ## Mid-term
 
 Larger efforts that expand what Dorotauri can do and where it can run.
