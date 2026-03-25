@@ -198,17 +198,15 @@ export default function AppSidebar() {
       <div className="shrink-0 window-drag-region" style={{ height: 'var(--titlebar-inset)' }} data-tauri-drag-region />
       <SidebarHeader className="group-data-[collapsible=icon]:p-0">
         <div className="flex items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <div className="w-8 h-8 overflow-hidden shrink-0 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8">
-            <img
-              src="/dorotauri-logo.png"
-              alt="Dorotauri"
-              className="w-full h-full object-cover scale-150"
-            />
-          </div>
           <img
-            src="/text.png"
-            alt="Dorotauri"
-            className="h-4 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden"
+            src="/dorotoing.svg"
+            alt="Dorotoring"
+            className="w-7 h-7 shrink-0 dark:invert"
+          />
+          <img
+            src="/dorotoring-large.svg"
+            alt="Dorotoring"
+            className="h-5 w-auto object-contain flex-1 group-data-[collapsible=icon]:hidden dark:invert"
           />
         </div>
         <CollapseToggle />
