@@ -9,3 +9,16 @@ export interface DockerContainer {
   project: string | null;
   service: string | null;
 }
+
+export interface DockerStatus {
+  daemonReady: boolean;
+  dockerInstalled: boolean;
+  colimaInstalled: boolean;
+  colimaRunning: boolean;
+  binariesInstalled: boolean;
+}
+
+export interface SetupProgress {
+  step: string;
+  progress: number;
+}

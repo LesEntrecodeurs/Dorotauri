@@ -226,12 +226,15 @@ export default function DockerPage() {
     loading,
     error,
     actionLoading,
+    daemonState,
+    setupProgress,
     startContainer,
     stopContainer,
     restartContainer,
     startProject,
     stopProject,
     refresh,
+    retry,
   } = useDocker();
 
   const [search, setSearch] = useState('');
@@ -285,6 +288,55 @@ export default function DockerPage() {
         <div>
           <Container className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Docker management is only available in the desktop app.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (daemonState === 'setup') {
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-center">
+        <div className="w-80">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm font-medium mb-3">Setting up Docker...</p>
+          <p className="text-xs text-muted-foreground mb-3">{setupProgress.step}</p>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div
+              className="bg-primary h-2 rounded-full transition-all duration-500"
+              style={{ width: `${setupProgress.progress}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">First time setup — downloading ~80MB</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (daemonState === 'starting') {
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-center">
+        <div>
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm font-medium">Starting Docker VM...</p>
+          <p className="text-xs text-muted-foreground mt-1">This can take up to a minute</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (daemonState === 'error') {
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-center">
+        <div className="max-w-md">
+          <AlertTriangle className="w-8 h-8 text-destructive/50 mx-auto mb-3" />
+          <p className="text-sm font-medium mb-1">Unable to connect to Docker</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            {error || 'Could not start the Docker daemon.'}
+          </p>
+          <Button variant="outline" size="sm" onClick={retry}>
+            <RefreshCw className="w-4 h-4 mr-1.5" />
+            Retry
+          </Button>
         </div>
       </div>
     );

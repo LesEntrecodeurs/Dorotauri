@@ -150,6 +150,9 @@ pub fn run() {
             commands::docker::docker_start_container,
             commands::docker::docker_stop_container,
             commands::docker::docker_restart_container,
+            commands::docker::docker_ensure_running,
+            commands::docker::docker_status,
+            commands::docker::docker_setup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
