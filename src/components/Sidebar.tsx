@@ -253,12 +253,12 @@ export default function AppSidebar() {
           <img
             src="/dorotoring-large.svg"
             alt="Dorothy"
-            className="h-6 w-auto dark:invert group-data-[collapsible=icon]/sidebar:hidden"
+            className="h-6 w-auto text-sidebar-foreground group-data-[collapsible=icon]/sidebar:hidden"
           />
           <img
             src="/dorotoing.svg"
             alt="Dorothy"
-            className="w-6 h-6 dark:invert hidden group-data-[collapsible=icon]/sidebar:block"
+            className="w-6 h-6 text-sidebar-foreground hidden group-data-[collapsible=icon]/sidebar:block"
           />
           {/* Collapse buttons — visible on hover of header */}
           <div className="ml-auto flex gap-0.5 opacity-0 group-hover/header:opacity-100 transition-opacity duration-150 group-data-[collapsible=icon]/sidebar:hidden">

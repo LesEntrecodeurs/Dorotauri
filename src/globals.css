@@ -30,8 +30,8 @@
 
   --sidebar: hsl(40 10% 97%);
   --sidebar-foreground: hsl(40 5% 20%);
-  --sidebar-foreground-muted: hsl(40 3% 44%);
-  --sidebar-foreground-faint: hsl(40 3% 70%);
+  --sidebar-foreground-muted: hsl(40 5% 35%);
+  --sidebar-foreground-faint: hsl(40 3% 62%);
   --sidebar-primary: hsl(265 75% 54%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
   --sidebar-accent: hsl(40 5% 93%);
