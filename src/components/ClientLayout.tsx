@@ -53,7 +53,7 @@ function loadVaultReadDocs(): Set<string> {
 export default function ClientLayout() {
   const { darkMode, setDarkMode, setVaultUnreadCount } = useStore();
   const location = useLocation();
-  const { agents } = useElectronAgents();
+  const { agents, createAgent, updateAgent } = useElectronAgents();
   useUsageLimits();
   const isOnDashboard = location.pathname === '/';
   const [zenMode, setZenMode] = useState(false);
@@ -117,7 +117,7 @@ export default function ClientLayout() {
             className="h-svh flex-col"
           >
             <Suspense fallback={null}>
-              <MosaicTerminalView agents={agents} zenMode={zenDashboard} />
+              <MosaicTerminalView agents={agents} zenMode={zenDashboard} createAgent={createAgent} updateAgent={updateAgent} />
             </Suspense>
           </div>
 

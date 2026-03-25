@@ -11,7 +11,7 @@ import { ExternalLink, Maximize2, Minimize2, Plus, X, Terminal, LayoutGrid, Colu
 import { ConfigWheel } from '@/components/ConfigWheel';
 import type { Agent, AgentCharacter } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentTerminalDialog/constants';
-import { useElectronAgents, useElectronSkills } from '@/hooks/useElectron';
+import { useElectronSkills } from '@/hooks/useElectron';
 import NewChatModal from '@/components/NewChatModal';
 import type { EditAgentData } from '@/components/NewChatModal/types';
 import TerminalTile from './TerminalTile';
@@ -21,6 +21,8 @@ type ViewId = string;
 interface MosaicTerminalViewProps {
   agents: Agent[];
   zenMode?: boolean;
+  createAgent: (config: Record<string, unknown>) => Promise<Agent>;
+  updateAgent: (params: { id: string; [key: string]: unknown }) => Promise<unknown>;
 }
 
 // --- Tab types (workspace system) ---
@@ -225,7 +227,7 @@ function getSuperAgentBadge(agent: Agent | undefined): string {
   return agent.superAgentScope === 'all' ? '\u{1F451}\u{1F451}' : '\u{1F451}';
 }
 
-export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTerminalViewProps) {
+export default function MosaicTerminalView({ agents, zenMode = false, createAgent, updateAgent }: MosaicTerminalViewProps) {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(loadTabs);
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
   const [maximizedAgent, setMaximizedAgent] = useState<string | null>(null);
@@ -237,8 +239,7 @@ export default function MosaicTerminalView({ agents, zenMode = false }: MosaicTe
   const [editAgentId, setEditAgentId] = useState<string | null>(null);
   const [layoutPresetIndex, setLayoutPresetIndex] = useState(0);
 
-  // Hooks for the edit modal
-  const { updateAgent, createAgent } = useElectronAgents();
+  // Hooks for skills
   const { installedSkills } = useElectronSkills();
 
   // Persist tabs
