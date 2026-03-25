@@ -396,6 +396,86 @@ pub fn agent_update(
 }
 
 // ---------------------------------------------------------------------------
+// agent_set_dormant — called when a terminal is closed; sets agent to dormant
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn agent_set_dormant(
+    id: AgentId,
+    state: State<'_, AppState>,
+    pty_manager: State<'_, PtyManager>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let now = chrono::Utc::now().to_rfc3339();
+    {
+        let mut agents = state.agents.lock().unwrap();
+        let agent = agents.get_mut(&id).ok_or_else(|| format!("agent not found: {id}"))?;
+
+        // Kill PTY if exists
+        if let Some(ref pty_id) = agent.pty_id {
+            pty_manager.kill(pty_id).ok();
+        }
+
+        agent.process_state = ProcessState::Dormant;
+        agent.pty_id = None;
+        agent.last_activity = now;
+    }
+    state.save_agents();
+    app_handle.emit("agent:status", serde_json::json!({"id": id, "processState": "dormant"})).ok();
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// agent_reanimate — reopen a dormant agent by spawning a new PTY
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn agent_reanimate(
+    id: AgentId,
+    state: State<'_, AppState>,
+    pty_manager: State<'_, PtyManager>,
+    app_handle: AppHandle,
+) -> Result<Agent, String> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let pty_id = uuid::Uuid::new_v4().to_string();
+
+    // Get cwd, check if dormant
+    let cwd = {
+        let agents = state.agents.lock().unwrap();
+        let agent = agents.get(&id).ok_or_else(|| format!("agent not found: {id}"))?;
+        if agent.process_state != ProcessState::Dormant {
+            return Err("Agent is not dormant".to_string());
+        }
+        // Fall back to home dir if cwd doesn't exist
+        if std::path::Path::new(&agent.cwd).exists() {
+            agent.cwd.clone()
+        } else {
+            dirs::home_dir().unwrap_or_default().to_string_lossy().to_string()
+        }
+    };
+
+    // Spawn PTY
+    pty_manager.spawn(&pty_id, &id, &cwd, &app_handle, None, None)?;
+
+    // Update agent
+    let updated = {
+        let mut agents = state.agents.lock().unwrap();
+        let agent = agents.get_mut(&id).ok_or_else(|| format!("agent not found: {id}"))?;
+        agent.process_state = ProcessState::Inactive;
+        agent.pty_id = Some(pty_id);
+        agent.last_activity = now;
+        if !std::path::Path::new(&agent.cwd).exists() {
+            agent.path_missing = Some(true);
+        }
+        agent.clone()
+    };
+
+    state.save_agents();
+    app_handle.emit("agent:status", &updated).ok();
+    Ok(updated)
+}
+
+// ---------------------------------------------------------------------------
 // agent_send_input — write raw text to an agent's PTY
 // ---------------------------------------------------------------------------
 

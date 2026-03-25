@@ -62,6 +62,8 @@ pub fn run() {
             commands::agent::agent_remove,
             commands::agent::agent_update,
             commands::agent::agent_send_input,
+            commands::agent::agent_set_dormant,
+            commands::agent::agent_reanimate,
             // PTY commands
             commands::pty::pty_create,
             commands::pty::pty_write,
