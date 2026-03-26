@@ -21,6 +21,7 @@ type ViewId = string;
 interface MosaicTerminalViewProps {
   agents: Agent[];
   zenMode?: boolean;
+  onToggleZenMode?: () => void;
   createAgent: (config: Record<string, unknown>) => Promise<Agent>;
   updateAgent: (params: { id: string; [key: string]: unknown }) => Promise<unknown>;
 }
@@ -227,7 +228,7 @@ function getSuperAgentBadge(agent: Agent | undefined): string {
   return agent.superAgentScope === 'all' ? '\u{1F451}\u{1F451}' : '\u{1F451}';
 }
 
-export default function MosaicTerminalView({ agents, zenMode = false, createAgent, updateAgent }: MosaicTerminalViewProps) {
+export default function MosaicTerminalView({ agents, zenMode = false, onToggleZenMode, createAgent, updateAgent }: MosaicTerminalViewProps) {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(loadTabs);
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0]?.id || '');
   const [maximizedAgent, setMaximizedAgent] = useState<string | null>(null);
@@ -563,10 +564,12 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
   const handlePromoteSuper = useCallback(async (id: string, scope: 'tab' | 'all') => {
     try {
       await invoke('agent_promote_super', { id, scope });
+      // Update frontend state immediately so the toggle reflects the change
+      await handleConfigUpdate(id, { isSuperAgent: true, superAgentScope: scope });
     } catch (err) {
       console.error('Failed to promote super agent:', err);
     }
-  }, []);
+  }, [handleConfigUpdate]);
 
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
@@ -707,7 +710,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
               <>
                 <div className="border-t border-border my-1" />
                 <button
-                  onClick={() => { setContextMenu(null); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' })); }}
+                  onClick={() => { setContextMenu(null); onToggleZenMode?.(); }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left hover:bg-secondary"
                 >
                   <Minimize2 className="w-3.5 h-3.5" />
@@ -776,11 +779,11 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
 
         {/* Fullscreen toggle */}
         <button
-          onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F11' }))}
+          onClick={() => onToggleZenMode?.()}
           className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded mr-1"
-          title="Fullscreen (F11)"
+          title={zenMode ? 'Exit fullscreen (F11)' : 'Fullscreen (F11)'}
         >
-          <Maximize2 className="w-3.5 h-3.5" />
+          {zenMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
 
         {/* Layout cycle button */}
@@ -867,13 +870,22 @@ export default function MosaicTerminalView({ agents, zenMode = false, createAgen
         {!layout || (activeTab?.agentIds.length === 0) ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
             <p className="text-sm">No agents in this tab</p>
-            <button
-              onClick={() => setShowAgentPicker(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-foreground text-background rounded hover:bg-foreground/90"
-            >
-              <Plus className="w-3 h-3" />
-              Add an agent
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={addQuickTerminal}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border bg-card text-foreground rounded hover:bg-secondary"
+              >
+                <Terminal className="w-3 h-3" />
+                Add terminal
+              </button>
+              <button
+                onClick={() => setShowAgentPicker(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-foreground text-background rounded hover:bg-foreground/90"
+              >
+                <Plus className="w-3 h-3" />
+                Add an agent
+              </button>
+            </div>
           </div>
         ) : maximizedAgent && activeTab?.agentIds.includes(maximizedAgent) ? (
           <div className={`w-full h-full flex flex-col ${agentMap.get(maximizedAgent)?.isSuperAgent && agentMap.get(maximizedAgent)?.superAgentScope === 'all' ? 'ring-2 ring-amber-500/50 rounded' : ''}`}>

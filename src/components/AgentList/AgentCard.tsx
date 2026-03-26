@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Agent } from '@/types/electron';
 import { STATUS_COLORS, STATUS_LABELS, CHARACTER_FACES, getProjectColor, isSuperAgentCheck } from '@/components/AgentList/constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 const PROVIDER_ICONS: Record<string, { src: string; alt: string }> = {
   claude: { src: '/claude-ai-icon.webp', alt: 'Claude' },
@@ -40,7 +41,7 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
         <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-transparent pointer-events-none" />
       )}
       <div className="flex items-start gap-3 relative">
-        <div className={`w-10 h-10 flex items-center justify-center shrink-0 relative ${
+        <div className={`w-10 h-10 flex items-center justify-center shrink-0 relative overflow-hidden rounded-sm ${
           isSuper
             ? 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20 ring-1 ring-amber-500/30'
             : agent.name?.toLowerCase() === 'bitwonka'
@@ -49,15 +50,14 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
         }`}>
           {isSuper ? (
             <span className="text-xl">👑</span>
-          ) : agent.name?.toLowerCase() === 'bitwonka' ? (
-            <span className="text-xl">🐸</span>
-          ) : agent.character ? (
-            <span className="text-xl">{CHARACTER_FACES[agent.character] || '🤖'}</span>
-          ) : agent.processState === 'running' ? (
-            <Loader2 className={`w-5 h-5 ${statusConfig.text} animate-spin`} />
-          ) : (
-            <StatusIcon className={`w-5 h-5 ${statusConfig.text}`} />
-          )}
+          ) : (() => {
+            const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+            if (iconUrl) return <img src={iconUrl} alt="" className="w-10 h-10 object-cover" />;
+            if (agent.name?.toLowerCase() === 'bitwonka') return <span className="text-xl">🐸</span>;
+            if (agent.character) return <span className="text-xl">{CHARACTER_FACES[agent.character] || '🤖'}</span>;
+            if (agent.processState === 'running') return <Loader2 className={`w-5 h-5 ${statusConfig.text} animate-spin`} />;
+            return <StatusIcon className={`w-5 h-5 ${statusConfig.text}`} />;
+          })()}
           {agent.processState === 'running' && (agent.character || agent.name?.toLowerCase() === 'bitwonka' || isSuper) && (
             <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full animate-pulse ${isSuper ? 'bg-amber-400' : 'bg-primary'}`} />
           )}

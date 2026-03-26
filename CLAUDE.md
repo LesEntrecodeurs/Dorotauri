@@ -1,3 +1,7 @@
+## Architecture
+
+- **MCP Orchestrateur** — comment les Super Agents communiquent avec d'autres agents via MCP → HTTP API → PTY : [`docs/mcp-orchestrator.md`](docs/mcp-orchestrator.md)
+
 ## Memory System
 
 Dorothy exposes Claude Code's **native memory** (`~/.claude/projects/*/memory/`) via the Memory page. No custom storage — reads real Claude Code memory files. Project dir names use path-as-folder-name encoding (slashes → dashes).

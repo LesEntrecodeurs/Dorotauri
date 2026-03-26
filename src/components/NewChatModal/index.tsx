@@ -9,7 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { NewChatModalProps, AgentPersonaValues } from './types';
 import type { AgentProvider } from '@/types/electron';
 import type { AppSettings } from '@/components/Settings/types';
-import { CHARACTER_OPTIONS } from './constants';
+import { CHARACTER_OPTIONS, getRandomChampion } from './constants';
 import { useSkillInstall } from './hooks/useSkillInstall';
 import StepModel from './StepModel';
 import StepTools from './StepTools';
@@ -98,7 +98,21 @@ export default function NewChatModal({
   const [localModel, setLocalModel] = useState('');
   const [tasmaniaEnabled, setTasmaniaEnabled] = useState(false);
   const [installedProviders, setInstalledProviders] = useState<Record<string, boolean>>({ claude: true, codex: true, gemini: true, opencode: true, pi: true });
-  const agentPersonaRef = useRef<AgentPersonaValues>({ character: 'robot', name: '' });
+  const agentPersonaRef = useRef<AgentPersonaValues>(getRandomChampion());
+  // Track open/editAgent to synchronously update persona ref before children render
+  const prevOpenRef = useRef(open);
+  const prevEditAgentRef = useRef(editAgent);
+  if (open !== prevOpenRef.current || editAgent !== prevEditAgentRef.current) {
+    if (open) {
+      if (editAgent) {
+        agentPersonaRef.current = { character: editAgent.character || 'robot', name: editAgent.name || '' };
+      } else {
+        agentPersonaRef.current = getRandomChampion();
+      }
+    }
+    prevOpenRef.current = open;
+    prevEditAgentRef.current = editAgent;
+  }
 
   // Step 2: Tools
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
@@ -145,10 +159,6 @@ export default function NewChatModal({
         setPrompt('');
         setUseWorktree(!!editAgent.branchName);
         setBranchName(editAgent.branchName || '');
-        agentPersonaRef.current = {
-          character: editAgent.character || 'robot',
-          name: editAgent.name || '',
-        };
         setSkipPermissions(editAgent.skipPermissions || false);
         setProvider(editAgent.provider || 'claude');
         setLocalModel(editAgent.localModel || '');
@@ -161,7 +171,6 @@ export default function NewChatModal({
         setPrompt('');
         setUseWorktree(false);
         setBranchName('');
-        agentPersonaRef.current = { character: 'robot', name: '' };
         setSkipPermissions(false);
         setProvider('claude');
         setLocalModel('');
@@ -262,7 +271,7 @@ export default function NewChatModal({
     setPrompt('');
     setUseWorktree(false);
     setBranchName('');
-    agentPersonaRef.current = { character: 'robot', name: '' };
+    agentPersonaRef.current = getRandomChampion();
     setSkipPermissions(false);
     setProvider('claude');
     setLocalModel('');

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tauri::Manager;
+use dirs;
 
 pub mod api_server;
 pub mod business_state;
@@ -12,6 +13,19 @@ mod pty;
 mod state;
 mod usage_watcher;
 mod windows;
+
+/// Writes the embedded super-agent instructions to ~/.dorotoring/ and returns the path.
+/// Called before launching any Super Agent to ensure the instructions file is up-to-date.
+pub fn ensure_super_agent_instructions() -> Option<std::path::PathBuf> {
+    const INSTRUCTIONS: &str =
+        include_str!("../../electron/resources/super-agent-instructions.md");
+    let path = dirs::home_dir()?
+        .join(".dorotoring")
+        .join("super-agent-instructions.md");
+    std::fs::create_dir_all(path.parent()?).ok()?;
+    std::fs::write(&path, INSTRUCTIONS).ok()?;
+    Some(path)
+}
 
 pub fn run() {
     let app_state = Arc::new(state::AppState::load());
@@ -145,6 +159,10 @@ pub fn run() {
             commands::vault::vault_list_folders,
             commands::vault::vault_create_folder,
             commands::vault::vault_delete_folder,
+            // Orchestrator commands
+            commands::orchestrator::orchestrator_get_status,
+            commands::orchestrator::orchestrator_setup,
+            commands::orchestrator::orchestrator_remove,
             // Docker commands
             commands::docker::docker_list_containers,
             commands::docker::docker_start_container,

@@ -7,7 +7,6 @@ import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from 
 import { isTauri } from '@/hooks/useTauri';
 import { useClaude } from '@/hooks/useClaude';
 import { useAgentFiltering } from '@/hooks/useAgentFiltering';
-import { useSuperAgent } from '@/hooks/useSuperAgent';
 import type { AgentCharacter, AgentProvider } from '@/types/electron';
 import NewChatModal from '@/components/NewChatModal';
 import type { EditAgentData } from '@/components/NewChatModal/types';
@@ -50,13 +49,6 @@ export default function AgentsPage() {
 
 
   // Custom hooks
-  const { superAgent, isCreatingSuperAgent, handleSuperAgentClick } = useSuperAgent({
-    agents,
-    createAgent,
-    startAgent,
-    onAgentCreated: (id) => setEditAgentId(id),
-  });
-
   const { filteredAgents, uniqueProjects } = useAgentFiltering({
     agents,
     projectFilter,
@@ -179,9 +171,6 @@ export default function AgentsPage() {
   return (
     <div className="h-[calc(100vh-7rem)] lg:h-[calc(100vh-3rem)] flex flex-col pt-4 lg:pt-6">
       <AgentListHeader
-        superAgent={superAgent}
-        isCreatingSuperAgent={isCreatingSuperAgent}
-        onSuperAgentClick={handleSuperAgentClick}
         onNewAgentClick={() => setShowNewChatModal(true)}
       />
 

@@ -70,7 +70,6 @@ export default function CanvasView() {
     filteredProjects,
     uniqueProjects,
     connections,
-    superAgent,
     runningCount,
     waitingCount,
   } = useCanvasNodes(
@@ -98,19 +97,16 @@ export default function CanvasView() {
     stopAgent,
     startAgent,
     createAgent,
-    superAgent,
     setTerminalAgentId: (id) => id ? handleOpenTerminal(id) : closeTerminal(),
   });
 
   const {
-    isCreatingSuperAgent,
     showCreateAgentModal,
     handleToggleAgent,
     handleStartAgent,
     handleStopAgent,
     handleAddAgentToProject,
     handleCreateAgent,
-    handleSuperAgentClick,
     closeCreateAgentModal,
   } = agentActions;
 
@@ -161,10 +157,6 @@ export default function CanvasView() {
         onResetView={resetView}
         zoom={zoom}
         setZoom={setZoom}
-        superAgent={superAgent}
-        isCreatingSuperAgent={isCreatingSuperAgent}
-        onSuperAgentClick={handleSuperAgentClick}
-        showSuperAgentButton={isElectron()}
       />
 
       {/* Canvas Content */}

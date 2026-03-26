@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { AgentTickItem, DisplayStatus } from '@/types/electron';
 import { useTrayTerminal } from './useTrayTerminal';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 const CHARACTER_FACES: Record<string, string> = {
   robot: '\u{1F916}',
@@ -85,7 +86,11 @@ export default function TrayAgentItem({
         onClick={onToggle}
         className="w-full px-4 py-2.5 flex items-center gap-2.5 transition-colors text-left"
       >
-        <span className="text-base flex-shrink-0">{charEmoji}</span>
+        {(() => {
+          const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+          if (iconUrl) return <img src={iconUrl} alt="" className="w-5 h-5 rounded-sm object-cover flex-shrink-0" />;
+          return <span className="text-base flex-shrink-0">{charEmoji}</span>;
+        })()}
         <div className="flex-1 min-w-0">
           <div className="text-xs font-medium text-foreground truncate">
             {agent.name}

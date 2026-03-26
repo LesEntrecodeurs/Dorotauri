@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { X, Maximize2, Minimize2, FolderOpen, GitBranch, Layers, Crown } from 'lucide-react';
 import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES } from './constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 interface AgentDialogHeaderProps {
   agent: Agent;
@@ -27,9 +28,12 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
   return (
     <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/30">
       <div className="flex items-center gap-3">
-        <span className="text-2xl">
-          {isSuperAgentMode ? '👑' : CHARACTER_FACES[character as keyof typeof CHARACTER_FACES] || '🤖'}
-        </span>
+        {(() => {
+          if (isSuperAgentMode) return <span className="text-2xl">👑</span>;
+          const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+          if (iconUrl) return <img src={iconUrl} alt="" className="w-7 h-7 rounded-sm object-cover shrink-0" />;
+          return <span className="text-2xl">{CHARACTER_FACES[character as keyof typeof CHARACTER_FACES] || '🤖'}</span>;
+        })()}
         <div>
           <h3 className="font-semibold flex items-center gap-2">
             {agent.name || 'Agent'}

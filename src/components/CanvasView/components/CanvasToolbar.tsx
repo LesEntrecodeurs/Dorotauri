@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { SuperAgentButton } from './SuperAgentButton';
 
 interface CanvasToolbarProps {
   filter: 'all' | 'running' | 'inactive' | 'dormant';
@@ -24,10 +23,6 @@ interface CanvasToolbarProps {
   onResetView: () => void;
   zoom: number;
   setZoom: (zoom: number) => void;
-  superAgent: { id: string; processState: string } | null;
-  isCreatingSuperAgent: boolean;
-  onSuperAgentClick: () => void;
-  showSuperAgentButton: boolean;
 }
 
 export function CanvasToolbar({
@@ -41,10 +36,6 @@ export function CanvasToolbar({
   onResetView,
   zoom,
   setZoom,
-  superAgent,
-  isCreatingSuperAgent,
-  onSuperAgentClick,
-  showSuperAgentButton,
 }: CanvasToolbarProps) {
   return (
     <div className="absolute top-3 left-3 right-3 lg:top-4 lg:left-4 lg:right-4 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 z-40">
@@ -101,13 +92,6 @@ export function CanvasToolbar({
 
       {/* Right side - View controls */}
       <div className="flex items-center gap-2 justify-end">
-        {showSuperAgentButton && (
-          <SuperAgentButton
-            superAgent={superAgent}
-            isCreating={isCreatingSuperAgent}
-            onClick={onSuperAgentClick}
-          />
-        )}
         <div className="flex items-center gap-1 p-1 bg-card/90 border border-border">
           <Button
             variant="ghost"

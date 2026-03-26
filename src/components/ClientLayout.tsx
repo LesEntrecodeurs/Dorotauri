@@ -147,7 +147,7 @@ export default function ClientLayout() {
             className="h-svh flex-col"
           >
             <Suspense fallback={null}>
-              <MosaicTerminalView agents={agents} zenMode={sidebarHidden} createAgent={createAgent} updateAgent={updateAgent} />
+              <MosaicTerminalView agents={agents} zenMode={sidebarHidden} onToggleZenMode={() => setSidebarHidden(prev => !prev)} createAgent={createAgent} updateAgent={updateAgent} />
             </Suspense>
           </div>
           {!isOnDashboard && (

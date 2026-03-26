@@ -26,6 +26,7 @@ fn claude_settings_path() -> PathBuf {
 /// It both renders the terminal status bar AND writes rate_limits to a
 /// file so the Dorotoring sidebar can display usage bars.
 const STATUSLINE_SCRIPT: &str = include_str!("statusline.sh");
+const HOOKS_SCRIPT: &str = include_str!("hooks.sh");
 
 /// Install the statusline script and configure Claude Code to use it.
 /// Called once at app startup — idempotent.

@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Users, Folder, Crown, AlertTriangle, Circle } from 'lucide-react';
 import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES } from './constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 import { isSuperAgent } from './AgentDialogTypes';
 
 interface AgentDialogSuperAgentSidebarProps {
@@ -30,8 +31,11 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
   const idleAgents = otherAgents.filter(a => a.processState === 'inactive' || a.processState === 'completed');
   const errorAgents = otherAgents.filter(a => a.processState === 'error');
 
-  const face = (agent: Agent) =>
-    CHARACTER_FACES[agent.character as keyof typeof CHARACTER_FACES] || '🤖';
+  const faceOrIcon = (agent: Agent, size = 'text-lg') => {
+    const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+    if (iconUrl) return <img src={iconUrl} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />;
+    return <span className={size}>{CHARACTER_FACES[agent.character as keyof typeof CHARACTER_FACES] || '🤖'}</span>;
+  };
 
   return (
     <div className="h-full overflow-y-auto">
@@ -54,7 +58,7 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
               <div className="space-y-1">
                 {runningAgents.map((agent) => (
                   <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-primary/10 border border-accent-cyan/20">
-                    <span className="text-lg">{face(agent)}</span>
+                    {faceOrIcon(agent)}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{agent.name}</p>
                       <p className="text-[10px] text-muted-foreground truncate">
@@ -76,7 +80,7 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
               <div className="space-y-1">
                 {errorAgents.map((agent) => (
                   <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none bg-destructive/10 border border-accent-red/20">
-                    <span className="text-lg">{face(agent)}</span>
+                    {faceOrIcon(agent)}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{agent.name}</p>
                       <p className="text-[10px] text-muted-foreground truncate">{agent.cwd.split('/').pop()}</p>
@@ -95,7 +99,7 @@ export const AgentDialogSuperAgentSidebar = memo(function AgentDialogSuperAgentS
               <div className="space-y-1">
                 {idleAgents.map((agent) => (
                   <div key={agent.id} className="flex items-center gap-2 px-2 py-1.5 rounded-none hover:bg-muted/50">
-                    <span className="text-lg opacity-60">{face(agent)}</span>
+                    {faceOrIcon(agent)}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-muted-foreground truncate">{agent.name}</p>
                       <p className="text-[10px] text-muted-foreground truncate">{agent.cwd.split('/').pop()}</p>

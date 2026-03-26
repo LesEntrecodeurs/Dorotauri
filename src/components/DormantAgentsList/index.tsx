@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES } from '@/components/AgentList/constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 function formatTimeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
@@ -39,6 +40,7 @@ export default function DormantAgentsList({ agents, onReanimate, onDelete }: Dor
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
       {agents.map((agent) => {
         const emoji = agent.character ? (CHARACTER_FACES[agent.character] || '🤖') : '🤖';
+        const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
         const displayName = agent.name || `Agent ${agent.id.slice(0, 6)}`;
         const isConfirming = confirmDeleteId === agent.id;
 
@@ -50,8 +52,8 @@ export default function DormantAgentsList({ agents, onReanimate, onDelete }: Dor
             <CardContent className="p-3">
               {/* Row 1: Avatar + Name + Dormant badge */}
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 flex items-center justify-center shrink-0 text-base bg-zinc-500/20 opacity-60">
-                  {emoji}
+                <div className="w-8 h-8 flex items-center justify-center shrink-0 text-base bg-zinc-500/20 opacity-60 overflow-hidden rounded-sm">
+                  {iconUrl ? <img src={iconUrl} alt="" className="w-8 h-8 object-cover" /> : emoji}
                 </div>
 
                 <div className="flex-1 min-w-0">

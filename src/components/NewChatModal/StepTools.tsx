@@ -191,7 +191,7 @@ const StepTools = React.memo(function StepTools({
         </div>
 
         {/* Skills Card List */}
-        <ScrollArea className="border border-border rounded-md max-h-[280px]">
+        <ScrollArea className="border border-border rounded-md h-[280px]">
           {filteredSkills.map((skill) => {
             const isSelected = selectedSkills.includes(skill.name);
             const installedOnProvider = isSkillInstalled(skill.name);

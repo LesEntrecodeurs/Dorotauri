@@ -3,6 +3,7 @@
 import { Play, Square } from 'lucide-react';
 import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES, STATUS_COLORS } from '../constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 interface SidebarAgentListProps {
   agents: Agent[];
@@ -58,7 +59,11 @@ export default function SidebarAgentList({
 
             {/* Avatar */}
             <div className="relative">
-              <span className="text-sm">{emoji}</span>
+              {(() => {
+                const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+                if (iconUrl) return <img src={iconUrl} alt="" className="w-5 h-5 rounded-sm object-cover" />;
+                return <span className="text-sm">{emoji}</span>;
+              })()}
               {agent.processState === 'running' ? (
                 <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />

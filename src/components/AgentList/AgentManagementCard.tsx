@@ -9,6 +9,7 @@ import {
   CHARACTER_FACES,
   isSuperAgentCheck,
 } from '@/components/AgentList/constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 function formatTimeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
@@ -55,10 +56,16 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
       <CardContent className="p-3">
         {/* Row 1: Avatar + Name + Status (top-right) */}
         <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 flex items-center justify-center shrink-0 text-base ${
+          <div className={`w-8 h-8 flex items-center justify-center shrink-0 text-base overflow-hidden rounded-sm ${
             isSuper ? 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20' : statusConfig.bg
           }`}>
-            {isSuper ? (isGlobalScope ? '\u{1F451}\u{1F451}' : '\u{1F451}') : agent.character ? (CHARACTER_FACES[agent.character] || '\u{1F916}') : '\u{1F916}'}
+            {isSuper ? (
+              isGlobalScope ? '\u{1F451}\u{1F451}' : '\u{1F451}'
+            ) : (() => {
+              const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+              if (iconUrl) return <img src={iconUrl} alt="" className="w-8 h-8 object-cover" />;
+              return <span>{agent.character ? (CHARACTER_FACES[agent.character] || '\u{1F916}') : '\u{1F916}'}</span>;
+            })()}
           </div>
 
           <div className="flex-1 min-w-0">

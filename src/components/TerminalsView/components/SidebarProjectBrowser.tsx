@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { FolderOpen } from 'lucide-react';
 import type { Agent } from '@/types/electron';
 import { STATUS_COLORS, CHARACTER_FACES } from '../constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 interface SidebarProjectBrowserProps {
   agents: Agent[];
@@ -63,7 +64,11 @@ export default function SidebarProjectBrowser({ agents, onFocusPanel }: SidebarP
                   onClick={() => onFocusPanel(agent.id)}
                   className="flex items-center gap-2 w-full px-2 py-1 hover:bg-primary/5 transition-colors text-left"
                 >
-                  <span className="text-xs">{emoji}</span>
+                  {(() => {
+                    const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+                    if (iconUrl) return <img src={iconUrl} alt="" className="w-4 h-4 rounded-sm object-cover shrink-0" />;
+                    return <span className="text-xs">{emoji}</span>;
+                  })()}
                   <span className="text-[11px] text-foreground truncate flex-1">{name}</span>
                   <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
                 </button>

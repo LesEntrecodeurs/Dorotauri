@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
 import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES, STATUS_COLORS } from '../constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 interface AddAgentDropdownProps {
   allAgents: Agent[];
@@ -95,7 +96,11 @@ export default function AddAgentDropdown({
                       onClick={() => { onAddAgent(agent.id); setOpen(false); }}
                       className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-muted-foreground hover:bg-primary/5 hover:text-foreground transition-colors"
                     >
-                      <span>{emoji}</span>
+                      {(() => {
+                        const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+                        if (iconUrl) return <img src={iconUrl} alt="" className="w-4 h-4 rounded-sm object-cover shrink-0" />;
+                        return <span>{emoji}</span>;
+                      })()}
                       <span className="truncate flex-1 text-left">{name}</span>
                       <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
                     </button>

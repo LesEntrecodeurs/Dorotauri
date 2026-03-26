@@ -2,6 +2,8 @@ import { memo, useCallback } from 'react';
 import { Settings, Crown, Dices } from 'lucide-react';
 import type { Agent, AgentProvider } from '@/types/electron';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CHARACTER_FACES } from '@/components/AgentList/constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -78,8 +80,14 @@ export const ConfigWheel = memo(function ConfigWheel({
         onPointerDown={stopMosaicDrag}
         onClick={stopMosaicDrag}
       >
-        {/* Name — display with dice re-roll */}
+        {/* Name — display with champion icon + dice re-roll */}
         <div className="flex items-center gap-2">
+          {(() => {
+            const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+            if (iconUrl) return <img src={iconUrl} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />;
+            if (agent.character) return <span className="text-base shrink-0">{CHARACTER_FACES[agent.character] || '🤖'}</span>;
+            return null;
+          })()}
           <span className="text-xs font-medium text-foreground truncate flex-1">{agent.name || 'Unnamed'}</span>
           {onRerollName && (
             <button

@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import type { AgentCharacter, Agent } from '@/types/electron';
 
 interface CreateAgentConfig {
@@ -8,13 +7,13 @@ interface CreateAgentConfig {
   character?: AgentCharacter;
   name?: string;
   skipPermissions?: boolean;
+  isSuperAgent?: boolean;
 }
 
 interface UseAgentActionsProps {
   stopAgent: (id: string) => void;
   startAgent: (id: string, prompt: string, options?: { model?: string }) => Promise<void>;
   createAgent: (config: CreateAgentConfig) => Promise<Agent>;
-  superAgent: Agent | null;
   setTerminalAgentId: (id: string | null) => void;
 }
 
@@ -22,10 +21,8 @@ export function useAgentActions({
   stopAgent,
   startAgent,
   createAgent,
-  superAgent,
   setTerminalAgentId,
 }: UseAgentActionsProps) {
-  const [isCreatingSuperAgent, setIsCreatingSuperAgent] = useState(false);
   const [showCreateAgentModal, setShowCreateAgentModal] = useState(false);
   const [createAgentProjectPath, setCreateAgentProjectPath] = useState<string | null>(null);
 
@@ -84,62 +81,12 @@ export function useAgentActions({
     }
   }, [createAgent, startAgent, setTerminalAgentId]);
 
-  const orchestratorPrompt = `Hello! Please list the current agents using list_agents.`;
-
-  const handleSuperAgentClick = useCallback(async () => {
-    if (superAgent) {
-      if (superAgent.processState === 'inactive' || superAgent.processState === 'completed' || superAgent.processState === 'error') {
-        await startAgent(superAgent.id, orchestratorPrompt);
-      }
-      setTerminalAgentId(superAgent.id);
-      return;
-    }
-
-    try {
-      const status = await invoke<{ configured?: boolean; error?: string }>('orchestrator_get_status');
-
-      if (!status.configured) {
-        try {
-          const setupResult = await invoke<{ success?: boolean; error?: string }>('orchestrator_setup');
-          if (!setupResult.success) {
-            console.error('Failed to setup orchestrator:', setupResult.error);
-            return;
-          }
-        } catch (err) {
-          console.error('Orchestrator setup not available:', err);
-          return;
-        }
-      }
-    } catch (err) {
-      console.error('Orchestrator status not available:', err);
-      return;
-    }
-
-    setIsCreatingSuperAgent(true);
-    try {
-      const agent = await createAgent({
-        skills: [],
-        character: 'wizard',
-        name: 'Super Agent (Orchestrator)',
-        skipPermissions: true,
-      });
-
-      await startAgent(agent.id, orchestratorPrompt);
-      setTerminalAgentId(agent.id);
-    } catch (error) {
-      console.error('Failed to create super agent:', error);
-    } finally {
-      setIsCreatingSuperAgent(false);
-    }
-  }, [superAgent, createAgent, startAgent, setTerminalAgentId]);
-
   const closeCreateAgentModal = useCallback(() => {
     setShowCreateAgentModal(false);
     setCreateAgentProjectPath(null);
   }, []);
 
   return {
-    isCreatingSuperAgent,
     showCreateAgentModal,
     createAgentProjectPath,
     handleToggleAgent,
@@ -147,7 +94,6 @@ export function useAgentActions({
     handleStopAgent,
     handleAddAgentToProject,
     handleCreateAgent,
-    handleSuperAgentClick,
     closeCreateAgentModal,
   };
 }

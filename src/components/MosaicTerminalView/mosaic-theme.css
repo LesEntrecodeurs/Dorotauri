@@ -32,22 +32,55 @@
   background: transparent;
 }
 
-/* Split bar styling */
+/* Split bar styling — thin visual line, full hit area */
 .mosaic-terminal-view .mosaic-split {
   z-index: 10;
+  background: transparent;
 }
 
 .mosaic-terminal-view .mosaic-split.-row {
+  width: 6px;
   margin-left: -3px;
   margin-right: -3px;
 }
 
+.mosaic-terminal-view .mosaic-split.-row::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: hsl(var(--border) / 0.5);
+  transition: width 0.15s ease, background 0.15s ease;
+}
+
+.mosaic-terminal-view .mosaic-split.-row:hover::after {
+  width: 6px;
+  background: hsl(var(--primary) / 0.3);
+}
+
 .mosaic-terminal-view .mosaic-split.-column {
+  height: 6px;
   margin-top: -3px;
   margin-bottom: -3px;
 }
 
-.mosaic-terminal-view .mosaic-split:hover {
+.mosaic-terminal-view .mosaic-split.-column::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: hsl(var(--border) / 0.5);
+  transition: height 0.15s ease, background 0.15s ease;
+}
+
+.mosaic-terminal-view .mosaic-split.-column:hover::after {
+  height: 6px;
   background: hsl(var(--primary) / 0.3);
 }
 

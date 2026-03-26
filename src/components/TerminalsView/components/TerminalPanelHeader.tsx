@@ -13,6 +13,7 @@ import {
 import type { Agent } from '@/types/electron';
 import { Button } from '@/components/ui/button';
 import { CHARACTER_FACES, STATUS_COLORS } from '../constants';
+import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 interface TerminalPanelHeaderProps {
   agent: Agent;
@@ -62,7 +63,11 @@ export default function TerminalPanelHeader({
       )}
 
       {/* Agent identity */}
-      <span className="text-base">{emoji}</span>
+      {(() => {
+        const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
+        if (iconUrl) return <img src={iconUrl} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />;
+        return <span className="text-base">{emoji}</span>;
+      })()}
       <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{name}</span>
 
       {/* Status badge */}

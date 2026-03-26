@@ -4,7 +4,6 @@ export { StatusIndicator } from './StatusIndicator';
 export { AgentNodeCard } from './AgentNodeCard';
 export { ProjectNodeCard } from './ProjectNodeCard';
 export { CanvasToolbar } from './CanvasToolbar';
-export { SuperAgentButton } from './SuperAgentButton';
 export { CanvasStatusBar } from './CanvasStatusBar';
 export { NotificationPanel } from './NotificationPanel';
 export { EmptyState } from './EmptyState';
