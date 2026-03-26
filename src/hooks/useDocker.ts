@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import type { DockerContainer, DockerStatus, SetupProgress, ContainerStats } from '@/types/docker';
+import type { DockerContainer, DockerStatus, SetupProgress, ContainerStats, ContainerDetail, DockerImage, DockerVolume, DockerNetwork } from '@/types/docker';
+import { sendNotification } from '@tauri-apps/plugin-notification';
 
 const POLL_INTERVAL = 5000;
 
@@ -285,6 +286,118 @@ export function useDocker() {
     } catch { /* ignore */ }
   }, []);
 
+  // ── Inspect ───────────────────────────────────────────────────────────
+  const inspectContainer = useCallback(async (id: string): Promise<ContainerDetail | null> => {
+    try {
+      return await invoke<ContainerDetail>('docker_inspect_container', { id });
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // ── Images ────────────────────────────────────────────────────────────
+  const [images, setImages] = useState<DockerImage[]>([]);
+
+  const fetchImages = useCallback(async () => {
+    try {
+      const result = await invoke<DockerImage[]>('docker_list_images');
+      setImages(result);
+    } catch { /* ignore */ }
+  }, []);
+
+  const removeImage = useCallback(async (id: string) => {
+    setActionLoading(id);
+    try {
+      await invoke('docker_remove_image', { id });
+      await fetchImages();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionLoading(null);
+    }
+  }, [fetchImages]);
+
+  const pullImage = useCallback(async (name: string, ptyId: string) => {
+    await invoke('docker_pull_image', { name, ptyId });
+  }, []);
+
+  // ── Volumes ───────────────────────────────────────────────────────────
+  const [volumes, setVolumes] = useState<DockerVolume[]>([]);
+  const [networks, setNetworks] = useState<DockerNetwork[]>([]);
+
+  const fetchVolumes = useCallback(async () => {
+    try {
+      const [vols, nets] = await Promise.all([
+        invoke<DockerVolume[]>('docker_list_volumes'),
+        invoke<DockerNetwork[]>('docker_list_networks'),
+      ]);
+      setVolumes(vols);
+      setNetworks(nets);
+    } catch { /* ignore */ }
+  }, []);
+
+  const removeVolume = useCallback(async (name: string) => {
+    setActionLoading(name);
+    try {
+      await invoke('docker_remove_volume', { name });
+      await fetchVolumes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionLoading(null);
+    }
+  }, [fetchVolumes]);
+
+  const pruneVolumes = useCallback(async () => {
+    try {
+      await invoke<string>('docker_prune_volumes');
+      await fetchVolumes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [fetchVolumes]);
+
+  // ── Health notifications ──────────────────────────────────────────────
+  const prevStatesRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (daemonState !== 'ready' || containers.length === 0) return;
+
+    const prev = prevStatesRef.current;
+    for (const c of containers) {
+      const prevState = prev.get(c.id);
+      if (prevState && prevState === 'running' && (c.state === 'exited' || c.state === 'restarting')) {
+        sendNotification({
+          title: 'Docker Container Alert',
+          body: `${c.service || c.names} has ${c.state === 'restarting' ? 'entered a restart loop' : 'stopped unexpectedly'}`,
+        }).catch(() => {});
+      }
+    }
+
+    // Update previous states
+    const newMap = new Map<string, string>();
+    for (const c of containers) newMap.set(c.id, c.state);
+    prevStatesRef.current = newMap;
+  }, [containers, daemonState]);
+
+  // Also notify on high resource usage
+  useEffect(() => {
+    if (stats.size === 0) return;
+    for (const [, s] of stats) {
+      const cpu = parseFloat(s.cpuPerc.replace('%', '')) || 0;
+      const mem = parseFloat(s.memPerc.replace('%', '')) || 0;
+      if (cpu > 90 || mem > 90) {
+        const container = containers.find(c => c.id === s.id);
+        const name = container?.service || container?.names || s.id;
+        sendNotification({
+          title: 'Docker Resource Alert',
+          body: `${name}: CPU ${s.cpuPerc}, Memory ${s.memPerc}`,
+        }).catch(() => {});
+        break; // Only one notification per poll cycle
+      }
+    }
+  }, [stats, containers]);
+
   return {
     containers,
     loading,
@@ -293,6 +406,9 @@ export function useDocker() {
     daemonState,
     setupProgress,
     stats,
+    images,
+    volumes,
+    networks,
     startContainer,
     stopContainer,
     restartContainer,
@@ -303,6 +419,13 @@ export function useDocker() {
     composeUp,
     composeDown,
     closePty,
+    inspectContainer,
+    fetchImages,
+    removeImage,
+    pullImage,
+    fetchVolumes,
+    removeVolume,
+    pruneVolumes,
     refresh,
     retry,
   };

@@ -30,3 +30,47 @@ export interface ContainerStats {
   memUsage: string;
   memPerc: string;
 }
+
+export interface ContainerMount {
+  source: string;
+  destination: string;
+  mode: string;
+}
+
+export interface ContainerNetwork {
+  name: string;
+  ipAddress: string;
+}
+
+export interface ContainerDetail {
+  id: string;
+  env: string[];
+  mounts: ContainerMount[];
+  networks: ContainerNetwork[];
+  restartPolicy: string;
+  cmd: string[];
+  entrypoint: string[];
+  workingDir: string;
+  hostname: string;
+}
+
+export interface DockerImage {
+  id: string;
+  repository: string;
+  tag: string;
+  size: string;
+  created: string;
+}
+
+export interface DockerVolume {
+  name: string;
+  driver: string;
+  mountpoint: string;
+}
+
+export interface DockerNetwork {
+  id: string;
+  name: string;
+  driver: string;
+  scope: string;
+}

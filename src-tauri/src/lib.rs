@@ -176,6 +176,14 @@ pub fn run() {
             commands::docker::docker_exec_shell,
             commands::docker::docker_compose_up,
             commands::docker::docker_compose_down,
+            commands::docker::docker_inspect_container,
+            commands::docker::docker_list_images,
+            commands::docker::docker_remove_image,
+            commands::docker::docker_pull_image,
+            commands::docker::docker_list_volumes,
+            commands::docker::docker_remove_volume,
+            commands::docker::docker_prune_volumes,
+            commands::docker::docker_list_networks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

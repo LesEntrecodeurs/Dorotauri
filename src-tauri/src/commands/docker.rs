@@ -879,3 +879,352 @@ fn docker_compose_action(
     pty_manager.handles.lock().unwrap().insert(pty_id.to_string(), pty_handle);
     Ok(())
 }
+
+// ── Inspect ─────────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerMount {
+    pub source: String,
+    pub destination: String,
+    pub mode: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerNetwork {
+    pub name: String,
+    pub ip_address: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerDetail {
+    pub id: String,
+    pub env: Vec<String>,
+    pub mounts: Vec<ContainerMount>,
+    pub networks: Vec<ContainerNetwork>,
+    pub restart_policy: String,
+    pub cmd: Vec<String>,
+    pub entrypoint: Vec<String>,
+    pub working_dir: String,
+    pub hostname: String,
+}
+
+#[tauri::command]
+pub fn docker_inspect_container(id: String) -> Result<ContainerDetail, String> {
+    let output = docker_cmd()
+        .args(["inspect", &id, "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| format!("inspect failed: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("docker inspect failed: {}", stderr.trim()));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let v: serde_json::Value = serde_json::from_str(stdout.trim())
+        .map_err(|e| format!("parse inspect JSON: {}", e))?;
+
+    let env = v["Config"]["Env"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+
+    let mounts = v["Mounts"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .map(|m| ContainerMount {
+                    source: m["Source"].as_str().unwrap_or("").to_string(),
+                    destination: m["Destination"].as_str().unwrap_or("").to_string(),
+                    mode: m["Mode"].as_str().unwrap_or("").to_string(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let networks = v["NetworkSettings"]["Networks"]
+        .as_object()
+        .map(|obj| {
+            obj.iter()
+                .map(|(name, net)| ContainerNetwork {
+                    name: name.clone(),
+                    ip_address: net["IPAddress"].as_str().unwrap_or("").to_string(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let cmd = v["Config"]["Cmd"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+
+    let entrypoint = v["Config"]["Entrypoint"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+
+    Ok(ContainerDetail {
+        id: v["Id"].as_str().unwrap_or("").to_string(),
+        env,
+        mounts,
+        networks,
+        restart_policy: v["HostConfig"]["RestartPolicy"]["Name"]
+            .as_str()
+            .unwrap_or("")
+            .to_string(),
+        cmd,
+        entrypoint,
+        working_dir: v["Config"]["WorkingDir"].as_str().unwrap_or("").to_string(),
+        hostname: v["Config"]["Hostname"].as_str().unwrap_or("").to_string(),
+    })
+}
+
+// ── Images ──────────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerImage {
+    pub id: String,
+    pub repository: String,
+    pub tag: String,
+    pub size: String,
+    pub created: String,
+}
+
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct RawDockerImage {
+    ID: String,
+    Repository: String,
+    Tag: String,
+    Size: String,
+    CreatedSince: String,
+}
+
+#[tauri::command]
+pub fn docker_list_images() -> Result<Vec<DockerImage>, String> {
+    let output = docker_cmd()
+        .args(["images", "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| format!("Failed to run docker images: {}", e))?;
+
+    if !output.status.success() {
+        return Err("docker images failed".to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut images = Vec::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        if let Ok(raw) = serde_json::from_str::<RawDockerImage>(trimmed) {
+            images.push(DockerImage {
+                id: raw.ID,
+                repository: raw.Repository,
+                tag: raw.Tag,
+                size: raw.Size,
+                created: raw.CreatedSince,
+            });
+        }
+    }
+
+    Ok(images)
+}
+
+#[tauri::command]
+pub fn docker_remove_image(id: String) -> Result<(), String> {
+    let output = docker_cmd()
+        .args(["rmi", &id])
+        .output()
+        .map_err(|e| format!("docker rmi failed: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("docker rmi failed: {}", stderr.trim()));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn docker_pull_image(
+    name: String,
+    pty_id: String,
+    pty_manager: State<'_, Arc<PtyManager>>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let docker_bin = find_binary("docker")
+        .unwrap_or_else(|| PathBuf::from("docker"))
+        .to_string_lossy()
+        .to_string();
+
+    let pty_system = portable_pty::native_pty_system();
+    let size = portable_pty::PtySize { rows: 24, cols: 120, pixel_width: 0, pixel_height: 0 };
+    let pair = pty_system.openpty(size).map_err(|e| format!("pty open: {e}"))?;
+
+    let mut cmd = portable_pty::CommandBuilder::new(&docker_bin);
+    cmd.args(["pull", &name]);
+
+    let child = pair.slave.spawn_command(cmd).map_err(|e| format!("spawn: {e}"))?;
+    let writer = pair.master.take_writer().map_err(|e| format!("writer: {e}"))?;
+    let mut reader = pair.master.try_clone_reader().map_err(|e| format!("reader: {e}"))?;
+
+    let handle = app.clone();
+    let pty_id_clone = pty_id.clone();
+    let paused = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let event = crate::pty::PtyOutputEvent {
+                        agent_id: format!("docker-pull-{}", pty_id_clone),
+                        pty_id: pty_id_clone.clone(),
+                        data: buf[..n].to_vec(),
+                    };
+                    if handle.emit("agent:output", event).is_err() { break; }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    let pty_handle = crate::pty::PtyHandle {
+        master: pair.master, writer, child,
+        agent_id: format!("docker-pull-{}", pty_id),
+        child_pid: None, paused,
+    };
+    pty_manager.handles.lock().unwrap().insert(pty_id, pty_handle);
+    Ok(())
+}
+
+// ── Volumes ─────────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerVolume {
+    pub name: String,
+    pub driver: String,
+    pub mountpoint: String,
+}
+
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct RawDockerVolume {
+    Name: String,
+    Driver: String,
+    Mountpoint: String,
+}
+
+#[tauri::command]
+pub fn docker_list_volumes() -> Result<Vec<DockerVolume>, String> {
+    let output = docker_cmd()
+        .args(["volume", "ls", "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| format!("docker volume ls failed: {}", e))?;
+
+    if !output.status.success() {
+        return Err("docker volume ls failed".to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut volumes = Vec::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        if let Ok(raw) = serde_json::from_str::<RawDockerVolume>(trimmed) {
+            volumes.push(DockerVolume {
+                name: raw.Name,
+                driver: raw.Driver,
+                mountpoint: raw.Mountpoint,
+            });
+        }
+    }
+
+    Ok(volumes)
+}
+
+#[tauri::command]
+pub fn docker_remove_volume(name: String) -> Result<(), String> {
+    let output = docker_cmd()
+        .args(["volume", "rm", &name])
+        .output()
+        .map_err(|e| format!("docker volume rm failed: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("docker volume rm failed: {}", stderr.trim()));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn docker_prune_volumes() -> Result<String, String> {
+    let output = docker_cmd()
+        .args(["volume", "prune", "-f"])
+        .output()
+        .map_err(|e| format!("docker volume prune failed: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("prune failed: {}", stderr.trim()));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+// ── Networks ────────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerNetwork {
+    pub id: String,
+    pub name: String,
+    pub driver: String,
+    pub scope: String,
+}
+
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct RawDockerNetwork {
+    ID: String,
+    Name: String,
+    Driver: String,
+    Scope: String,
+}
+
+#[tauri::command]
+pub fn docker_list_networks() -> Result<Vec<DockerNetwork>, String> {
+    let output = docker_cmd()
+        .args(["network", "ls", "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| format!("docker network ls failed: {}", e))?;
+
+    if !output.status.success() {
+        return Err("docker network ls failed".to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut networks = Vec::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        if let Ok(raw) = serde_json::from_str::<RawDockerNetwork>(trimmed) {
+            networks.push(DockerNetwork {
+                id: raw.ID,
+                name: raw.Name,
+                driver: raw.Driver,
+                scope: raw.Scope,
+            });
+        }
+    }
+
+    Ok(networks)
+}
