@@ -39,7 +39,7 @@ const DARK_THEME = {
 
 interface ProjectGroup { name: string; containers: DockerContainer[]; runningCount: number; configFile: string | null; }
 interface TerminalPanel { type: 'logs' | 'shell' | 'compose-up' | 'compose-down' | 'pull'; label: string; ptyId: string; interactive: boolean; }
-type DockerTab = 'containers' | 'images' | 'volumes';
+type DockerTab = 'containers' | 'images' | 'volumes' | 'disk';
 
 // ── Stats Mini Bars ─────────────────────────────────────────────────────────
 
@@ -67,6 +67,35 @@ function StatsBars({ stats }: { stats: ContainerStats | undefined }) {
   );
 }
 
+// ── Port Links ──────────────────────────────────────────────────────────────
+
+function PortLinks({ ports }: { ports: string }) {
+  // Parse ports like "0.0.0.0:5432->5432/tcp, 0.0.0.0:15433->80/tcp"
+  const links = ports.split(',').map(p => p.trim()).filter(Boolean).map(p => {
+    const match = p.match(/(?:[\d.]+:)?(\d+)->(\d+)/);
+    if (match) return { host: match[1], container: match[2], raw: p };
+    return { host: null, container: null, raw: p };
+  });
+
+  if (links.length === 0) return null;
+
+  return (
+    <>
+      <span className="text-border">|</span>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {links.map((link, i) => link.host ? (
+          <button key={i} onClick={(e) => { e.stopPropagation(); window.open(`http://localhost:${link.host}`, '_blank'); }}
+            className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer" title={`Open localhost:${link.host}`}>
+            :{link.host}
+          </button>
+        ) : (
+          <span key={i}>{link.raw}</span>
+        ))}
+      </div>
+    </>
+  );
+}
+
 // ── Container Row ───────────────────────────────────────────────────────────
 
 function ContainerRow({ container, stats, isActing, onStart, onStop, onRestart, onOpenLogs, onOpenShell, onInspect }: {
@@ -90,7 +119,7 @@ function ContainerRow({ container, stats, isActing, onStart, onStop, onRestart, 
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
           <span className="truncate">{container.image}</span>
-          {container.ports && <><span className="text-border">|</span><span className="truncate">{container.ports}</span></>}
+          {container.ports && <PortLinks ports={container.ports} />}
         </div>
         {isRunning && <StatsBars stats={stats} />}
       </div>
@@ -380,6 +409,71 @@ function VolumesTab({ volumes, networks, actionLoading, onRemoveVolume, onPrune,
   );
 }
 
+// ── Disk Usage Tab ──────────────────────────────────────────────────────────
+
+function DiskUsageTab({ onFetch, onPrune }: { onFetch: () => Promise<import('@/types/docker').DockerDiskUsage | null>; onPrune: () => Promise<void> }) {
+  const [usage, setUsage] = useState<import('@/types/docker').DockerDiskUsage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pruning, setPruning] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const result = await onFetch();
+      setUsage(result);
+      setLoading(false);
+    })();
+  }, [onFetch]);
+
+  const handlePrune = async () => {
+    setPruning(true);
+    await onPrune();
+    const result = await onFetch();
+    setUsage(result);
+    setPruning(false);
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-40"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (!usage) return <p className="text-sm text-muted-foreground text-center py-8">Could not fetch disk usage.</p>;
+
+  const items = [
+    { label: 'Images', count: usage.imagesCount, size: usage.imagesSize, icon: HardDrive, color: 'text-blue-500' },
+    { label: 'Containers', count: usage.containersCount, size: usage.containersSize, icon: Container, color: 'text-green-500' },
+    { label: 'Volumes', count: usage.volumesCount, size: usage.volumesSize, icon: HardDrive, color: 'text-purple-500' },
+    { label: 'Build Cache', count: null, size: usage.buildCacheSize, icon: Cpu, color: 'text-orange-500' },
+  ];
+
+  return (
+    <div className="flex-1 overflow-auto">
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {items.map(item => (
+          <div key={item.label} className="p-4 rounded-lg border border-border bg-card">
+            <div className="flex items-center gap-2 mb-2">
+              <item.icon className={`w-4 h-4 ${item.color}`} />
+              <span className="text-sm font-medium">{item.label}</span>
+            </div>
+            <div className="text-2xl font-bold">{item.size || '0B'}</div>
+            {item.count !== null && <div className="text-xs text-muted-foreground mt-1">{item.count} item{item.count !== 1 ? 's' : ''}</div>}
+          </div>
+        ))}
+      </div>
+
+      <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">System Prune</p>
+            <p className="text-xs text-muted-foreground mt-1">Remove all unused images, containers, volumes and build cache</p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={handlePrune} disabled={pruning}>
+            {pruning ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Eraser className="w-4 h-4 mr-1.5" />}
+            {pruning ? 'Cleaning...' : 'Prune All'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 
 export default function DockerPage() {
@@ -389,6 +483,7 @@ export default function DockerPage() {
     startContainer, stopContainer, restartContainer, startProject, stopProject,
     openLogs, openShell, composeDown, closePty, inspectContainer,
     fetchImages, removeImage, pullImage, fetchVolumes, removeVolume, pruneVolumes,
+    fetchDiskUsage, systemPrune,
     refresh, retry,
   } = useDocker();
 
@@ -502,7 +597,7 @@ export default function DockerPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 shrink-0">
-        {([['containers', 'Containers', Container], ['images', 'Images', HardDrive], ['volumes', 'Volumes', HardDrive]] as const).map(([key, label, Icon]) => (
+        {([['containers', 'Containers', Container], ['images', 'Images', HardDrive], ['volumes', 'Volumes', HardDrive], ['disk', 'Disk Usage', Cpu]] as const).map(([key, label, Icon]) => (
           <button key={key} onClick={() => setActiveTab(key as DockerTab)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${activeTab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
             <Icon className="w-3.5 h-3.5" />{label}
@@ -541,6 +636,10 @@ export default function DockerPage() {
 
       {activeTab === 'volumes' && (
         <VolumesTab volumes={volumes} networks={networks} actionLoading={actionLoading} onRemoveVolume={removeVolume} onPrune={pruneVolumes} onFetch={fetchVolumes} />
+      )}
+
+      {activeTab === 'disk' && (
+        <DiskUsageTab onFetch={fetchDiskUsage} onPrune={systemPrune} />
       )}
 
       {/* Bottom panels */}

@@ -184,6 +184,8 @@ pub fn run() {
             commands::docker::docker_remove_volume,
             commands::docker::docker_prune_volumes,
             commands::docker::docker_list_networks,
+            commands::docker::docker_disk_usage,
+            commands::docker::docker_system_prune,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

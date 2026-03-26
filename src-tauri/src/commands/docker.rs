@@ -1228,3 +1228,97 @@ pub fn docker_list_networks() -> Result<Vec<DockerNetwork>, String> {
 
     Ok(networks)
 }
+
+// ── Disk Usage ──────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerDiskUsage {
+    pub images_count: usize,
+    pub images_size: String,
+    pub containers_count: usize,
+    pub containers_size: String,
+    pub volumes_count: usize,
+    pub volumes_size: String,
+    pub build_cache_size: String,
+    pub total_size: String,
+}
+
+#[tauri::command]
+pub fn docker_disk_usage() -> Result<DockerDiskUsage, String> {
+    let output = docker_cmd()
+        .args(["system", "df", "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| format!("docker system df failed: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("docker system df failed: {}", stderr.trim()));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    let mut images_count = 0;
+    let mut images_size = String::new();
+    let mut containers_count = 0;
+    let mut containers_size = String::new();
+    let mut volumes_count = 0;
+    let mut volumes_size = String::new();
+    let mut build_cache_size = String::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(trimmed) {
+            let typ = v["Type"].as_str().unwrap_or("");
+            let count = v["TotalCount"].as_str()
+                .or_else(|| v["TotalCount"].as_i64().map(|_| ""))
+                .unwrap_or("0");
+            let count_num = count.parse::<usize>().unwrap_or(
+                v["TotalCount"].as_i64().unwrap_or(0) as usize
+            );
+            let size = v["Size"].as_str().unwrap_or("0B").to_string();
+
+            match typ {
+                "Images" => { images_count = count_num; images_size = size; }
+                "Containers" => { containers_count = count_num; containers_size = size; }
+                "Local Volumes" => { volumes_count = count_num; volumes_size = size; }
+                "Build Cache" => { build_cache_size = size; }
+                _ => {}
+            }
+        }
+    }
+
+    // Calculate rough total
+    let total_size = format!("{}, {}, {}, {}",
+        if images_size.is_empty() { "0B".to_string() } else { images_size.clone() },
+        if containers_size.is_empty() { "0B".to_string() } else { containers_size.clone() },
+        if volumes_size.is_empty() { "0B".to_string() } else { volumes_size.clone() },
+        if build_cache_size.is_empty() { "0B".to_string() } else { build_cache_size.clone() },
+    );
+
+    Ok(DockerDiskUsage {
+        images_count,
+        images_size,
+        containers_count,
+        containers_size,
+        volumes_count,
+        volumes_size,
+        build_cache_size,
+        total_size,
+    })
+}
+
+#[tauri::command]
+pub fn docker_system_prune() -> Result<String, String> {
+    let output = docker_cmd()
+        .args(["system", "prune", "-af", "--volumes"])
+        .output()
+        .map_err(|e| format!("docker system prune failed: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("prune failed: {}", stderr.trim()));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}

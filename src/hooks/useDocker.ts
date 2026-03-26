@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
-import type { DockerContainer, DockerStatus, SetupProgress, ContainerStats, ContainerDetail, DockerImage, DockerVolume, DockerNetwork } from '@/types/docker';
+import type { DockerContainer, DockerStatus, SetupProgress, ContainerStats, ContainerDetail, DockerImage, DockerVolume, DockerNetwork, DockerDiskUsage } from '@/types/docker';
 import { sendNotification } from '@tauri-apps/plugin-notification';
 
 const POLL_INTERVAL = 5000;
@@ -426,6 +426,20 @@ export function useDocker() {
     fetchVolumes,
     removeVolume,
     pruneVolumes,
+    // ── Disk usage ──────────────────────────────────────────────────────
+    fetchDiskUsage: useCallback(async (): Promise<DockerDiskUsage | null> => {
+      try { return await invoke<DockerDiskUsage>('docker_disk_usage'); }
+      catch { return null; }
+    }, []),
+    systemPrune: useCallback(async () => {
+      try {
+        await invoke<string>('docker_system_prune');
+        await fetchImages();
+        await fetchVolumes();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    }, [fetchImages, fetchVolumes]),
     refresh,
     retry,
   };

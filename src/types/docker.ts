@@ -74,3 +74,14 @@ export interface DockerNetwork {
   driver: string;
   scope: string;
 }
+
+export interface DockerDiskUsage {
+  imagesCount: number;
+  imagesSize: string;
+  containersCount: number;
+  containersSize: string;
+  volumesCount: number;
+  volumesSize: string;
+  buildCacheSize: string;
+  totalSize: string;
+}
