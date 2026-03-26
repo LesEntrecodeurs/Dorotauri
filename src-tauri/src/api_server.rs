@@ -104,6 +104,7 @@ struct CreateAgentBody {
     tab_id: Option<String>,
     provider: Option<String>,
     is_super_agent: Option<bool>,
+    super_agent_scope: Option<String>,
     secondary_paths: Option<Vec<String>>,
 }
 
@@ -221,7 +222,7 @@ async fn wait_for_agent(
         let agent = agents.get(&id).cloned().ok_or(StatusCode::NOT_FOUND)?;
 
         match agent.process_state {
-            ProcessState::Completed | ProcessState::Error | ProcessState::Dormant => {
+            ProcessState::Completed | ProcessState::Error | ProcessState::Dormant | ProcessState::Waiting => {
                 return Ok(Json(serde_json::json!({
                     "status": format!("{:?}", agent.process_state).to_lowercase(),
                     "lastCleanOutput": agent.status_line,
@@ -245,7 +246,8 @@ async fn wait_for_agent(
                             ProcessState::Completed
                             | ProcessState::Error
                             | ProcessState::Dormant
-                            | ProcessState::Inactive => {
+                            | ProcessState::Inactive
+                            | ProcessState::Waiting => {
                                 return serde_json::json!({
                                     "status": format!("{:?}", agent.process_state).to_lowercase(),
                                     "lastCleanOutput": agent.status_line,
@@ -296,6 +298,7 @@ async fn create_agent(
         tab_id: body.tab_id.unwrap_or_else(|| "general".to_string()),
         provider: body.provider,
         is_super_agent: body.is_super_agent.unwrap_or(false),
+        super_agent_scope: body.super_agent_scope,
         last_activity: now.clone(),
         created_at: now,
         ..Default::default()
@@ -358,6 +361,11 @@ async fn start_agent(
 
     // Build and send the CLI command
     let settings = state.app_state.settings.lock().unwrap().clone();
+    // Export agent ID so Claude Code hooks can report status back to Dorotoring
+    state
+        .pty_manager
+        .write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     // For tab-scoped super agents: export tab ID so MCP server can filter
     if agent_snapshot.is_super_agent
         && agent_snapshot.super_agent_scope.as_deref() == Some("tab")
@@ -653,4 +661,75 @@ pub async fn start(
     eprintln!("[api_server] API server listening on 127.0.0.1:31415");
 
     axum::serve(listener, app).await.expect("API server error");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Agent, AppSettings};
+
+    fn default_settings() -> AppSettings {
+        AppSettings::default()
+    }
+
+    fn agent_with(is_super: bool, skip_perms: bool, provider: Option<&str>) -> Agent {
+        Agent {
+            id: "test-id".into(),
+            is_super_agent: is_super,
+            skip_permissions: skip_perms,
+            provider: provider.map(|s| s.to_string()),
+            cwd: "/tmp".into(),
+            tab_id: "general".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_normal_agent_no_mcp_flags() {
+        let agent = agent_with(false, false, None);
+        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
+        assert!(!cmd.contains("--mcp-config"), "normal agent should not have --mcp-config");
+        assert!(!cmd.contains("--append-system-prompt-file"));
+    }
+
+    #[test]
+    fn test_super_agent_injects_mcp_config() {
+        let agent = agent_with(true, false, None);
+        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
+        let mcp_path = dirs::home_dir().unwrap().join(".claude").join("mcp.json");
+        if mcp_path.exists() {
+            assert!(cmd.contains("--mcp-config"), "super agent should have --mcp-config");
+        }
+    }
+
+    #[test]
+    fn test_super_agent_injects_instructions() {
+        let agent = agent_with(true, false, None);
+        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
+        assert!(cmd.contains("--append-system-prompt-file"));
+        assert!(cmd.contains("super-agent-instructions.md"));
+    }
+
+    #[test]
+    fn test_super_agent_with_skip_permissions() {
+        let agent = agent_with(true, true, None);
+        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
+        assert!(cmd.contains("--dangerously-skip-permissions"));
+        assert!(cmd.contains("--append-system-prompt-file"));
+    }
+
+    #[test]
+    fn test_prompt_escapes_single_quotes() {
+        let agent = agent_with(false, false, None);
+        let cmd = build_cli_command(&agent, Some("it's done"), &default_settings());
+        assert!(cmd.contains("it'\\''s"), "single quotes not escaped: {}", cmd);
+    }
+
+    #[test]
+    fn test_codex_provider_uses_full_auto() {
+        let agent = agent_with(false, true, Some("codex"));
+        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
+        assert!(cmd.contains("--full-auto"), "codex should use --full-auto");
+        assert!(!cmd.contains("--dangerously-skip-permissions"));
+    }
 }
