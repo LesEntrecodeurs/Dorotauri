@@ -230,6 +230,11 @@ export default function TerminalsView() {
     character?: string,
     name?: string,
     skipPermissions?: boolean,
+    provider?: import('@/types/electron').AgentProvider,
+    localModel?: string,
+    obsidianVaultPaths?: string[],
+    isSuperAgent?: boolean,
+    superAgentScope?: 'tab' | 'all',
   ) => {
     const agent = await createAgent({
       skills,
@@ -237,6 +242,11 @@ export default function TerminalsView() {
       character: character as import('@/types/electron').AgentCharacter,
       name,
       skipPermissions,
+      provider,
+      localModel,
+      obsidianVaultPaths,
+      isSuperAgent,
+      superAgentScope,
       tabId: tabManager.activeTabId ?? undefined,
     });
     // Agent is created with tabId — no separate addAgentToTab needed

@@ -8,6 +8,7 @@ interface CreateAgentConfig {
   name?: string;
   skipPermissions?: boolean;
   isSuperAgent?: boolean;
+  superAgentScope?: 'tab' | 'all';
 }
 
 interface UseAgentActionsProps {
@@ -63,10 +64,15 @@ export function useAgentActions({
     worktree?: { enabled: boolean; branchName: string },
     character?: AgentCharacter,
     name?: string,
-    skipPermissions?: boolean
+    skipPermissions?: boolean,
+    _provider?: import('@/types/electron').AgentProvider,
+    _localModel?: string,
+    _obsidianVaultPaths?: string[],
+    isSuperAgent?: boolean,
+    superAgentScope?: 'tab' | 'all',
   ) => {
     try {
-      const agent = await createAgent({ skills, worktree, character, name, skipPermissions });
+      const agent = await createAgent({ skills, worktree, character, name, skipPermissions, isSuperAgent, superAgentScope });
       setShowCreateAgentModal(false);
       setCreateAgentProjectPath(null);
 

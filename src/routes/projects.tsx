@@ -31,7 +31,7 @@ import {
 import { useClaude, useSessionMessages } from '@/hooks/useClaude';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
 import type { ClaudeProject } from '@/lib/claude-code';
-import type { Agent, AgentCharacter } from '@/types/electron';
+import type { Agent, AgentCharacter, AgentProvider } from '@/types/electron';
 import NewChatModal from '@/components/NewChatModal';
 
 // Generate consistent colors for projects based on name
@@ -328,7 +328,12 @@ export default function ProjectsPage() {
     worktree?: { enabled: boolean; branchName: string },
     character?: AgentCharacter,
     name?: string,
-    skipPermissions?: boolean
+    skipPermissions?: boolean,
+    provider?: AgentProvider,
+    localModel?: string,
+    obsidianVaultPaths?: string[],
+    isSuperAgent?: boolean,
+    superAgentScope?: 'tab' | 'all',
   ) => {
     try {
       const agent = await createAgent({
@@ -337,6 +342,11 @@ export default function ProjectsPage() {
         character,
         name,
         skipPermissions,
+        provider,
+        localModel,
+        obsidianVaultPaths,
+        isSuperAgent,
+        superAgentScope,
       });
 
       if (prompt) {

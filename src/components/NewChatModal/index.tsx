@@ -127,6 +127,7 @@ export default function NewChatModal({
   const [branchName, setBranchName] = useState('');
   const [skipPermissions, setSkipPermissions] = useState(true);
   const [isOrchestrator, setIsOrchestrator] = useState(false);
+  const [orchestratorScope, setOrchestratorScope] = useState<'tab' | 'all'>('tab');
 
   // Refresh both parent skills and local provider-skill map
   const handleRefreshSkills = useCallback(() => {
@@ -160,6 +161,8 @@ export default function NewChatModal({
         setUseWorktree(!!editAgent.branchName);
         setBranchName(editAgent.branchName || '');
         setSkipPermissions(editAgent.skipPermissions || false);
+        setIsOrchestrator(false);
+        setOrchestratorScope('tab');
         setProvider(editAgent.provider || 'claude');
         setLocalModel(editAgent.localModel || '');
         setSelectedObsidianVaults(editAgent.obsidianVaultPaths || []);
@@ -172,6 +175,8 @@ export default function NewChatModal({
         setUseWorktree(false);
         setBranchName('');
         setSkipPermissions(false);
+        setIsOrchestrator(false);
+        setOrchestratorScope('tab');
         setProvider('claude');
         setLocalModel('');
         setSelectedObsidianVaults([]);
@@ -263,7 +268,20 @@ export default function NewChatModal({
       || (selectedSkills.length > 0 ? `Use the following skills: ${selectedSkills.join(', ')}` : '');
     const worktreeConfig = useWorktree ? { enabled: true, branchName: branchName.trim() } : undefined;
 
-    onSubmit(selectedSkills, finalPrompt, model, worktreeConfig, agentCharacter, finalName, skipPermissions, provider, localModel, selectedObsidianVaults.length > 0 ? selectedObsidianVaults : undefined);
+    onSubmit(
+      selectedSkills,
+      finalPrompt,
+      model,
+      worktreeConfig,
+      agentCharacter,
+      finalName,
+      skipPermissions,
+      provider,
+      localModel,
+      selectedObsidianVaults.length > 0 ? selectedObsidianVaults : undefined,
+      isOrchestrator || undefined,
+      isOrchestrator ? orchestratorScope : undefined,
+    );
 
     // Reset form
     setStep(1);
@@ -276,7 +294,7 @@ export default function NewChatModal({
     setProvider('claude');
     setLocalModel('');
     setSelectedObsidianVaults([]);
-  }, [prompt, selectedSkills, useWorktree, branchName, model, skipPermissions, provider, localModel, selectedObsidianVaults, onSubmit, isEditMode, editAgent, onUpdate, onClose]);
+  }, [prompt, selectedSkills, useWorktree, branchName, model, skipPermissions, isOrchestrator, orchestratorScope, provider, localModel, selectedObsidianVaults, onSubmit, isEditMode, editAgent, onUpdate, onClose]);
 
   // Can always continue (no project validation needed)
   const canContinue = true;
@@ -358,6 +376,8 @@ export default function NewChatModal({
                 onToggleSkipPermissions={() => setSkipPermissions(prev => !prev)}
                 isOrchestrator={isOrchestrator}
                 onOrchestratorToggle={handleOrchestratorToggle}
+                orchestratorScope={orchestratorScope}
+                onOrchestratorScopeChange={setOrchestratorScope}
                 provider={provider}
                 model={model}
                 selectedObsidianVaults={selectedObsidianVaults}
