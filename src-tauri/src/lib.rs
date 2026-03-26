@@ -10,7 +10,7 @@ mod db;
 pub mod migration;
 mod notifications;
 mod pty;
-mod state;
+pub mod state;
 mod usage_watcher;
 mod windows;
 
@@ -79,6 +79,8 @@ pub fn run() {
 
             // Install statusline script & configure Claude Code
             usage_watcher::ensure_statusline();
+            // Install hooks script so Claude Code reports agent status to Dorotoring
+            usage_watcher::ensure_hooks();
 
             // Start the usage rate-limits watcher
             usage_watcher::start(app.handle().clone());
