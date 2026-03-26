@@ -703,7 +703,7 @@ pub fn agent_promote_super(
 
                 let cmd = cmd_parts.join(" ");
                 // For tab-scoped super agents: export tab ID before relaunching
-                if agent.super_agent_scope.as_deref() == Some("tab") {
+                if agent.is_super_agent && agent.super_agent_scope.as_deref() == Some("tab") {
                     let tab_id = &agent.tab_id;
                     let _ = pty_mgr.write(
                         &pty_id_clone,
