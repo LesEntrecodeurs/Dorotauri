@@ -72,19 +72,19 @@ export function registerAgentTools(server: McpServer): void {
       try {
         const data = (await apiRequest(`/api/agents/${id}`)) as {
           agent: {
-            status: string;
+            processState: string;
             name?: string;
-            lastCleanOutput?: string;
+            statusLine?: string;
           };
         };
         const agentName = data.agent.name || id;
 
-        if (data.agent.lastCleanOutput) {
+        if (data.agent.statusLine) {
           return {
             content: [
               {
                 type: "text",
-                text: `Agent "${agentName}" (${data.agent.status}):\n\n${data.agent.lastCleanOutput}`,
+                text: `Agent "${agentName}" (${data.agent.processState}):\n\n${data.agent.statusLine}`,
               },
             ],
           };
@@ -94,7 +94,7 @@ export function registerAgentTools(server: McpServer): void {
           content: [
             {
               type: "text",
-              text: `Agent "${agentName}" (${data.agent.status}): No clean output captured yet. The agent's terminal output is available in the Dorotoring UI. Clean output is captured when the agent pauses or completes.`,
+              text: `Agent "${agentName}" (${data.agent.processState}): No clean output captured yet. The agent's terminal output is available in the Dorotoring UI. Clean output is captured when the agent pauses or completes.`,
             },
           ],
         };
@@ -177,10 +177,10 @@ export function registerAgentTools(server: McpServer): void {
     async ({ id, prompt, model }) => {
       try {
         const agentData = (await apiRequest(`/api/agents/${id}`)) as {
-          agent: { status: string; name?: string };
+          agent: { processState: string; name?: string };
         };
         const agentName = agentData.agent.name || id;
-        const status = agentData.agent.status;
+        const status = agentData.agent.processState;
 
         if (status === "running" || status === "waiting") {
           await apiRequest(`/api/agents/${id}/message`, "POST", { message: prompt });
@@ -264,12 +264,12 @@ export function registerAgentTools(server: McpServer): void {
     async ({ id, message }) => {
       try {
         const agentData = (await apiRequest(`/api/agents/${id}`)) as {
-          agent: { status: string; name?: string };
+          agent: { processState: string; name?: string };
         };
-        const status = agentData.agent.status;
+        const status = agentData.agent.processState;
         const agentName = agentData.agent.name || id;
 
-        if (status === "idle" || status === "completed" || status === "error") {
+        if (status === "inactive" || status === "completed" || status === "error") {
           const startResult = (await apiRequest(`/api/agents/${id}/start`, "POST", {
             prompt: message,
             skipPermissions: true,
@@ -461,10 +461,10 @@ export function registerAgentTools(server: McpServer): void {
       try {
         // Get agent info
         const agentData = (await apiRequest(`/api/agents/${id}`)) as {
-          agent: { status: string; name?: string };
+          agent: { processState: string; name?: string };
         };
         const agentName = agentData.agent.name || id;
-        const status = agentData.agent.status;
+        const status = agentData.agent.processState;
 
         // Start or send message
         if (status === "running" || status === "waiting") {
@@ -526,12 +526,12 @@ export function registerAgentTools(server: McpServer): void {
         }
 
         // Completed or idle — get the output
-        // Re-fetch to get latest lastCleanOutput (hooks may have updated it)
+        // Re-fetch to get latest statusLine (hooks may have updated it)
         const finalAgent = (await apiRequest(`/api/agents/${id}`)) as {
-          agent: { lastCleanOutput?: string; status: string };
+          agent: { statusLine?: string; processState: string };
         };
 
-        const output = finalAgent.agent.lastCleanOutput || waitData.lastCleanOutput;
+        const output = finalAgent.agent.statusLine || waitData.lastCleanOutput;
 
         if (output) {
           return {
