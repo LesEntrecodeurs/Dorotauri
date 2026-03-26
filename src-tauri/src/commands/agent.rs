@@ -224,6 +224,14 @@ pub fn agent_start(
 
     let cmd_string = cmd_parts.join(" ");
 
+    // For tab-scoped super agents: export tab ID so MCP server can filter
+    if agent_snapshot.is_super_agent
+        && agent_snapshot.super_agent_scope.as_deref() == Some("tab")
+    {
+        let tab_id = &agent_snapshot.tab_id;
+        pty_manager
+            .write(&pty_id, format!("export DOROTORING_TAB_ID={tab_id}\n").as_bytes())?;
+    }
     // Clear terminal before launching agent, then write command
     pty_manager.write(&pty_id, b"clear\n")?;
     pty_manager.write(&pty_id, format!("{cmd_string}\n").as_bytes())?;
@@ -694,6 +702,14 @@ pub fn agent_promote_super(
                 }
 
                 let cmd = cmd_parts.join(" ");
+                // For tab-scoped super agents: export tab ID before relaunching
+                if agent.super_agent_scope.as_deref() == Some("tab") {
+                    let tab_id = &agent.tab_id;
+                    let _ = pty_mgr.write(
+                        &pty_id_clone,
+                        format!("export DOROTORING_TAB_ID={tab_id}\n").as_bytes(),
+                    );
+                }
                 let _ = pty_mgr.write(&pty_id_clone, format!("{cmd}\n").as_bytes());
             });
         }

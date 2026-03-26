@@ -358,6 +358,18 @@ async fn start_agent(
 
     // Build and send the CLI command
     let settings = state.app_state.settings.lock().unwrap().clone();
+    // For tab-scoped super agents: export tab ID so MCP server can filter
+    if agent_snapshot.is_super_agent
+        && agent_snapshot.super_agent_scope.as_deref() == Some("tab")
+    {
+        state
+            .pty_manager
+            .write(
+                &pty_id,
+                format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
+            )
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
     let cmd = build_cli_command(&agent_snapshot, body.prompt.as_deref(), &settings);
     state
         .pty_manager
