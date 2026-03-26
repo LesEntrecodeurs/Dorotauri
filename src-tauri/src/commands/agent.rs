@@ -114,7 +114,10 @@ pub fn agent_create(
             .get("isSuperAgent")
             .and_then(|v| v.as_bool())
             .unwrap_or(false),
-        super_agent_scope: None,
+        super_agent_scope: config
+            .get("superAgentScope")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         scheduled_task_ids: Vec::new(),
         automation_ids: Vec::new(),
     };
@@ -291,6 +294,9 @@ pub fn agent_start(
     }
 
     let cmd_string = cmd_parts.join(" ");
+
+    // Export agent ID so Claude Code hooks can report status back to Dorotoring
+    pty_manager.write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())?;
 
     // For tab-scoped super agents: export tab ID so MCP server can filter
     if agent_snapshot.is_super_agent
@@ -621,6 +627,9 @@ pub fn agent_reanimate(
         cwd_tracker.register(&pty_id, pid);
     }
 
+    // Export agent ID so Claude Code hooks can report status if user (re)starts claude manually
+    pty_manager.write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes()).ok();
+
     // Update agent
     let updated = {
         let mut agents = state.agents.lock().unwrap();
@@ -770,6 +779,11 @@ pub fn agent_promote_super(
                 }
 
                 let cmd = cmd_parts.join(" ");
+                // Export agent ID for status hooks
+                let _ = pty_mgr.write(
+                    &pty_id_clone,
+                    format!("export DOROTORING_AGENT_ID={agent_id}\n").as_bytes(),
+                );
                 // For tab-scoped super agents: export tab ID before relaunching
                 if agent.is_super_agent && agent.super_agent_scope.as_deref() == Some("tab") {
                     let tab_id = &agent.tab_id;
