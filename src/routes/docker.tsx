@@ -484,7 +484,7 @@ export default function DockerPage() {
     startContainer, stopContainer, restartContainer, startProject, stopProject,
     openLogs, openShell, composeDown, closePty, inspectContainer,
     fetchImages, removeImage, pullImage, fetchVolumes, removeVolume, pruneVolumes,
-    fetchDiskUsage, systemPrune,
+    fetchDiskUsage, systemPrune, setStatsEnabled,
     refresh, retry,
   } = useDocker();
 
@@ -495,6 +495,11 @@ export default function DockerPage() {
   const [detailPanel, setDetailPanel] = useState<ContainerDetail | null>(null);
 
   const toggleGroup = (name: string) => setExpanded(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
+
+  // Only poll stats when on the containers tab (where stats bars are shown)
+  useEffect(() => {
+    setStatsEnabled(activeTab === 'containers');
+  }, [activeTab, setStatsEnabled]);
 
   const handleCloseTerminal = useCallback(async () => { if (terminalPanel) { await closePty(terminalPanel.ptyId); setTerminalPanel(null); } }, [terminalPanel, closePty]);
   const handleCloseDetail = useCallback(() => setDetailPanel(null), []);
