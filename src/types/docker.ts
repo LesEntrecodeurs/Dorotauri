@@ -75,6 +75,26 @@ export interface DockerNetwork {
   scope: string;
 }
 
+export interface NetworkMapNode {
+  id: string;
+  name: string;
+  image: string;
+  state: string;
+  project: string | null;
+  ports: string;
+  networks: string[];
+}
+
+export interface NetworkMapEdge {
+  network: string;
+  containers: string[];
+}
+
+export interface NetworkMap {
+  nodes: NetworkMapNode[];
+  edges: NetworkMapEdge[];
+}
+
 export interface DockerDiskUsage {
   imagesCount: number;
   imagesSize: string;

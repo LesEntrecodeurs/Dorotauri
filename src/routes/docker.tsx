@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { DockerContainer, ContainerStats, ContainerDetail, DockerImage, DockerVolume, DockerNetwork } from '@/types/docker';
+import ServiceMap from '@/components/Docker/ServiceMap';
 import {
   Container, Play, Square, RotateCcw, RefreshCw, Search, Loader2, AlertTriangle,
   ChevronDown, ChevronRight, FolderOpen, Box, FileText, Terminal as TerminalIcon,
-  X, Trash2, Cpu, MemoryStick, Info, Download, HardDrive, Network, Eraser,
+  X, Trash2, Cpu, MemoryStick, Info, Download, HardDrive, Network, Eraser, GitBranch,
 } from 'lucide-react';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ const DARK_THEME = {
 
 interface ProjectGroup { name: string; containers: DockerContainer[]; runningCount: number; configFile: string | null; }
 interface TerminalPanel { type: 'logs' | 'shell' | 'compose-up' | 'compose-down' | 'pull'; label: string; ptyId: string; interactive: boolean; }
-type DockerTab = 'containers' | 'images' | 'volumes' | 'disk';
+type DockerTab = 'containers' | 'images' | 'volumes' | 'disk' | 'map';
 
 // ── Stats Mini Bars ─────────────────────────────────────────────────────────
 
@@ -597,7 +598,7 @@ export default function DockerPage() {
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-4 shrink-0">
-        {([['containers', 'Containers', Container], ['images', 'Images', HardDrive], ['volumes', 'Volumes', HardDrive], ['disk', 'Disk Usage', Cpu]] as const).map(([key, label, Icon]) => (
+        {([['containers', 'Containers', Container], ['images', 'Images', HardDrive], ['volumes', 'Volumes', HardDrive], ['disk', 'Disk', Cpu], ['map', 'Map', GitBranch]] as const).map(([key, label, Icon]) => (
           <button key={key} onClick={() => setActiveTab(key as DockerTab)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${activeTab === key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
             <Icon className="w-3.5 h-3.5" />{label}
@@ -640,6 +641,10 @@ export default function DockerPage() {
 
       {activeTab === 'disk' && (
         <DiskUsageTab onFetch={fetchDiskUsage} onPrune={systemPrune} />
+      )}
+
+      {activeTab === 'map' && (
+        <ServiceMap onSelectContainer={handleInspect} />
       )}
 
       {/* Bottom panels */}

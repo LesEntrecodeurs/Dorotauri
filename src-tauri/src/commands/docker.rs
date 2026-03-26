@@ -1322,3 +1322,110 @@ pub fn docker_system_prune() -> Result<String, String> {
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
+
+// ── Network Map ─────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkMapNode {
+    pub id: String,
+    pub name: String,
+    pub image: String,
+    pub state: String,
+    pub project: Option<String>,
+    pub ports: String,
+    pub networks: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkMapEdge {
+    pub network: String,
+    pub containers: Vec<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkMap {
+    pub nodes: Vec<NetworkMapNode>,
+    pub edges: Vec<NetworkMapEdge>,
+}
+
+#[tauri::command]
+pub fn docker_network_map() -> Result<NetworkMap, String> {
+    let containers_output = docker_cmd()
+        .args(["ps", "-a", "--format", "{{json .}}"])
+        .output()
+        .map_err(|e| format!("docker ps failed: {}", e))?;
+
+    if !containers_output.status.success() {
+        return Err("docker ps failed".to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&containers_output.stdout);
+    let mut nodes = Vec::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() { continue; }
+        if let Ok(raw) = serde_json::from_str::<RawDockerContainer>(trimmed) {
+            let project = parse_label(&raw.Labels, "com.docker.compose.project");
+            let service = parse_label(&raw.Labels, "com.docker.compose.service");
+            nodes.push(NetworkMapNode {
+                id: raw.ID.clone(),
+                name: service.unwrap_or(raw.Names.clone()),
+                image: raw.Image,
+                state: raw.State,
+                project,
+                ports: raw.Ports,
+                networks: Vec::new(),
+            });
+        }
+    }
+
+    let networks_output = docker_cmd()
+        .args(["network", "ls", "--format", "{{.Name}}"])
+        .output()
+        .map_err(|e| format!("docker network ls failed: {}", e))?;
+
+    let net_stdout = String::from_utf8_lossy(&networks_output.stdout);
+    let mut edges = Vec::new();
+
+    for net_name in net_stdout.lines() {
+        let net_name = net_name.trim();
+        if net_name.is_empty() || net_name == "bridge" || net_name == "host" || net_name == "none" {
+            continue;
+        }
+
+        let inspect = docker_cmd()
+            .args(["network", "inspect", net_name, "--format", "{{json .Containers}}"])
+            .output();
+
+        if let Ok(output) = inspect {
+            if output.status.success() {
+                let json_str = String::from_utf8_lossy(&output.stdout);
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(json_str.trim()) {
+                    if let Some(obj) = v.as_object() {
+                        let container_ids: Vec<String> = obj.keys()
+                            .map(|k| if k.len() >= 12 { k[..12].to_string() } else { k.clone() })
+                            .collect();
+
+                        if container_ids.len() > 1 {
+                            for node in &mut nodes {
+                                if container_ids.iter().any(|cid| node.id.starts_with(cid)) {
+                                    node.networks.push(net_name.to_string());
+                                }
+                            }
+                            edges.push(NetworkMapEdge {
+                                network: net_name.to_string(),
+                                containers: container_ids,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(NetworkMap { nodes, edges })
+}

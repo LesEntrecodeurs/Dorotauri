@@ -186,6 +186,7 @@ pub fn run() {
             commands::docker::docker_list_networks,
             commands::docker::docker_disk_usage,
             commands::docker::docker_system_prune,
+            commands::docker::docker_network_map,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
