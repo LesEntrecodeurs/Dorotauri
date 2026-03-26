@@ -86,6 +86,12 @@ struct WaitQuery {
     timeout: Option<u64>,
 }
 
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ListAgentsQuery {
+    tab_id: Option<String>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateAgentBody {
@@ -144,12 +150,19 @@ async fn health() -> impl IntoResponse {
 async fn list_agents(
     AxumState(state): AxumState<ApiState>,
     headers: HeaderMap,
+    Query(query): Query<ListAgentsQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_auth(&headers, &state.api_token)?;
 
     let agents: Vec<Agent> = {
         let agents = state.app_state.agents.lock().unwrap();
-        agents.values().cloned().collect()
+        agents
+            .values()
+            .filter(|a| {
+                query.tab_id.as_ref().map_or(true, |tid| &a.tab_id == tid)
+            })
+            .cloned()
+            .collect()
     };
 
     Ok(Json(serde_json::json!({ "agents": agents })))
@@ -532,7 +545,7 @@ pub fn build_cli_command(agent: &Agent, prompt: Option<&str>, settings: &AppSett
         }
     }
 
-    // Super Agent: add MCP config for orchestrator tools
+    // Super Agent: add MCP config + orchestrator system prompt
     if agent.is_super_agent {
         let mcp_config = dirs::home_dir()
             .unwrap_or_default()
@@ -541,6 +554,10 @@ pub fn build_cli_command(agent: &Agent, prompt: Option<&str>, settings: &AppSett
         if mcp_config.exists() {
             cmd_parts.push("--mcp-config".into());
             cmd_parts.push(mcp_config.to_string_lossy().to_string());
+        }
+        if let Some(instructions_path) = crate::ensure_super_agent_instructions() {
+            cmd_parts.push("--append-system-prompt-file".into());
+            cmd_parts.push(instructions_path.to_string_lossy().to_string());
         }
     }
 
