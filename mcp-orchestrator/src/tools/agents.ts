@@ -14,23 +14,15 @@ export function registerAgentTools(server: McpServer): void {
     {},
     async () => {
       try {
-        const data = (await apiRequest("/api/agents")) as { agents: unknown[] };
+        const tabId = process.env.DOROTORING_TAB_ID;
+        const url = tabId ? `/api/agents?tabId=${encodeURIComponent(tabId)}` : '/api/agents';
+        const data = (await apiRequest(url)) as { agents: unknown[] };
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(data.agents, null, 2),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(data.agents, null, 2) }],
         };
       } catch (error) {
         return {
-          content: [
-            {
-              type: "text",
-              text: `Error listing agents: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
+          content: [{ type: "text", text: `Error listing agents: ${error instanceof Error ? error.message : String(error)}` }],
           isError: true,
         };
       }
@@ -148,6 +140,8 @@ export function registerAgentTools(server: McpServer): void {
           character,
           skipPermissions,
           secondaryProjectPath,
+          // Inherit tab context so new agents land in the same tab as the super agent
+          ...(process.env.DOROTORING_TAB_ID ? { tabId: process.env.DOROTORING_TAB_ID } : {}),
         })) as { agent: { id: string; name: string } };
         return {
           content: [
