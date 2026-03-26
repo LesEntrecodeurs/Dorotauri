@@ -30,7 +30,7 @@ const MosaicTerminalView = lazy(() => import('@/components/MosaicTerminalView'))
 
 export default function Dashboard() {
   const { data, loading, error } = useClaude();
-  const { agents } = useElectronAgents();
+  const { agents, createAgent, updateAgent } = useElectronAgents();
   const [viewMode, setViewMode] = useState<'canvas' | 'terminals' | 'stats'>('terminals');
 
   // Calculate stats
@@ -239,7 +239,7 @@ export default function Dashboard() {
           style={{ height: 'calc(100vh - 130px)', minHeight: '400px' }}
         >
           <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[600px] bg-card border border-border"><div className="text-center"><Loader2 className="w-8 h-8 animate-spin text-foreground mx-auto mb-4" /><p className="text-muted-foreground">Loading Terminals...</p></div></div>}>
-            <MosaicTerminalView agents={agents} />
+            <MosaicTerminalView agents={agents} createAgent={createAgent} updateAgent={updateAgent} />
           </Suspense>
         </Card>
       )}
