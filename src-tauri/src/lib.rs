@@ -195,6 +195,7 @@ pub fn run() {
             commands::ssh::ssh_delete_host,
             commands::ssh::ssh_connect,
             commands::ssh::ssh_read_file,
+            commands::ssh::ssh_open_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

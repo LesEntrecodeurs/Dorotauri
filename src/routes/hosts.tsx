@@ -1,11 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useHosts } from '@/hooks/useHosts';
 import { isTauri } from '@/hooks/useTauri';
-import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir, join } from '@tauri-apps/api/path';
-import Terminal from '@/components/Terminal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -217,88 +215,6 @@ function HostCard({ host, onConnect, onEdit, onDelete }: {
   );
 }
 
-// ── SSH Terminal Panel ───────────────────────────────────────────────────────
-
-type SshStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
-
-const STATUS_CONFIG: Record<SshStatus, { dot: string; label: string; bg: string }> = {
-  connecting:   { dot: 'bg-yellow-500 animate-pulse', label: 'Connecting...', bg: 'bg-yellow-500/15 text-yellow-500' },
-  connected:    { dot: 'bg-green-500', label: 'Connected', bg: 'bg-green-500/15 text-green-500' },
-  error:        { dot: 'bg-red-500', label: 'Error', bg: 'bg-red-500/15 text-red-500' },
-  disconnected: { dot: 'bg-gray-500', label: 'Disconnected', bg: 'bg-gray-500/15 text-gray-500' },
-};
-
-const ERROR_PATTERNS = ['permission denied', 'connection refused', 'connection timed out', 'no route to host',
-  'host key verification failed', 'could not resolve hostname', 'network is unreachable', 'connection reset by peer'];
-
-function SshTerminalPanel({ ptyId, label, password, onClose }: { ptyId: string; label: string; password?: string | null; onClose: () => void }) {
-  const passwordSentRef = useRef(false);
-  const [status, setStatus] = useState<SshStatus>('connecting');
-  const outputBufRef = useRef('');
-  const statusLockedRef = useRef(false);
-
-  // Listen to PTY output for password auto-fill + status detection
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | undefined;
-
-    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
-      if (cancelled || event.payload.pty_id !== ptyId) return;
-      const text = new TextDecoder().decode(new Uint8Array(event.payload.data));
-      const lower = text.toLowerCase();
-
-      // Auto-fill password
-      if (password && !passwordSentRef.current) {
-        if (lower.includes('password:') || lower.includes('password for')) {
-          passwordSentRef.current = true;
-          setTimeout(() => {
-            invoke('pty_write', { ptyId, data: password + '\n' }).catch(() => {});
-          }, 50);
-        }
-      }
-
-      // Status detection
-      if (!statusLockedRef.current) {
-        outputBufRef.current += lower;
-        const buf = outputBufRef.current;
-
-        if (ERROR_PATTERNS.some(p => buf.includes(p))) {
-          setStatus('error');
-          statusLockedRef.current = true;
-        } else if (buf.includes('last login') || buf.includes('welcome to') || buf.includes('linux ')) {
-          setStatus('connected');
-          statusLockedRef.current = true;
-        }
-      }
-    }).then(fn => {
-      if (cancelled) { fn(); return; }
-      unlisten = fn;
-    });
-
-    return () => { cancelled = true; unlisten?.(); };
-  }, [ptyId, password]);
-
-  const cfg = STATUS_CONFIG[status];
-
-  return (
-    <motion.div initial={{ height: 0 }} animate={{ height: '50%' }} exit={{ height: 0 }} transition={{ duration: 0.2 }}
-      className="border-t border-border overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-secondary border-b border-border shrink-0">
-        <div className="flex items-center gap-2 text-xs">
-          <Badge variant="secondary" className="text-[10px]">SSH</Badge>
-          <span className="text-muted-foreground">{label}</span>
-          <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${cfg.bg}`}>{cfg.label}</span>
-          </div>
-        </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}><X className="w-3.5 h-3.5" /></Button>
-      </div>
-      <Terminal ptyId={ptyId} className="flex-1 min-h-0" />
-    </motion.div>
-  );
-}
-
 // ── Import parsers (SSH Config + Termius CSV) ────────────────────────────────
 
 interface ParsedHost {
@@ -450,12 +366,11 @@ function ImportResultDialog({ imported, skipped, onClose }: { imported: number; 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function HostsPage() {
-  const { hosts, loading, error, createHost, updateHost, deleteHost, connectHost, closePty } = useHosts();
+  const { hosts, loading, error, createHost, updateHost, deleteHost, connectHost } = useHosts();
 
   const [search, setSearch] = useState('');
   const [formDialog, setFormDialog] = useState<SshHost | 'new' | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<SshHost | null>(null);
-  const [terminal, setTerminal] = useState<{ ptyId: string; label: string; password?: string | null } | null>(null);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [importing, setImporting] = useState(false);
 
@@ -465,16 +380,11 @@ export default function HostsPage() {
   });
 
   const handleConnect = useCallback(async (host: SshHost) => {
-    if (terminal) await closePty(terminal.ptyId);
     const ptyId = `ssh-${host.id}-${Date.now()}`;
     const password = await connectHost(host.id, ptyId);
-    setTerminal({ ptyId, label: `${host.name} — ${host.username}@${host.hostname}`, password: password || null });
-  }, [terminal, closePty, connectHost]);
-
-  const handleCloseTerminal = useCallback(async () => {
-    if (terminal) await closePty(terminal.ptyId);
-    setTerminal(null);
-  }, [terminal, closePty]);
+    const label = `${host.name} — ${host.username}@${host.hostname}`;
+    await invoke('ssh_open_window', { ptyId, label, password: password || null });
+  }, [connectHost]);
 
   const handleSave = useCallback(async (data: HostFormData) => {
     if (formDialog === 'new') {
@@ -619,10 +529,7 @@ export default function HostsPage() {
         )}
       </div>
 
-      {/* Terminal panel */}
-      <AnimatePresence>
-        {terminal && <SshTerminalPanel key={terminal.ptyId} ptyId={terminal.ptyId} label={terminal.label} password={terminal.password} onClose={handleCloseTerminal} />}
-      </AnimatePresence>
+
 
       {/* Dialogs */}
       <AnimatePresence>

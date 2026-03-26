@@ -23,6 +23,7 @@ const UsagePage = lazy(() => import('./routes/usage'))
 const WhatsNewPage = lazy(() => import('./routes/whats-new'))
 const DockerPage = lazy(() => import('./routes/docker'))
 const HostsPage = lazy(() => import('./routes/hosts'))
+const SshTerminal = lazy(() => import('./routes/ssh-terminal'))
 const TrayPanel = lazy(() => import('./routes/tray-panel'))
 
 function PageLoader() {
@@ -82,6 +83,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/hosts" element={<HostsPage />} />
             </Route>
             <Route path="/console/:agentId" element={<Console />} />
+            <Route path="/ssh-terminal/:ptyId" element={<SshTerminal />} />
             <Route path="/tray-panel" element={<TrayPanel />} />
           </Routes>
         </Suspense>

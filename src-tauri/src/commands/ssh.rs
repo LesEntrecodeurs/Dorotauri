@@ -1,12 +1,27 @@
 use std::sync::Arc;
 
 use serde_json::json;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use crate::db::VaultDb;
 use crate::pty::PtyManager;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+fn simple_encode(s: &str) -> String {
+    let mut out = String::new();
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char);
+            }
+            _ => {
+                out.push_str(&format!("%{:02X}", b));
+            }
+        }
+    }
+    out
+}
 
 fn row_to_host(row: &rusqlite::Row<'_>) -> rusqlite::Result<serde_json::Value> {
     Ok(json!({
@@ -132,6 +147,36 @@ pub fn ssh_delete_host(db: State<'_, VaultDb>, id: String) -> Result<(), String>
 #[tauri::command]
 pub fn ssh_read_file(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {e}"))
+}
+
+// ── Open SSH window ─────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn ssh_open_window(
+    app: AppHandle,
+    pty_id: String,
+    label: String,
+    password: Option<String>,
+) -> Result<String, String> {
+    let window_id = format!("ssh-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+
+    // Encode params in the URL for the standalone SSH terminal route
+    let pw = password.unwrap_or_default();
+    let url = format!(
+        "/ssh-terminal/{}?label={}&pw={}",
+        simple_encode(&pty_id),
+        simple_encode(&label),
+        simple_encode(&pw),
+    );
+
+    WebviewWindowBuilder::new(&app, &window_id, WebviewUrl::App(url.into()))
+        .title(format!("SSH — {}", label))
+        .inner_size(900.0, 600.0)
+        .min_inner_size(400.0, 300.0)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(window_id)
 }
 
 // ── Connect ─────────────────────────────────────────────────────────────────
