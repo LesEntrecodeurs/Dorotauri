@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -128,16 +129,36 @@ fn lima_home() -> PathBuf {
 }
 
 fn find_binary(name: &str) -> Option<PathBuf> {
+    let bin_name = if is_windows() && !name.ends_with(".exe") {
+        format!("{}.exe", name)
+    } else {
+        name.to_string()
+    };
+
     // 1. Our managed dir
-    let managed = bin_dir().join(name);
+    let managed = bin_dir().join(&bin_name);
     if managed.exists() {
         return Some(managed);
     }
+
     // 2. System paths
-    for dir in &["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] {
-        let p = PathBuf::from(dir).join(name);
-        if p.exists() {
-            return Some(p);
+    if is_windows() {
+        // Common Docker install paths on Windows
+        for dir in &[
+            "C:\\Program Files\\Docker\\Docker\\resources\\bin",
+            "C:\\Program Files\\Docker\\cli-plugins",
+        ] {
+            let p = PathBuf::from(dir).join(&bin_name);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    } else {
+        for dir in &["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] {
+            let p = PathBuf::from(dir).join(&bin_name);
+            if p.exists() {
+                return Some(p);
+            }
         }
     }
     None
@@ -170,7 +191,14 @@ fn colima_cmd() -> Option<Command> {
 
 fn binaries_installed() -> bool {
     let bd = bin_dir();
-    bd.join("docker").exists() && bd.join("colima").exists() && bd.join("limactl").exists()
+    let docker_name = docker_binary_name();
+    if needs_vm() {
+        // macOS needs docker + colima + limactl
+        bd.join(docker_name).exists() && bd.join("colima").exists() && bd.join("limactl").exists()
+    } else {
+        // Linux/Windows only need docker CLI
+        bd.join(docker_name).exists()
+    }
 }
 
 // ── Status checks ───────────────────────────────────────────────────────────
@@ -221,6 +249,53 @@ async fn download_file(url: &str, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
+async fn download_and_extract_archive(url: &str, dest_dir: &Path) -> Result<(), String> {
+    if url.ends_with(".zip") {
+        return download_and_extract_zip(url, dest_dir).await;
+    }
+    download_and_extract_tgz(url, dest_dir).await
+}
+
+async fn download_and_extract_zip(url: &str, dest_dir: &Path) -> Result<(), String> {
+    let resp = reqwest::get(url)
+        .await
+        .map_err(|e| format!("Download failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Download failed: HTTP {}", resp.status()));
+    }
+
+    let bytes = resp.bytes().await.map_err(|e| format!("Read failed: {}", e))?;
+
+    std::fs::create_dir_all(dest_dir).map_err(|e| format!("mkdir failed: {}", e))?;
+
+    let tmp_zip = dest_dir.join("__tmp.zip");
+    std::fs::write(&tmp_zip, &bytes).map_err(|e| format!("Write zip: {}", e))?;
+
+    // Use system unzip
+    let output = Command::new("tar")
+        .args(["-xf", &tmp_zip.to_string_lossy(), "-C", &dest_dir.to_string_lossy()])
+        .output()
+        .or_else(|_| {
+            Command::new("powershell")
+                .args(["-Command", &format!(
+                    "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+                    tmp_zip.display(), dest_dir.display()
+                )])
+                .output()
+        })
+        .map_err(|e| format!("Extract zip: {}", e))?;
+
+    std::fs::remove_file(&tmp_zip).ok();
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Extract zip failed: {}", stderr.trim()));
+    }
+
+    Ok(())
+}
+
 async fn download_and_extract_tgz(url: &str, dest_dir: &Path) -> Result<(), String> {
     let resp = reqwest::get(url)
         .await
@@ -246,6 +321,7 @@ async fn download_and_extract_tgz(url: &str, dest_dir: &Path) -> Result<(), Stri
     Ok(())
 }
 
+#[cfg(unix)]
 fn make_executable(path: &Path) -> Result<(), String> {
     let mut perms = std::fs::metadata(path)
         .map_err(|e| format!("metadata: {}", e))?
@@ -253,6 +329,11 @@ fn make_executable(path: &Path) -> Result<(), String> {
     perms.set_mode(0o755);
     std::fs::set_permissions(path, perms).map_err(|e| format!("chmod: {}", e))?;
     Ok(())
+}
+
+#[cfg(windows)]
+fn make_executable(_path: &Path) -> Result<(), String> {
+    Ok(()) // Not needed on Windows
 }
 
 // ── Commands ────────────────────────────────────────────────────────────────
@@ -274,6 +355,52 @@ pub fn docker_status() -> DockerStatus {
     }
 }
 
+fn is_windows() -> bool {
+    cfg!(target_os = "windows")
+}
+
+fn needs_vm() -> bool {
+    // Only macOS needs a VM (Colima/Lima). Linux and Windows run Docker natively.
+    cfg!(target_os = "macos")
+}
+
+fn docker_cli_url() -> &'static str {
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    { "https://download.docker.com/mac/static/stable/aarch64/docker-29.3.1.tgz" }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    { "https://download.docker.com/mac/static/stable/x86_64/docker-29.3.1.tgz" }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    { "https://download.docker.com/linux/static/stable/x86_64/docker-29.3.1.tgz" }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    { "https://download.docker.com/linux/static/stable/aarch64/docker-29.3.1.tgz" }
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    { "https://download.docker.com/win/static/stable/x86_64/docker-29.3.1.zip" }
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    { "https://download.docker.com/win/static/stable/x86_64/docker-29.3.1.zip" }
+}
+
+fn colima_url() -> &'static str {
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    { "https://github.com/abiosoft/colima/releases/download/v0.10.1/colima-Darwin-arm64" }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    { "https://github.com/abiosoft/colima/releases/download/v0.10.1/colima-Darwin-amd64" }
+    #[cfg(not(target_os = "macos"))]
+    { "" } // Not needed on Linux/Windows
+}
+
+fn lima_url() -> &'static str {
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    { "https://github.com/lima-vm/lima/releases/download/v2.1.0/lima-2.1.0-Darwin-arm64.tar.gz" }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    { "https://github.com/lima-vm/lima/releases/download/v2.1.0/lima-2.1.0-Darwin-x86_64.tar.gz" }
+    #[cfg(not(target_os = "macos"))]
+    { "" } // Not needed on Linux/Windows
+}
+
+fn docker_binary_name() -> &'static str {
+    if is_windows() { "docker.exe" } else { "docker" }
+}
+
 #[tauri::command]
 pub async fn docker_setup(app: AppHandle) -> Result<(), String> {
     if binaries_installed() {
@@ -283,47 +410,51 @@ pub async fn docker_setup(app: AppHandle) -> Result<(), String> {
     let bd = bin_dir();
     std::fs::create_dir_all(&bd).map_err(|e| format!("mkdir failed: {}", e))?;
 
-    // 1. Docker CLI
-    if !bd.join("docker").exists() {
+    // 1. Docker CLI (all platforms)
+    let docker_name = docker_binary_name();
+    if !bd.join(docker_name).exists() {
         let _ = app.emit("docker:setup-progress", SetupProgress {
             step: "Downloading Docker CLI...".into(),
             progress: 10,
         });
 
         let tmp = runtime_dir().join("tmp-docker");
-        std::fs::create_dir_all(&tmp).ok();
-        download_and_extract_tgz(
-            "https://download.docker.com/mac/static/stable/aarch64/docker-29.3.1.tgz",
-            &tmp,
-        )
-        .await?;
+        std::fs::create_dir_all(&tmp).map_err(|e| format!("mkdir tmp-docker: {}", e))?;
+        download_and_extract_archive(docker_cli_url(), &tmp).await?;
 
-        // The tgz contains docker/docker
-        let src = tmp.join("docker").join("docker");
+        // The archive contains docker/docker (or docker/docker.exe on Windows)
+        let src = tmp.join("docker").join(docker_name);
         if src.exists() {
-            std::fs::copy(&src, bd.join("docker"))
+            std::fs::copy(&src, bd.join(docker_name))
                 .map_err(|e| format!("copy docker: {}", e))?;
-            make_executable(&bd.join("docker"))?;
+            if !is_windows() {
+                make_executable(&bd.join(docker_name))?;
+            }
         }
         std::fs::remove_dir_all(&tmp).ok();
     }
 
-    // 2. Colima
+    // Linux/Windows: Docker runs natively — no need for Colima/Lima
+    if !needs_vm() {
+        let _ = app.emit("docker:setup-progress", SetupProgress {
+            step: "Setup complete".into(),
+            progress: 100,
+        });
+        return Ok(());
+    }
+
+    // 2. Colima (macOS only)
     if !bd.join("colima").exists() {
         let _ = app.emit("docker:setup-progress", SetupProgress {
             step: "Downloading Colima...".into(),
             progress: 40,
         });
 
-        download_file(
-            "https://github.com/abiosoft/colima/releases/download/v0.10.1/colima-Darwin-arm64",
-            &bd.join("colima"),
-        )
-        .await?;
+        download_file(colima_url(), &bd.join("colima")).await?;
         make_executable(&bd.join("colima"))?;
     }
 
-    // 3. Lima (limactl + guest agents)
+    // 3. Lima (macOS only — limactl + guest agents)
     if !bd.join("limactl").exists() {
         let _ = app.emit("docker:setup-progress", SetupProgress {
             step: "Downloading Lima VM manager...".into(),
@@ -331,14 +462,9 @@ pub async fn docker_setup(app: AppHandle) -> Result<(), String> {
         });
 
         let tmp = runtime_dir().join("tmp-lima");
-        std::fs::create_dir_all(&tmp).ok();
-        download_and_extract_tgz(
-            "https://github.com/lima-vm/lima/releases/download/v2.1.0/lima-2.1.0-Darwin-arm64.tar.gz",
-            &tmp,
-        )
-        .await?;
+        std::fs::create_dir_all(&tmp).map_err(|e| format!("mkdir tmp-lima: {}", e))?;
+        download_and_extract_archive(lima_url(), &tmp).await?;
 
-        // Copy limactl binary
         let limactl_src = tmp.join("bin").join("limactl");
         if limactl_src.exists() {
             std::fs::copy(&limactl_src, bd.join("limactl"))
@@ -346,7 +472,6 @@ pub async fn docker_setup(app: AppHandle) -> Result<(), String> {
             make_executable(&bd.join("limactl"))?;
         }
 
-        // Copy share/lima (guest agents)
         let share_src = tmp.join("share").join("lima");
         let share_dest = runtime_dir().join("share").join("lima");
         if share_src.exists() {
@@ -452,10 +577,16 @@ pub async fn docker_ensure_running() -> Result<String, String> {
         );
     }
 
-    // Fallback: Docker Desktop
-    let launch = Command::new("/usr/bin/open")
-        .args(["-ga", "Docker"])
-        .output();
+    // Fallback: Docker Desktop (macOS or Windows)
+    let launch = if is_windows() {
+        Command::new("cmd")
+            .args(["/C", "start", "", "Docker Desktop"])
+            .output()
+    } else {
+        Command::new("/usr/bin/open")
+            .args(["-ga", "Docker"])
+            .output()
+    };
 
     match launch {
         Ok(output) if output.status.success() => {
