@@ -190,7 +190,7 @@ pub fn agent_start(
         }
     }
 
-    // Super Agent: add MCP config for orchestrator tools
+    // Super Agent: add MCP config + orchestrator system prompt
     if agent_snapshot.is_super_agent {
         let mcp_config = dirs::home_dir()
             .unwrap_or_default()
@@ -199,6 +199,10 @@ pub fn agent_start(
         if mcp_config.exists() {
             cmd_parts.push("--mcp-config".into());
             cmd_parts.push(mcp_config.to_string_lossy().to_string());
+        }
+        if let Some(instructions_path) = crate::ensure_super_agent_instructions() {
+            cmd_parts.push("--append-system-prompt-file".into());
+            cmd_parts.push(instructions_path.to_string_lossy().to_string());
         }
     }
 
@@ -402,6 +406,13 @@ pub fn agent_update(
         if let Some(vault_paths) = params.get("obsidianVaultPaths") {
             if let Ok(vp) = serde_json::from_value::<Vec<String>>(vault_paths.clone()) {
                 agent.obsidian_vault_paths = Some(vp);
+            }
+        }
+        if let Some(branch_name) = params.get("branchName") {
+            if branch_name.is_null() {
+                agent.branch_name = None;
+            } else if let Some(b) = branch_name.as_str() {
+                agent.branch_name = if b.is_empty() { None } else { Some(b.to_string()) };
             }
         }
         if let Some(tab_id) = params.get("tabId").and_then(|v| v.as_str()) {
@@ -668,7 +679,7 @@ pub fn agent_promote_super(
                     }
                 }
 
-                // MCP config (the whole reason for the reload)
+                // MCP config + orchestrator system prompt (the whole reason for the reload)
                 let mcp_config = dirs::home_dir()
                     .unwrap_or_default()
                     .join(".claude")
@@ -676,6 +687,10 @@ pub fn agent_promote_super(
                 if mcp_config.exists() {
                     cmd_parts.push("--mcp-config".into());
                     cmd_parts.push(mcp_config.to_string_lossy().to_string());
+                }
+                if let Some(instructions_path) = crate::ensure_super_agent_instructions() {
+                    cmd_parts.push("--append-system-prompt-file".into());
+                    cmd_parts.push(instructions_path.to_string_lossy().to_string());
                 }
 
                 let cmd = cmd_parts.join(" ");
