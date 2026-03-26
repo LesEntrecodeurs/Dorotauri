@@ -187,6 +187,14 @@ pub fn run() {
             commands::docker::docker_disk_usage,
             commands::docker::docker_system_prune,
             commands::docker::docker_network_map,
+            // SSH commands
+            commands::ssh::ssh_list_hosts,
+            commands::ssh::ssh_get_host,
+            commands::ssh::ssh_create_host,
+            commands::ssh::ssh_update_host,
+            commands::ssh::ssh_delete_host,
+            commands::ssh::ssh_connect,
+            commands::ssh::ssh_read_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

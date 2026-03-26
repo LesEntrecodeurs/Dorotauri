@@ -77,17 +77,22 @@ export default function Terminal({ ptyId, onData, className = '' }: TerminalProp
   useEffect(() => {
     if (!ptyId || !isTauri()) return;
 
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
 
     listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
+      if (cancelled) return;
       const { pty_id: eventPtyId, data } = event.payload;
       if (eventPtyId === ptyId && xtermRef.current) {
         const bytes = new Uint8Array(data);
         xtermRef.current.write(bytes);
       }
-    }).then(fn => { unlisten = fn; });
+    }).then(fn => {
+      if (cancelled) { fn(); return; }
+      unlisten = fn;
+    });
 
-    return () => { unlisten?.(); };
+    return () => { cancelled = true; unlisten?.(); };
   }, [ptyId]);
 
   // Public method to write to terminal

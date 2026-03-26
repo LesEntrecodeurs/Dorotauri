@@ -18,6 +18,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Container,
+  Server,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -68,6 +69,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/projects', icon: FolderGit2, label: 'Projects' },
   { href: '/recurring-tasks', icon: Clock, label: 'Recurring Tasks' },
   { href: '/docker', icon: Container, label: 'Docker' },
+  { href: '/hosts', icon: Server, label: 'Hosts' },
   { href: '/usage', icon: BarChart3, label: 'Usage' },
   { href: '/whats-new', icon: Megaphone, label: "What's New" },
 ];
