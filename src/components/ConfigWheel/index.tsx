@@ -1,5 +1,5 @@
-import { memo, useCallback } from 'react';
-import { Settings, Crown, Dices } from 'lucide-react';
+import { memo, useCallback, useState, useEffect } from 'react';
+import { Settings, Crown, Dices, Zap, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import type { Agent, AgentProvider } from '@/types/electron';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CHARACTER_FACES } from '@/components/AgentList/constants';
@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SuperAgentToggle } from './SuperAgentToggle';
+import { invoke } from '@tauri-apps/api/core';
+import { ConfigWheelWorktree } from './ConfigWheelWorktree';
 
 const PROVIDERS: AgentProvider[] = ['claude', 'codex', 'gemini', 'opencode', 'pi', 'local'];
 
@@ -57,6 +59,24 @@ export const ConfigWheel = memo(function ConfigWheel({
   /** Stop pointer events from reaching the mosaic drag layer */
   const stopMosaicDrag = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.stopPropagation();
+  }, []);
+
+  // MCP status for Super Agent section
+  const [mcpStatus, setMcpStatus] = useState<'loading' | 'configured' | 'not-configured' | 'error'>('loading');
+
+  useEffect(() => {
+    invoke<{ configured?: boolean; error?: string }>('orchestrator_get_status')
+      .then((r) => setMcpStatus(r.configured ? 'configured' : 'not-configured'))
+      .catch(() => setMcpStatus('not-configured'));
+  }, []);
+
+  const handleMcpSetup = useCallback(async () => {
+    try {
+      const r = await invoke<{ success?: boolean }>('orchestrator_setup');
+      if (r.success) setMcpStatus('configured');
+    } catch {
+      setMcpStatus('error');
+    }
   }, []);
 
   return (
@@ -158,38 +178,72 @@ export const ConfigWheel = memo(function ConfigWheel({
           </Select>
         </div>
 
-        {/* Autonomous mode */}
-        <div className="flex items-center justify-between">
-          <Label htmlFor="cw-autonomous" className="text-xs cursor-pointer">
-            Autonomous mode
-          </Label>
-          <Switch
-            id="cw-autonomous"
-            checked={agent.skipPermissions}
-            onCheckedChange={(checked) => update({ skipPermissions: checked })}
-            className="scale-75 origin-right"
+        {/* ── AUTONOMY ─────────────────────────────────────────── */}
+        <div className="border-t border-border pt-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Autonomy</p>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="cw-autonomous" className="text-xs cursor-pointer flex items-center gap-1.5">
+              <Zap className="w-3 h-3 text-amber-400" />
+              Skip Permissions
+            </Label>
+            <Switch
+              id="cw-autonomous"
+              checked={agent.skipPermissions}
+              onCheckedChange={(checked) => update({ skipPermissions: checked })}
+              className="scale-75 origin-right"
+            />
+          </div>
+        </div>
+
+        {/* ── GIT WORKTREE ─────────────────────────────────────── */}
+        <div className="border-t border-border pt-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Git Worktree</p>
+          <ConfigWheelWorktree
+            branchName={agent.branchName}
+            onUpdate={(branchName) => update({ branchName: branchName || undefined })}
           />
         </div>
 
-        {/* Super Agent — disabled if another agent in the tab is already Super Agent */}
+        {/* ── SUPER AGENT ──────────────────────────────────────── */}
         <div className="border-t border-border pt-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
+            <Crown className="w-3 h-3 text-amber-400" />
+            Super Agent
+          </p>
+
           {tabHasSuperAgent && !agent.isSuperAgent ? (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Crown className="w-3 h-3" />
-              <span>A Super Agent already exists in this tab</span>
-            </div>
+            <p className="text-[10px] text-muted-foreground">A Super Agent already exists in this tab</p>
           ) : (
-            <SuperAgentToggle
-              isSuperAgent={agent.isSuperAgent}
-              scope={agent.superAgentScope}
-              onChange={(isSuperAgent, scope) => {
-                if (isSuperAgent && onPromoteSuper) {
-                  onPromoteSuper(agent.id, scope || 'tab');
-                } else {
-                  update({ isSuperAgent, superAgentScope: scope });
-                }
-              }}
-            />
+            <div className="space-y-2">
+              <SuperAgentToggle
+                isSuperAgent={agent.isSuperAgent}
+                scope={agent.superAgentScope}
+                onChange={(isSuperAgent, scope) => {
+                  if (isSuperAgent && onPromoteSuper) {
+                    onPromoteSuper(agent.id, scope || 'tab');
+                  } else {
+                    update({ isSuperAgent, superAgentScope: scope });
+                  }
+                }}
+              />
+
+              {/* MCP status — shown always so user knows the state */}
+              <div className="flex items-center gap-1.5 ml-4">
+                {mcpStatus === 'loading' && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+                {mcpStatus === 'configured' && <CheckCircle className="w-3 h-3 text-green-500" />}
+                {(mcpStatus === 'not-configured' || mcpStatus === 'error') && <XCircle className="w-3 h-3 text-destructive" />}
+                <span className="text-[10px] text-muted-foreground">
+                  {mcpStatus === 'loading' && 'Checking MCP...'}
+                  {mcpStatus === 'configured' && 'MCP ready'}
+                  {mcpStatus === 'not-configured' && (
+                    <button onClick={handleMcpSetup} className="text-primary hover:underline">
+                      Setup MCP orchestrator
+                    </button>
+                  )}
+                  {mcpStatus === 'error' && 'MCP setup failed'}
+                </span>
+              </div>
+            </div>
           )}
         </div>
       </PopoverContent>
