@@ -31,3 +31,6 @@ reqwest = { version = "0.12", features = ["stream"] }
 flate2 = "1"
 tar = "0.4"
 futures-util = "0.3"
+
+[dev-dependencies]
+tempfile = "3"
