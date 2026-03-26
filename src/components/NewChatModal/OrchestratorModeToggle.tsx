@@ -19,11 +19,15 @@ let cachedError: string | null = null;
 interface OrchestratorModeToggleProps {
   isOrchestrator: boolean;
   onToggle: (enabled: boolean) => void;
+  scope: 'tab' | 'all';
+  onScopeChange: (scope: 'tab' | 'all') => void;
 }
 
 export default function OrchestratorModeToggle({
   isOrchestrator,
   onToggle,
+  scope,
+  onScopeChange,
 }: OrchestratorModeToggleProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'configured' | 'not-configured' | 'error'>(
     cachedStatus ?? 'idle'
@@ -185,10 +189,37 @@ export default function OrchestratorModeToggle({
                 <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                 <span className="text-xs text-green-500">MCP orchestrator is configured</span>
               </div>
+              {isOrchestrator && (
+                <div className="mt-2">
+                  <p className="text-[10px] text-muted-foreground mb-1.5">Scope</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onScopeChange('tab')}
+                      className={`text-xs px-3 py-1 rounded border transition-colors ${
+                        scope === 'tab'
+                          ? 'bg-primary/20 border-primary/50 text-primary'
+                          : 'border-border text-muted-foreground hover:border-primary/30'
+                      }`}
+                    >
+                      👑 Tab only
+                    </button>
+                    <button
+                      onClick={() => onScopeChange('all')}
+                      className={`text-xs px-3 py-1 rounded border transition-colors ${
+                        scope === 'all'
+                          ? 'bg-primary/20 border-primary/50 text-primary'
+                          : 'border-border text-muted-foreground hover:border-primary/30'
+                      }`}
+                    >
+                      👑👑 Global
+                    </button>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={handleRemove}
                 disabled={isSettingUp}
-                className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                className="mt-2 text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
               >
                 {isSettingUp ? (
                   <>

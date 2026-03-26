@@ -29,6 +29,8 @@ interface StepTaskProps {
   onToggleSkipPermissions: () => void;
   isOrchestrator: boolean;
   onOrchestratorToggle: (enabled: boolean) => void;
+  orchestratorScope: 'tab' | 'all';
+  onOrchestratorScopeChange: (scope: 'tab' | 'all') => void;
   // Summary data
   provider: AgentProvider;
   model: string;
@@ -47,6 +49,8 @@ const StepTask = React.memo(function StepTask({
   onToggleSkipPermissions,
   isOrchestrator,
   onOrchestratorToggle,
+  orchestratorScope,
+  onOrchestratorScopeChange,
   provider,
   model,
   selectedObsidianVaults,
@@ -195,6 +199,8 @@ const StepTask = React.memo(function StepTask({
                 <OrchestratorModeToggle
                   isOrchestrator={isOrchestrator}
                   onToggle={onOrchestratorToggle}
+                  scope={orchestratorScope}
+                  onScopeChange={onOrchestratorScopeChange}
                 />
               </div>
             </motion.div>
