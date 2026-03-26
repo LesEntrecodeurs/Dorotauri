@@ -129,6 +129,69 @@ pub fn agent_create(
 }
 
 // ---------------------------------------------------------------------------
+// resolve_agent_cwd — resolve the working directory for an agent
+// ---------------------------------------------------------------------------
+
+/// Resolves the working directory for an agent.
+/// If `branch_name` is set, ensures a git worktree exists for that branch
+/// and returns its path. Falls back to `cwd` on any error.
+fn resolve_agent_cwd(cwd: &str, branch_name: Option<&str>, agent_id: &str) -> String {
+    let Some(branch) = branch_name else {
+        return cwd.to_string();
+    };
+
+    let base = std::path::Path::new(cwd);
+    let short_id = &agent_id[..agent_id.len().min(8)];
+    let worktree_path = base
+        .parent()
+        .unwrap_or(base)
+        .join(format!("{short_id}-worktree"));
+
+    // If directory already exists, assume worktree is set up
+    if worktree_path.exists() {
+        return worktree_path.to_string_lossy().to_string();
+    }
+
+    // Try: git worktree add -b <branch> <path>
+    let created = std::process::Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            branch,
+            worktree_path.to_str().unwrap_or("."),
+        ])
+        .current_dir(cwd)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if created {
+        return worktree_path.to_string_lossy().to_string();
+    }
+
+    // Branch may already exist — try without -b
+    let checked_out = std::process::Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            worktree_path.to_str().unwrap_or("."),
+            branch,
+        ])
+        .current_dir(cwd)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if checked_out {
+        worktree_path.to_string_lossy().to_string()
+    } else {
+        // Not a git repo or other error — fall back to main cwd
+        cwd.to_string()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // agent_start — spawn a PTY, build CLI command, mark as running
 // ---------------------------------------------------------------------------
 
@@ -154,8 +217,13 @@ pub fn agent_start(
             .ok_or_else(|| format!("agent not found: {}", id))?
     };
 
-    // Spawn PTY in the agent's working directory
-    pty_manager.spawn(&pty_id, &agent_snapshot.id, &agent_snapshot.cwd, &app_handle, None, None)?;
+    // Spawn PTY in the agent's working directory (git worktree if branch_name is set)
+    let resolved_cwd = resolve_agent_cwd(
+        &agent_snapshot.cwd,
+        agent_snapshot.branch_name.as_deref(),
+        &agent_snapshot.id,
+    );
+    pty_manager.spawn(&pty_id, &agent_snapshot.id, &resolved_cwd, &app_handle, None, None)?;
 
     // Register the shell PID with the cwd tracker
     if let Some(pid) = pty_manager.get_child_pid(&pty_id) {
