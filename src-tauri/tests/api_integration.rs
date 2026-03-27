@@ -2,17 +2,24 @@
 //! Tests: hook status mapping, broadcast channel, auth logic.
 
 use dorotoring_lib::state::{Agent, AppState, ProcessState};
+use dorotoring_lib::agent::event_bus::EventBus;
+use dorotoring_lib::agent::manager::AgentManager;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 
 fn test_app_state() -> Arc<AppState> {
     let (status_tx, _) = broadcast::channel::<(String, String)>(64);
+    let event_bus = Arc::new(EventBus::new());
+    let data_dir = std::env::temp_dir().join("dorotoring-test");
+    let agent_manager = Arc::new(AgentManager::new(event_bus.clone(), data_dir));
     Arc::new(AppState {
         agents: Arc::new(Mutex::new(HashMap::new())),
         settings: Mutex::new(Default::default()),
         tabs: Arc::new(Mutex::new(vec![])),
         status_tx,
+        agent_manager,
+        event_bus,
     })
 }
 
