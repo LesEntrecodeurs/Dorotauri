@@ -345,8 +345,7 @@ export default function ProjectsPage() {
         provider,
         localModel,
         obsidianVaultPaths,
-        isSuperAgent,
-        superAgentScope,
+        ...(isSuperAgent ? { role: { type: 'super' as const, scope: superAgentScope === 'all' ? 'workspace' : (superAgentScope || 'tab') } } : {}),
       });
 
       if (prompt) {

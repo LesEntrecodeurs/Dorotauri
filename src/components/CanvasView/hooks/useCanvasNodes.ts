@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import type { Agent } from '@/types/electron';
 import type { AgentNode, ProjectNode, ConnectionData } from '../types';
 
-export function isSuperAgent(agent: { name?: string }): boolean {
+export function isSuperAgent(agent: { name?: string; role?: { type: string } }): boolean {
+  if ((agent as any).role?.type === 'super') return true;
   const name = agent.name?.toLowerCase() || '';
   return name.includes('super agent') || name.includes('orchestrator');
 }

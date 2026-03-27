@@ -201,7 +201,7 @@ export const AgentDialogSidebar = memo(function AgentDialogSidebar({
           color="text-zinc-400"
           isExpanded={expandedPanels.has('settings')}
           badge={
-            agent.skipPermissions ? (
+            (agent.skipPermissions || agent.role?.type === 'super') ? (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">Auto</span>
             ) : null
           }

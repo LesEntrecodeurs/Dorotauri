@@ -7,8 +7,7 @@ interface CreateAgentConfig {
   character?: AgentCharacter;
   name?: string;
   skipPermissions?: boolean;
-  isSuperAgent?: boolean;
-  superAgentScope?: 'tab' | 'all';
+  role?: { type: 'super'; scope: string };
 }
 
 interface UseAgentActionsProps {
@@ -72,7 +71,7 @@ export function useAgentActions({
     superAgentScope?: 'tab' | 'all',
   ) => {
     try {
-      const agent = await createAgent({ skills, worktree, character, name, skipPermissions, isSuperAgent, superAgentScope });
+      const agent = await createAgent({ skills, worktree, character, name, skipPermissions, ...(isSuperAgent ? { role: { type: 'super' as const, scope: superAgentScope === 'all' ? 'workspace' : (superAgentScope || 'tab') } } : {}) });
       setShowCreateAgentModal(false);
       setCreateAgentProjectPath(null);
 

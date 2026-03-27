@@ -35,7 +35,7 @@ interface AgentManagementCardProps {
 export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, onRemove, agents = [] }: AgentManagementCardProps) {
   const statusConfig = STATUS_COLORS[agent.processState ?? agent.state ?? 'inactive'];
   const isSuper = isSuperAgentCheck(agent);
-  const isGlobalScope = isSuper && agent.superAgentScope === 'all';
+  const isGlobalScope = agent.role?.type === 'super' && (agent.role?.scope === 'workspace' || agent.role?.scope === 'global');
   const isSubAgent = agent.parentId != null;
   const parentAgent = isSubAgent ? agents.find(a => a.id === agent.parentId) : undefined;
   const parentName = parentAgent?.name || agent.parentId || 'parent';

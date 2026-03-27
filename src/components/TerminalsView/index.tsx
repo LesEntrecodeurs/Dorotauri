@@ -245,8 +245,7 @@ export default function TerminalsView() {
       provider,
       localModel,
       obsidianVaultPaths,
-      isSuperAgent,
-      superAgentScope,
+      ...(isSuperAgent ? { role: { type: 'super' as const, scope: superAgentScope === 'all' ? 'workspace' : (superAgentScope || 'tab') } } : {}),
       tabId: tabManager.activeTabId ?? undefined,
     });
     // Agent is created with tabId — no separate addAgentToTab needed

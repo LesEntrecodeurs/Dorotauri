@@ -62,8 +62,8 @@ export default function DormantAgentsList({ agents, onReanimate, onDelete }: Dor
                       {displayName}
                     </span>
                   </div>
-                  {agent.role && (
-                    <p className="text-[11px] text-muted-foreground/60 truncate">{agent.role}</p>
+                  {agent.role?.type === 'super' && (
+                    <p className="text-[11px] text-muted-foreground/60 truncate">Super Agent</p>
                   )}
                 </div>
 

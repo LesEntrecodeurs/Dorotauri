@@ -59,8 +59,7 @@ export function useElectronAgents() {
     localModel?: string;
     obsidianVaultPaths?: string[];
     tabId?: string;
-    isSuperAgent?: boolean;
-    superAgentScope?: 'tab' | 'all';
+    role?: 'super' | { type: 'super'; scope: string };
   }) => {
     if (!isTauri()) {
       throw new Error('Tauri API not available');

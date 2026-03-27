@@ -77,7 +77,7 @@ IMPORTANT:
 Say hello and list the current agents.`;
 
 export const isSuperAgentCheck = (agent: Agent) => {
-  return agent.isSuperAgent === true;
+  return agent.role?.type === 'super';
 };
 
 export const PROVIDER_LABELS: Record<string, string> = {

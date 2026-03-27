@@ -21,13 +21,15 @@ class AgentManager extends EventEmitter {
     const now = new Date().toISOString();
     const status: Agent = {
       id,
+      provider: 'claude',
+      state: 'inactive',
       processState: 'inactive',
       cwd: config.cwd,
       skills: config.skills,
       secondaryPaths: [],
       skipPermissions: false,
       tabId: 'general',
-      isSuperAgent: false,
+      role: { type: 'normal' },
       scheduledTaskIds: [],
       automationIds: [],
       output: [],

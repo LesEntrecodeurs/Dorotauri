@@ -24,8 +24,13 @@ export interface AgentTerminalDialogProps {
   onSubAgentCreated?: (subAgentId: string) => void;
 }
 
-export function isSuperAgent(agent: { name?: string } | null): boolean {
+export function isSuperAgent(agent: { name?: string; role?: { type: string } } | null): boolean {
   if (!agent) return false;
+  if ((agent as any).role?.type === 'super') return true;
   const name = agent.name?.toLowerCase() || '';
   return name.includes('super agent') || name.includes('orchestrator');
+}
+
+export function isAgentSuperRole(agent: { role?: { type: string } }): boolean {
+  return agent.role?.type === 'super';
 }

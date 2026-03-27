@@ -88,7 +88,7 @@ export default function TerminalPanelHeader({
       )}
 
       {/* Skip permissions indicator */}
-      {agent.skipPermissions && (
+      {(agent.skipPermissions || agent.role?.type === 'super') && (
         <span title="Bypass permissions enabled">
           <ShieldOff className="w-3 h-3 text-accent" />
         </span>
