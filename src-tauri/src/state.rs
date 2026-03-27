@@ -5,6 +5,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 
+use crate::agent::event_bus::EventBus;
+use crate::agent::manager::AgentManager;
+
 pub type AgentId = String;
 pub type PtyId = String;
 pub type StatusTx = broadcast::Sender<(String, String)>;
@@ -419,6 +422,10 @@ pub struct AppState {
     pub settings: Mutex<AppSettings>,
     pub tabs: Arc<Mutex<Vec<Tab>>>,
     pub status_tx: StatusTx,
+    // New agent module types (Tasks 2-6). Old fields above are kept for backward
+    // compatibility and will be removed once commands/agent.rs is migrated (Task 12).
+    pub agent_manager: Arc<AgentManager>,
+    pub event_bus: Arc<EventBus>,
 }
 
 impl AppState {
@@ -432,11 +439,21 @@ impl AppState {
         let tabs = Self::load_tabs(&dorotoring_dir);
         let (status_tx, _) = broadcast::channel::<(String, String)>(64);
 
+        // New agent module (EventBus + AgentManager)
+        let event_bus = Arc::new(EventBus::new());
+        let agent_manager = Arc::new(AgentManager::new(event_bus.clone(), dorotoring_dir.clone()));
+
+        // Load agents from disk (requires a tokio runtime)
+        let rt = tokio::runtime::Handle::current();
+        rt.block_on(agent_manager.load());
+
         Self {
             agents: Arc::new(Mutex::new(agents)),
             settings: Mutex::new(settings),
             tabs: Arc::new(Mutex::new(tabs)),
             status_tx,
+            agent_manager,
+            event_bus,
         }
     }
 

@@ -43,7 +43,8 @@ pub fn run() {
     // Clone Arcs for the API server
     let api_app_state = Arc::clone(&app_state);
     let api_pty_manager = Arc::clone(&pty_manager);
-    let api_cwd_tracker = Arc::clone(&cwd_tracker);
+    let api_agent_manager = Arc::clone(&app_state.agent_manager);
+    let api_event_bus = Arc::clone(&app_state.event_bus);
 
     tauri::Builder::default()
         .manage(app_state)
@@ -71,10 +72,11 @@ pub fn run() {
             // Start API server for MCP orchestrator
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(api_server::start(
-                api_app_state,
+                api_agent_manager,
+                api_event_bus,
                 api_pty_manager,
-                api_cwd_tracker,
                 handle,
+                api_app_state,
             ));
 
             // Start the cwd polling thread
