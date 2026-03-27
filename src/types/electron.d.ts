@@ -130,38 +130,53 @@ export type AgentCharacter = 'robot' | 'ninja' | 'wizard' | 'astronaut' | 'knigh
 
 export type AgentProvider = 'claude' | 'codex' | 'gemini' | 'opencode' | 'pi' | 'local';
 
+export type Scope = 'tab' | 'workspace' | 'global';
+
+export interface AgentRoleNormal {
+  type: 'normal';
+}
+
+export interface AgentRoleSuper {
+  type: 'super';
+  scope: Scope;
+}
+
+export type AgentRole = AgentRoleNormal | AgentRoleSuper;
+
 export interface Agent {
   id: string;
   name?: string;
-  role?: string;
-  character?: AgentCharacter;
-  skills: string[];
+  provider: AgentProvider;
+
+  // Topology
+  tabId: string;
+  parentId?: string;  // NEW
+
+  // Runtime
+  state: ProcessState;  // renamed from processState
+  ptyId?: string;
+
+  // Role
+  role: AgentRole;  // NEW — replaces isSuperAgent + superAgentScope
+
+  // Config
   cwd: string;
   secondaryPaths: string[];
-  ptyId?: string;
-  provider?: AgentProvider;
-  localModel?: string;
-  skipPermissions: boolean;
-  processState: ProcessState;
-  businessState?: string;
-  businessStateUpdatedBy?: 'inference' | 'super_agent';
-  businessStateUpdatedAt?: string;
+  skills: string[];
+  character?: AgentCharacter;
+
+  // Output
   statusLine?: string;
-  tabId: string;
-  isSuperAgent: boolean;
-  superAgentScope?: 'tab' | 'all';
-  scheduledTaskIds: string[];
-  automationIds: string[];
-  output: string[];
+  error?: string;
+
+  // Timestamps
   lastActivity: string;
   createdAt: string;
-  worktreePath?: string;
-  branchName?: string;
-  error?: string;
-  obsidianVaultPaths?: string[];
-  pathMissing?: boolean;
-  kanbanTaskId?: string;
-  currentSessionId?: string;
+
+  // Legacy compat (kept temporarily)
+  isSuperAgent?: boolean;
+  superAgentScope?: 'tab' | 'all';
+  processState?: ProcessState;
 }
 
 export interface Tab {
@@ -906,5 +921,37 @@ declare global {
     electronAPI?: ElectronAPI;
   }
 }
+
+// WebSocket event types
+export interface AgentCreatedEvent {
+  type: 'created';
+  agent_id: string;
+  parent_id?: string;
+  tab_id: string;
+}
+
+export interface AgentStateChangedEvent {
+  type: 'state_changed';
+  agent_id: string;
+  old: ProcessState;
+  new: ProcessState;
+}
+
+export interface AgentRemovedEvent {
+  type: 'removed';
+  agent_id: string;
+}
+
+export interface AgentStatusLineUpdatedEvent {
+  type: 'status_line_updated';
+  agent_id: string;
+  line: string;
+}
+
+export type AgentWsEvent =
+  | AgentCreatedEvent
+  | AgentStateChangedEvent
+  | AgentRemovedEvent
+  | AgentStatusLineUpdatedEvent;
 
 export {};
