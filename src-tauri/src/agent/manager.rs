@@ -33,6 +33,26 @@ impl AgentManager {
         }
     }
 
+    /// Load agents from disk. Sync version for use during app startup
+    /// (before tokio runtime is available).
+    pub fn load_sync(&self) {
+        let path = self.data_dir.join("agents.json");
+        if !path.exists() {
+            return;
+        }
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let file: AgentsFile = match serde_json::from_str(&content) {
+            Ok(f) => f,
+            Err(_) => return,
+        };
+        // blocking_lock is safe here — called once at startup, no contention
+        let mut agents = self.agents.blocking_lock();
+        *agents = file.agents;
+    }
+
     pub async fn load(&self) {
         let path = self.data_dir.join("agents.json");
         if !path.exists() {

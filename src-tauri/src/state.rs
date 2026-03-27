@@ -443,9 +443,8 @@ impl AppState {
         let event_bus = Arc::new(EventBus::new());
         let agent_manager = Arc::new(AgentManager::new(event_bus.clone(), dorotoring_dir.clone()));
 
-        // Load agents from disk (requires a tokio runtime)
-        let rt = tokio::runtime::Handle::current();
-        rt.block_on(agent_manager.load());
+        // Load agents from disk (sync — no tokio runtime needed at startup)
+        agent_manager.load_sync();
 
         Self {
             agents: Arc::new(Mutex::new(agents)),
