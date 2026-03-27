@@ -1,38 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type { AgentWsEvent } from '@/types/electron';
 
 const WS_BASE = 'ws://localhost:31415';
-
-// WebSocket event types (matching Rust AgentEvent)
-interface AgentCreatedEvent {
-  type: 'created';
-  agent_id: string;
-  parent_id?: string;
-  tab_id: string;
-}
-
-interface AgentStateChangedEvent {
-  type: 'state_changed';
-  agent_id: string;
-  old: string;
-  new: string;
-}
-
-interface AgentRemovedEvent {
-  type: 'removed';
-  agent_id: string;
-}
-
-interface AgentStatusLineUpdatedEvent {
-  type: 'status_line_updated';
-  agent_id: string;
-  line: string;
-}
-
-type AgentWsEvent =
-  | AgentCreatedEvent
-  | AgentStateChangedEvent
-  | AgentRemovedEvent
-  | AgentStatusLineUpdatedEvent;
 
 /**
  * Subscribe to the global agent event stream via WebSocket.

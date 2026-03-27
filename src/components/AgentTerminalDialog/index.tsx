@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, PanelRight } from 'lucide-react';
-import type { Agent } from '@/types/electron';
+import type { Agent, AgentWsEvent } from '@/types/electron';
 import 'xterm/css/xterm.css';
 
 import type { AgentTerminalDialogProps, PanelType } from './AgentDialogTypes';
@@ -81,7 +81,7 @@ export default function AgentTerminalDialog({
   // Auto-open sub-agent terminals when this agent delegates work
   const onSubAgentCreatedRef = useRef(onSubAgentCreated);
   onSubAgentCreatedRef.current = onSubAgentCreated;
-  useAgentEvents(useCallback((event) => {
+  useAgentEvents(useCallback((event: AgentWsEvent) => {
     if (event.type === 'created' && event.parent_id && agent && event.parent_id === agent.id) {
       onSubAgentCreatedRef.current?.(event.agent_id);
     }

@@ -173,10 +173,24 @@ export interface Agent {
   lastActivity: string;
   createdAt: string;
 
-  // Legacy compat (kept temporarily)
+  // Legacy compat (kept temporarily — remove once all consumers are migrated)
   isSuperAgent?: boolean;
   superAgentScope?: 'tab' | 'all';
-  processState?: ProcessState;
+  processState: ProcessState;
+  businessState?: string;
+  businessStateUpdatedBy?: 'inference' | 'super_agent';
+  businessStateUpdatedAt?: string;
+  skipPermissions?: boolean;
+  localModel?: string;
+  output: string[];
+  scheduledTaskIds?: string[];
+  automationIds?: string[];
+  worktreePath?: string;
+  branchName?: string;
+  obsidianVaultPaths?: string[];
+  pathMissing?: boolean;
+  kanbanTaskId?: string;
+  currentSessionId?: string;
 }
 
 export interface Tab {
