@@ -3,7 +3,10 @@
 // ---------------------------------------------------------------------------
 
 use axum::{
-    extract::{Path, Query, State as AxumState},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Path, Query, State as AxumState,
+    },
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -12,6 +15,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 use tauri::{AppHandle, Emitter};
 use tower_http::cors::CorsLayer;
 
@@ -174,6 +178,18 @@ struct HookOutputBody {
 struct HealthResponse {
     status: &'static str,
     version: &'static str,
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket message types
+// ---------------------------------------------------------------------------
+
+/// Incoming JSON messages on the `/ws/pty/{agent_id}` WebSocket.
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum PtyWsMessage {
+    Input { data: String },
+    Resize { cols: u16, rows: u16 },
 }
 
 // ---------------------------------------------------------------------------
@@ -783,6 +799,119 @@ async fn hook_output(
 }
 
 // ---------------------------------------------------------------------------
+// WebSocket handlers
+// ---------------------------------------------------------------------------
+
+/// `/ws/events` — global agent event stream (broadcasts all AgentEvents as JSON)
+async fn ws_events_handler(
+    ws: WebSocketUpgrade,
+    AxumState(state): AxumState<ApiState>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| ws_events(socket, state))
+}
+
+async fn ws_events(mut socket: WebSocket, state: ApiState) {
+    let mut rx = state.event_bus.subscribe_events();
+
+    loop {
+        tokio::select! {
+            event = rx.recv() => {
+                match event {
+                    Ok(evt) => {
+                        let json = serde_json::to_string(&evt).unwrap_or_default();
+                        if socket.send(Message::Text(json.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(n)) => {
+                        eprintln!("[ws_events] lagged by {n} events");
+                        continue;
+                    }
+                    Err(_) => break,
+                }
+            }
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Close(_))) | None => break,
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+/// `/ws/pty/{agent_id}` — duplex PTY WebSocket (output as binary, input as JSON text or raw binary)
+async fn ws_pty_handler(
+    ws: WebSocketUpgrade,
+    Path(agent_id): Path<String>,
+    AxumState(state): AxumState<ApiState>,
+) -> impl IntoResponse {
+    ws.on_upgrade(move |socket| ws_pty(socket, agent_id, state))
+}
+
+async fn ws_pty(mut socket: WebSocket, agent_id: String, state: ApiState) {
+    // Subscribe to live PTY output from EventBus
+    let pty_rx = state.event_bus.subscribe_pty(&agent_id);
+    if pty_rx.is_none() {
+        let _ = socket.send(Message::Close(None)).await;
+        return;
+    }
+    let mut pty_rx = pty_rx.unwrap();
+
+    loop {
+        tokio::select! {
+            data = pty_rx.recv() => {
+                match data {
+                    Ok(bytes) => {
+                        if socket.send(Message::Binary(bytes.to_vec().into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(_) => break,
+                }
+            }
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Text(text))) => {
+                        if let Ok(parsed) = serde_json::from_str::<PtyWsMessage>(&text) {
+                            match parsed {
+                                PtyWsMessage::Input { data } => {
+                                    let pty_id = state.agent_manager
+                                        .get(&agent_id).await
+                                        .and_then(|a| a.pty_id.clone());
+                                    if let Some(pty_id) = pty_id {
+                                        let _ = state.pty_manager.write(&pty_id, data.as_bytes());
+                                    }
+                                }
+                                PtyWsMessage::Resize { cols, rows } => {
+                                    let pty_id = state.agent_manager
+                                        .get(&agent_id).await
+                                        .and_then(|a| a.pty_id.clone());
+                                    if let Some(pty_id) = pty_id {
+                                        let _ = state.pty_manager.resize(&pty_id, cols, rows);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Binary(data))) => {
+                        let pty_id = state.agent_manager
+                            .get(&agent_id).await
+                            .and_then(|a| a.pty_id.clone());
+                        if let Some(pty_id) = pty_id {
+                            let _ = state.pty_manager.write(&pty_id, &data);
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Internal helper: start agent logic shared between start_agent and delegate
 // ---------------------------------------------------------------------------
 
@@ -1014,6 +1143,9 @@ pub async fn start(
         // Hooks (no auth — called by local processes)
         .route("/api/hooks/status", post(hook_status))
         .route("/api/hooks/output", post(hook_output))
+        // WebSocket endpoints
+        .route("/ws/events", get(ws_events_handler))
+        .route("/ws/pty/{agent_id}", get(ws_pty_handler))
         .with_state(api_state)
         .layer(cors);
 
