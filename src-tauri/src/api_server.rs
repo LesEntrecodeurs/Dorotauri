@@ -371,6 +371,9 @@ async fn start_agent(
             .write(&pty_id, b"\x03\x03")
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    } else {
+        // Wait for the freshly spawned shell to initialize
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
 
     // Export agent ID so Claude Code hooks can report status back to Dorotoring
@@ -959,6 +962,9 @@ async fn start_agent_inner(
             .write(&pty_id, b"\x03\x03")
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    } else {
+        // Wait for the freshly spawned shell to initialize
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
 
     // Export agent ID
