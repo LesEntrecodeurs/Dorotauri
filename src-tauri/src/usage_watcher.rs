@@ -79,6 +79,105 @@ pub fn ensure_statusline() {
     }
 }
 
+/// Install the hooks script and configure Claude Code to call it on PreToolUse and Stop events.
+/// Called once at app startup — idempotent, merges with existing hooks.
+pub fn ensure_hooks() {
+    let hooks_path = dorotoring_dir().join("hooks.sh");
+
+    // Write / update the hooks script
+    if let Some(parent) = hooks_path.parent() {
+        fs::create_dir_all(parent).ok();
+    }
+    if fs::write(&hooks_path, HOOKS_SCRIPT).is_err() {
+        return;
+    }
+    // Make executable
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&hooks_path, fs::Permissions::from_mode(0o755)).ok();
+    }
+
+    let hooks_path_str = hooks_path.to_string_lossy().to_string();
+
+    // Events and the status argument to pass: PreToolUse → "running", Stop → "completed"
+    let events: &[(&str, &str)] = &[("PreToolUse", "running"), ("Stop", "completed")];
+
+    let settings_path = claude_settings_path();
+    let mut settings: serde_json::Value = fs::read_to_string(&settings_path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+
+    if !install_hooks(&mut settings, &hooks_path_str, events) {
+        return; // already up to date
+    }
+
+    if let Some(parent) = settings_path.parent() {
+        fs::create_dir_all(parent).ok();
+    }
+    if let Ok(json) = serde_json::to_string_pretty(&settings) {
+        fs::write(&settings_path, format!("{}\n", json)).ok();
+    }
+}
+
+/// Merge Dorotoring hook entries into the settings JSON.
+/// Returns true if any change was made.
+fn install_hooks(
+    settings: &mut serde_json::Value,
+    hooks_path: &str,
+    events: &[(&str, &str)],
+) -> bool {
+    let mut changed = false;
+
+    if settings.get("hooks").is_none() {
+        settings["hooks"] = serde_json::json!({});
+    }
+
+    for (event, status) in events {
+        let command = format!("{hooks_path} {status}");
+
+        // Check if this exact command is already registered for this event
+        let already_present = settings["hooks"]
+            .get(event)
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter().any(|entry| {
+                    entry
+                        .get("hooks")
+                        .and_then(|h| h.as_array())
+                        .map(|hooks| {
+                            hooks.iter().any(|hook| {
+                                hook.get("command")
+                                    .and_then(|c| c.as_str())
+                                    .map(|c| c == command)
+                                    .unwrap_or(false)
+                            })
+                        })
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false);
+
+        if !already_present {
+            let entry = serde_json::json!({
+                "matcher": "",
+                "hooks": [{ "type": "command", "command": command }]
+            });
+
+            if let Some(arr) = settings["hooks"][event].as_array_mut() {
+                arr.push(entry);
+            } else {
+                settings["hooks"][*event] = serde_json::json!([entry]);
+            }
+
+            changed = true;
+        }
+    }
+
+    changed
+}
+
 #[derive(Clone, Serialize, Debug)]
 pub struct RateLimitWindow {
     pub used_percentage: Option<f64>,

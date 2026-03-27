@@ -294,6 +294,11 @@ pub fn agent_start(
     }
 
     let cmd_string = cmd_parts.join(" ");
+    // Debug: log command to file for verification
+    if let Some(log_path) = dirs::home_dir().map(|h| h.join(".dorotoring").join("agent-start.log")) {
+        let line = format!("[agent_start] id={} is_super_agent={} cmd={}\n", id, agent_snapshot.is_super_agent, &cmd_string);
+        let _ = std::fs::OpenOptions::new().create(true).append(true).open(&log_path).map(|mut f| { use std::io::Write; f.write_all(line.as_bytes()) });
+    }
 
     // Export agent ID so Claude Code hooks can report status back to Dorotoring
     pty_manager.write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())?;
