@@ -29,12 +29,16 @@ interface AgentManagementCardProps {
   onStart: () => void;
   onStop: () => void;
   onRemove: () => void;
+  agents?: Agent[];
 }
 
-export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, onRemove }: AgentManagementCardProps) {
+export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, onRemove, agents = [] }: AgentManagementCardProps) {
   const statusConfig = STATUS_COLORS[agent.processState];
   const isSuper = isSuperAgentCheck(agent);
   const isGlobalScope = isSuper && agent.superAgentScope === 'all';
+  const isSubAgent = agent.parentId != null;
+  const parentAgent = isSubAgent ? agents.find(a => a.id === agent.parentId) : undefined;
+  const parentName = parentAgent?.name || agent.parentId || 'parent';
   const crownBadge = isSuper ? (isGlobalScope ? '\u{1F451}\u{1F451}' : '\u{1F451}') : '';
   const isRunning = agent.processState === 'running' || agent.processState === 'waiting';
   const isError = agent.processState === 'error';
@@ -43,6 +47,7 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
   const lastPrompt = agent.businessState || agent.statusLine || null;
 
   return (
+    <div style={{ marginLeft: isSubAgent ? 24 : 0 }}>
     <Card
       onClick={onClick}
       className={`
@@ -51,6 +56,7 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
         ${isRunning && !isSuper ? 'border-l-[3px] border-l-primary/60' : ''}
         ${isError ? 'border-l-[3px] border-l-red-500/60' : ''}
         ${isGlobalScope ? 'ring-2 ring-amber-500/50' : ''}
+        ${isSubAgent && !isSuper && !isRunning && !isError ? 'border-l-[3px] border-l-muted-foreground/30' : ''}
       `}
     >
       <CardContent className="p-3">
@@ -177,5 +183,11 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
         </div>
       </CardFooter>
     </Card>
+    {isSubAgent && (
+      <p className="mt-0.5 pl-1 text-[10px] text-muted-foreground">
+        delegated by {parentName}
+      </p>
+    )}
+    </div>
   );
 }

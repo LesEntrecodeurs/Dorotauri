@@ -20,6 +20,8 @@ export interface AgentTerminalDialogProps {
   }) => Promise<{ success: boolean; error?: string; agent?: Agent }>;
   initialPanel?: PanelType;
   skipHistoricalOutput?: boolean;
+  /** Called when a sub-agent is spawned by the current agent so the parent can auto-open its terminal */
+  onSubAgentCreated?: (subAgentId: string) => void;
 }
 
 export function isSuperAgent(agent: { name?: string } | null): boolean {

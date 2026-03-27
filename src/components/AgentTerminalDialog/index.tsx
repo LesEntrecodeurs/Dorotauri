@@ -8,6 +8,7 @@ import 'xterm/css/xterm.css';
 
 import type { AgentTerminalDialogProps, PanelType } from './AgentDialogTypes';
 import { isSuperAgent } from './AgentDialogTypes';
+import { useAgentEvents } from '@/hooks/useAgentWebSocket';
 import { AgentDialogHeader } from './AgentDialogHeader';
 import { AgentDialogFooter } from './AgentDialogFooter';
 import { AgentDialogSidebar } from './AgentDialogSidebar';
@@ -28,6 +29,7 @@ export default function AgentTerminalDialog({
   onUpdateAgent,
   initialPanel,
   skipHistoricalOutput = false,
+  onSubAgentCreated,
 }: AgentTerminalDialogProps) {
   const isSuperAgentMode = isSuperAgent(agent);
 
@@ -75,6 +77,15 @@ export default function AgentTerminalDialog({
     }
     if (!open) appliedInitialPanelRef.current = null;
   }, [open, agent, initialPanel]);
+
+  // Auto-open sub-agent terminals when this agent delegates work
+  const onSubAgentCreatedRef = useRef(onSubAgentCreated);
+  onSubAgentCreatedRef.current = onSubAgentCreated;
+  useAgentEvents(useCallback((event) => {
+    if (event.type === 'created' && event.parent_id && agent && event.parent_id === agent.id) {
+      onSubAgentCreatedRef.current?.(event.agent_id);
+    }
+  }, [agent]));
 
   // Terminal hooks
   const { terminalReady, terminalRef, xtermRef } = useAgentDialogTerminal({
@@ -199,10 +210,10 @@ export default function AgentTerminalDialog({
 
           <div className="flex-1 min-h-[300px] flex overflow-hidden">
             {/* Main terminal area */}
-            <div className="flex-1 relative">
+            <div className="flex-1 relative flex flex-col">
               <div
                 ref={terminalRef}
-                className="absolute inset-0 bg-[#1A1726] p-2"
+                className="flex-1 bg-[#1A1726] p-2"
                 style={{ cursor: 'text', minHeight: '300px' }}
                 onClick={() => xtermRef.current?.focus()}
               />
@@ -220,6 +231,13 @@ export default function AgentTerminalDialog({
                 >
                   <PanelRight className="w-4 h-4" />
                 </button>
+              )}
+              {/* Interference warning for sub-agents managed by a Super Agent */}
+              {agent?.parentId && (agent?.state === 'running' || agent?.processState === 'running') && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-950 border-t border-amber-600 text-amber-500 text-xs">
+                  <span>⚠️</span>
+                  <span>Super Agent is managing this agent — typing here may interfere</span>
+                </div>
               )}
             </div>
 

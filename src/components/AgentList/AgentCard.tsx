@@ -16,23 +16,30 @@ interface AgentCardProps {
   isSelected: boolean;
   onSelect: () => void;
   onEdit: () => void;
+  agents?: Agent[];
 }
 
-export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProps) {
+export function AgentCard({ agent, isSelected, onSelect, onEdit, agents = [] }: AgentCardProps) {
   const statusConfig = STATUS_COLORS[agent.processState];
   const StatusIcon = statusConfig.icon;
   const projectName = agent.cwd.split('/').pop() || 'Unknown';
   const projectColor = getProjectColor(projectName);
   const isSuper = isSuperAgentCheck(agent);
+  const isSubAgent = agent.parentId != null;
+  const parentAgent = isSubAgent ? agents.find(a => a.id === agent.parentId) : undefined;
+  const parentName = parentAgent?.name || agent.parentId || 'parent';
 
   return (
+    <div style={{ marginLeft: isSubAgent ? 24 : 0 }}>
     <div
       onClick={onSelect}
       className={`
         p-4 cursor-pointer transition-all relative
         ${isSuper
           ? 'bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border-l-2 border-l-amber-500/50 border-b border-amber-500/20'
-          : 'border-b border-border/50'}
+          : isSubAgent
+            ? 'border-b border-border/50 border-l-2 border-l-muted-foreground/30'
+            : 'border-b border-border/50'}
         ${isSelected ? 'bg-primary/10' : isSuper ? '' : 'hover:bg-muted/50'}
       `}
     >
@@ -166,6 +173,12 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit }: AgentCardProp
           )}
         </div>
       </div>
+      {isSubAgent && (
+        <div className="px-4 pb-1.5">
+          <span className="text-xs text-muted-foreground">delegated by {parentName}</span>
+        </div>
+      )}
+    </div>
     </div>
   );
 }
