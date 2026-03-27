@@ -21,7 +21,9 @@ export function useElectronAgents() {
     }
 
     try {
-      const list = await invoke<Agent[]>('agent_list');
+      const rawList = await invoke<Agent[]>('agent_list');
+      // Normalize: ensure processState is set from state for backward compat
+      const list = rawList.map(a => ({ ...a, processState: a.processState ?? a.state ?? 'inactive' } as Agent));
       // Only update state if data has actually changed to prevent unnecessary re-renders
       setAgents(prev => {
         // Quick length check first

@@ -20,7 +20,7 @@ interface AgentCardProps {
 }
 
 export function AgentCard({ agent, isSelected, onSelect, onEdit, agents = [] }: AgentCardProps) {
-  const statusConfig = STATUS_COLORS[agent.processState];
+  const statusConfig = STATUS_COLORS[agent.processState ?? agent.state ?? 'inactive'];
   const StatusIcon = statusConfig.icon;
   const projectName = agent.cwd.split('/').pop() || 'Unknown';
   const projectColor = getProjectColor(projectName);

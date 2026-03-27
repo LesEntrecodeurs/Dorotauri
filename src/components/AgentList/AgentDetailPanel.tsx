@@ -34,7 +34,7 @@ export function AgentDetailPanel({
   onStart,
   onRemove,
 }: AgentDetailPanelProps) {
-  const statusConfig = STATUS_COLORS[agent.processState];
+  const statusConfig = STATUS_COLORS[agent.processState ?? agent.state ?? 'inactive'];
 
   return (
     <>
