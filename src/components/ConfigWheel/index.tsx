@@ -120,13 +120,13 @@ export const ConfigWheel = memo(function ConfigWheel({
           )}
         </div>
 
-        {/* Role */}
+        {/* Role description (free-text label, separate from agent.role type) */}
         <div className="space-y-1">
-          <Label htmlFor="cw-role" className="text-xs">Role</Label>
+          <Label htmlFor="cw-role" className="text-xs">Role description</Label>
           <Input
             id="cw-role"
-            value={agent.role || ''}
-            onChange={(e) => update({ role: e.target.value })}
+            value={agent.businessState || ''}
+            onChange={(e) => update({ businessState: e.target.value })}
             onPointerDown={stopMosaicDrag}
             placeholder="e.g. frontend engineer, reviewer..."
             className="h-7 text-xs"
@@ -188,7 +188,7 @@ export const ConfigWheel = memo(function ConfigWheel({
             </Label>
             <Switch
               id="cw-autonomous"
-              checked={agent.skipPermissions}
+              checked={agent.skipPermissions ?? agent.role?.type === 'super'}
               onCheckedChange={(checked) => update({ skipPermissions: checked })}
               className="scale-75 origin-right"
             />
@@ -211,18 +211,18 @@ export const ConfigWheel = memo(function ConfigWheel({
             Super Agent
           </p>
 
-          {tabHasSuperAgent && !agent.isSuperAgent ? (
+          {tabHasSuperAgent && agent.role?.type !== 'super' ? (
             <p className="text-[10px] text-muted-foreground">A Super Agent already exists in this tab</p>
           ) : (
             <div className="space-y-2">
               <SuperAgentToggle
-                isSuperAgent={agent.isSuperAgent}
-                scope={agent.superAgentScope}
+                isSuperAgent={agent.role?.type === 'super'}
+                scope={agent.role?.type === 'super' ? agent.role.scope : undefined}
                 onChange={(isSuperAgent, scope) => {
                   if (isSuperAgent && onPromoteSuper) {
-                    onPromoteSuper(agent.id, scope || 'tab');
+                    onPromoteSuper(agent.id, scope === 'workspace' || scope === 'global' ? 'all' : 'tab');
                   } else {
-                    update({ isSuperAgent, superAgentScope: scope });
+                    update({ isSuperAgent, superAgentScope: scope === 'workspace' || scope === 'global' ? 'all' : scope });
                   }
                 }}
               />

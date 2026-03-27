@@ -2,11 +2,12 @@ import { memo } from 'react';
 import { Crown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import type { Scope } from '@/types/electron';
 
 interface SuperAgentToggleProps {
   isSuperAgent: boolean;
-  scope?: 'tab' | 'all';
-  onChange: (isSuperAgent: boolean, scope?: 'tab' | 'all') => void;
+  scope?: Scope;
+  onChange: (isSuperAgent: boolean, scope?: Scope) => void;
 }
 
 export const SuperAgentToggle = memo(function SuperAgentToggle({
@@ -44,9 +45,9 @@ export const SuperAgentToggle = memo(function SuperAgentToggle({
             This tab only
           </button>
           <button
-            onClick={() => onChange(true, 'all')}
+            onClick={() => onChange(true, 'workspace')}
             className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
-              scope === 'all'
+              scope === 'workspace' || scope === 'global'
                 ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
                 : 'border-border text-muted-foreground hover:border-amber-500/30'
             }`}
