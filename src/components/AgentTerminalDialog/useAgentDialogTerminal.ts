@@ -1,14 +1,10 @@
 
 
-
 import { useState, useEffect, useRef } from 'react';
 import type { Agent } from '@/types/electron';
-import { isTauri } from '@/hooks/useTauri';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import { attachKeyHandler, stripCursorSequences } from '@/lib/terminal';
-import { TerminalWriteManager } from '@/lib/terminal-write';
+import { attachKeyHandler } from '@/lib/terminal';
 import { TERMINAL_THEME } from './constants';
+import { useAgentPtyWebSocket } from '../../hooks/useAgentWebSocket';
 
 // Clean xterm query/focus escape sequences out of user input before forwarding.
 function cleanInput(data: string): string {
@@ -30,7 +26,7 @@ export function useAgentDialogTerminal({
   open,
   agent,
   isFullscreen,
-  skipHistoricalOutput,
+  skipHistoricalOutput: _skipHistoricalOutput,
 }: UseAgentDialogTerminalOptions) {
   const [terminalReady, setTerminalReady] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -42,6 +38,14 @@ export function useAgentDialogTerminal({
   useEffect(() => {
     agentIdRef.current = agent?.id || null;
   }, [agent?.id]);
+
+  // WebSocket PTY connection — write() and resize() are stable callbacks
+  const { write, resize } = useAgentPtyWebSocket(
+    open ? (agent?.id ?? null) : null,
+    (data: Uint8Array) => {
+      xtermRef.current?.write(data);
+    },
+  );
 
   // Initialize terminal when dialog opens
   useEffect(() => {
@@ -91,12 +95,7 @@ export function useAgentDialogTerminal({
         const fitAndResize = () => {
           try {
             fitAddon.fit();
-            if (isTauri() && agent?.id) {
-              // Resize via pty_resize using agent's ptyId if available
-              if (agent.ptyId) {
-                invoke('pty_resize', { ptyId: agent.ptyId, cols: term.cols, rows: term.rows }).catch(() => {});
-              }
-            }
+            resize(term.cols, term.rows);
           } catch (e) {
             console.warn('Failed to fit terminal:', e);
           }
@@ -108,53 +107,22 @@ export function useAgentDialogTerminal({
         setTimeout(() => { fitAndResize(); term.focus(); }, 350);
 
         attachKeyHandler(term, (data) => {
-          const id = agentIdRef.current;
-          if (id && isTauri()) {
-            invoke('agent_send_input', { id, input: data }).catch(() => {});
-          }
+          write(data);
         });
 
-        term.onData(async (data) => {
+        term.onData((data) => {
           if (/^(\x1b\[\?[\d;]*c|\d+;\d+c)+$/.test(data)) return;
           const cleaned = cleanInput(data);
           if (!cleaned) return;
-          const id = agentIdRef.current;
-          if (id && isTauri()) {
-            try {
-              await invoke('agent_send_input', { id, input: cleaned });
-            } catch (err) {
-              console.error('Error sending input:', err);
-            }
-          }
+          write(cleaned);
         });
 
         if (!cancelled) {
           setTerminalReady(true);
-          TerminalWriteManager.subscribe(agent.id, term, agent.ptyId || agent.id);
         }
 
         term.writeln(`\x1b[36m● Connected to ${agent.name || 'Agent'}\x1b[0m`);
         term.writeln('');
-
-        if (isTauri()) {
-          try {
-            const latestAgent = await invoke<Agent | null>('agent_get', { id: agent.id });
-            if (latestAgent?.output?.length) {
-              const isGemini = agent.provider === 'gemini';
-              const writeLine = (line: string) => term.write(isGemini ? stripCursorSequences(line) : line);
-
-              if (skipHistoricalOutput) {
-                latestAgent.output.slice(-20).forEach(writeLine);
-              } else {
-                term.writeln('\x1b[33m--- Previous output ---\x1b[0m');
-                latestAgent.output.forEach(writeLine);
-              }
-              setTimeout(fitAndResize, 50);
-            }
-          } catch (err) {
-            console.error('Failed to fetch agent output:', err);
-          }
-        }
       } catch (e) {
         console.error('Failed to initialize terminal:', e);
       }
@@ -164,7 +132,6 @@ export function useAgentDialogTerminal({
 
     return () => {
       cancelled = true;
-      if (agent?.id) TerminalWriteManager.unsubscribe(agent.id);
       if (xtermRef.current) {
         xtermRef.current.dispose();
         xtermRef.current = null;
@@ -174,27 +141,6 @@ export function useAgentDialogTerminal({
     };
   }, [open, agent?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Subscribe to live agent output via Tauri events
-  useEffect(() => {
-    if (!isTauri() || !terminalReady || !agent?.id) return;
-    agentIdRef.current = agent.id;
-
-    let unlisten: (() => void) | undefined;
-
-    listen<{ agent_id: string; pty_id: string; data: number[] }>('agent:output', (event) => {
-      const { agent_id, data } = event.payload;
-      if (agent_id === agent.id) {
-        if (TerminalWriteManager.has(agent_id)) {
-          TerminalWriteManager.write(agent_id, new Uint8Array(data));
-        } else if (xtermRef.current) {
-          xtermRef.current.write(new Uint8Array(data));
-        }
-      }
-    }).then(fn => { unlisten = fn; });
-
-    return () => { unlisten?.(); };
-  }, [terminalReady, agent?.id]);
-
   // Resize observer
   useEffect(() => {
     if (!terminalRef.current || !fitAddonRef.current) return;
@@ -202,12 +148,7 @@ export function useAgentDialogTerminal({
       if (fitAddonRef.current && xtermRef.current) {
         try {
           fitAddonRef.current.fit();
-          const id = agentIdRef.current;
-          if (id && isTauri()) {
-            // We don't have ptyId in this scope easily, so use agent_send_input as a proxy
-            // or attempt pty_resize if the agent has a ptyId
-            invoke('pty_resize', { ptyId: id, cols: xtermRef.current.cols, rows: xtermRef.current.rows }).catch(() => {});
-          }
+          resize(xtermRef.current.cols, xtermRef.current.rows);
         } catch (e) {
           console.warn('Failed to fit terminal:', e);
         }
@@ -215,21 +156,21 @@ export function useAgentDialogTerminal({
     });
     observer.observe(terminalRef.current);
     return () => observer.disconnect();
-  }, [terminalReady]);
+  }, [terminalReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fit when entering/exiting fullscreen
   useEffect(() => {
     if (!terminalReady || !fitAddonRef.current || !xtermRef.current) return;
     const t1 = setTimeout(() => {
       fitAddonRef.current?.fit();
-      const id = agentIdRef.current;
-      if (id && xtermRef.current && isTauri()) {
-        invoke('pty_resize', { ptyId: id, cols: xtermRef.current.cols, rows: xtermRef.current.rows }).catch(() => {});
+      const term = xtermRef.current;
+      if (term) {
+        resize(term.cols, term.rows);
       }
     }, 50);
     const t2 = setTimeout(() => fitAddonRef.current?.fit(), 150);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [isFullscreen, terminalReady]);
+  }, [isFullscreen, terminalReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { terminalReady, terminalRef, xtermRef, agentIdRef };
 }
