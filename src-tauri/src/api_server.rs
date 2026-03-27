@@ -491,22 +491,11 @@ async fn send_message(
 
     // Auto-start if agent is idle (has no PTY)
     if agent.pty_id.is_none() || agent.state == AgentState::Inactive {
-        // Start the agent first, then write the message
-        let start_body = StartAgentBody { prompt: None };
+        // Start the agent with the message as the prompt so it executes immediately
+        let start_body = StartAgentBody {
+            prompt: Some(body.message.clone()),
+        };
         start_agent_inner(&state, &headers, &id, start_body).await?;
-        // Now write the message to the newly created PTY
-        let refreshed = state
-            .agent_manager
-            .get(&id)
-            .await
-            .ok_or(StatusCode::NOT_FOUND)?;
-        if let Some(ref pty_id) = refreshed.pty_id {
-            let msg = format!("{}\n", body.message);
-            state
-                .pty_manager
-                .write(pty_id, msg.as_bytes())
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        }
         return Ok(Json(serde_json::json!({ "ok": true })));
     }
 
