@@ -1,36 +1,29 @@
 #!/usr/bin/env node
 
-/**
- * Claude Manager Orchestrator MCP Server
- *
- * Provides tools for:
- * - Agent management (create, start, stop, monitor)
- * - Messaging (Telegram, Slack)
- * - Scheduler (create, delete, run recurring tasks)
- */
-
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { registerAgentProxy } from "./tools/agents.js";
+import { registerMessagingTools } from "./tools/messaging.js";
+import { registerSchedulerTools } from "./tools/scheduler.js";
+import { registerAutomationTools } from "./tools/automations.js";
 
-import { registerAgentTools, registerMessagingTools, registerSchedulerTools, registerAutomationTools } from "./tools/index.js";
-
-// Create MCP server
 const server = new McpServer({
-  name: "claude-mgr-orchestrator",
-  version: "1.0.0",
+  name: "dorotoring",
+  version: "2.0.0",
 });
 
-// Register all tool categories
-registerAgentTools(server);
+// Core agent tools — thin proxy to Rust API
+registerAgentProxy(server);
+
+// Legacy tools — kept as-is for now (out of scope for rewrite)
 registerMessagingTools(server);
 registerSchedulerTools(server);
 registerAutomationTools(server);
 
-// Start the server
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Claude Manager Orchestrator MCP server running on stdio");
+  console.error("Dorotoring MCP proxy connected (stdio)");
 }
 
 main().catch((error) => {
