@@ -152,6 +152,8 @@ impl AgentManager {
                 provider_impl.name()
             ));
         }
+        // Drop provider_impl before any .await to keep the future Send
+        drop(provider_impl);
 
         agent.role = AgentRole::Super { scope };
         agent.last_activity = chrono::Utc::now().to_rfc3339();

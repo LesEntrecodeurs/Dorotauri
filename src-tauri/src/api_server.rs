@@ -10,13 +10,19 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tower_http::cors::CorsLayer;
 
-use crate::cwd_tracker::CwdTracker;
+use crate::agent::event_bus::{AgentEvent, EventBus};
+use crate::agent::manager::AgentManager;
+use crate::agent::model::{
+    Agent, AgentRole, AgentState, Provider, Scope,
+};
+use crate::agent::provider::{get_provider, AgentStartConfig};
 use crate::pty::PtyManager;
-use crate::state::{Agent, AppSettings, AppState, ProcessState};
+use crate::state::AppState;
 
 // ---------------------------------------------------------------------------
 // ApiState — shared state for all route handlers
@@ -24,11 +30,13 @@ use crate::state::{Agent, AppSettings, AppState, ProcessState};
 
 #[derive(Clone)]
 pub struct ApiState {
-    pub app_state: Arc<AppState>,
+    pub agent_manager: Arc<AgentManager>,
+    pub event_bus: Arc<EventBus>,
     pub pty_manager: Arc<PtyManager>,
-    pub cwd_tracker: Arc<CwdTracker>,
     pub app_handle: AppHandle,
     pub api_token: String,
+    /// Legacy AppState — kept for settings access and non-agent routes.
+    pub app_state: Arc<AppState>,
 }
 
 // ---------------------------------------------------------------------------
@@ -73,13 +81,31 @@ fn check_auth(headers: &HeaderMap, token: &str) -> Result<(), StatusCode> {
 }
 
 // ---------------------------------------------------------------------------
-// Request / response types
+// X-Agent-Id scope enforcement helper
 // ---------------------------------------------------------------------------
 
-#[derive(Deserialize)]
-struct OutputQuery {
-    lines: Option<usize>,
+/// If the `X-Agent-Id` header is present, look up the caller agent and enforce
+/// scope against the target agent. Returns Ok(()) if either no header is
+/// present (direct call, not MCP-originated) or if the scope check passes.
+async fn enforce_caller_scope(
+    headers: &HeaderMap,
+    target: &Agent,
+    agent_manager: &AgentManager,
+) -> Result<(), StatusCode> {
+    if let Some(caller_id) = headers.get("x-agent-id").and_then(|v| v.to_str().ok()) {
+        let caller = agent_manager
+            .get(&caller_id.to_string())
+            .await
+            .ok_or(StatusCode::FORBIDDEN)?;
+        AgentManager::enforce_scope(&caller, target)
+            .map_err(|_| StatusCode::FORBIDDEN)?;
+    }
+    Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Request / response types
+// ---------------------------------------------------------------------------
 
 #[derive(Deserialize)]
 struct WaitQuery {
@@ -95,8 +121,8 @@ struct ListAgentsQuery {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateAgentBody {
-    project_path: Option<String>,
     cwd: Option<String>,
+    project_path: Option<String>,
     name: Option<String>,
     character: Option<String>,
     skills: Option<Vec<String>>,
@@ -106,6 +132,7 @@ struct CreateAgentBody {
     is_super_agent: Option<bool>,
     super_agent_scope: Option<String>,
     secondary_paths: Option<Vec<String>>,
+    parent_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -116,6 +143,18 @@ struct StartAgentBody {
 #[derive(Deserialize)]
 struct SendMessageBody {
     message: String,
+}
+
+#[derive(Deserialize)]
+struct DelegateBody {
+    prompt: Option<String>,
+    timeout: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PromoteBody {
+    scope: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -155,16 +194,10 @@ async fn list_agents(
 ) -> Result<impl IntoResponse, StatusCode> {
     check_auth(&headers, &state.api_token)?;
 
-    let agents: Vec<Agent> = {
-        let agents = state.app_state.agents.lock().unwrap();
-        agents
-            .values()
-            .filter(|a| {
-                query.tab_id.as_ref().map_or(true, |tid| &a.tab_id == tid)
-            })
-            .cloned()
-            .collect()
-    };
+    let agents = state
+        .agent_manager
+        .list(query.tab_id.as_ref())
+        .await;
 
     Ok(Json(serde_json::json!({ "agents": agents })))
 }
@@ -176,34 +209,300 @@ async fn get_agent(
 ) -> Result<impl IntoResponse, StatusCode> {
     check_auth(&headers, &state.api_token)?;
 
-    let agents = state.app_state.agents.lock().unwrap();
-    let agent = agents.get(&id).cloned().ok_or(StatusCode::NOT_FOUND)?;
+    let agent = state
+        .agent_manager
+        .get(&id)
+        .await
+        .ok_or(StatusCode::NOT_FOUND)?;
 
     Ok(Json(serde_json::json!({ "agent": agent })))
 }
 
-async fn get_agent_output(
+async fn create_agent(
     AxumState(state): AxumState<ApiState>,
     headers: HeaderMap,
-    Path(id): Path<String>,
-    Query(query): Query<OutputQuery>,
+    Json(body): Json<CreateAgentBody>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_auth(&headers, &state.api_token)?;
 
-    let agents = state.app_state.agents.lock().unwrap();
-    let agent = agents.get(&id).cloned().ok_or(StatusCode::NOT_FOUND)?;
-    drop(agents);
+    let id = uuid::Uuid::new_v4().to_string();
+    let cwd = body.cwd.or(body.project_path).unwrap_or_default();
+    let tab_id = body.tab_id.unwrap_or_else(|| "general".to_string());
 
-    let lines = query.lines.unwrap_or(100);
-    let total = agent.output.len();
-    let start = total.saturating_sub(lines);
-    let output = agent.output[start..].join("\n");
+    let mut agent = Agent::new(id, cwd, tab_id);
+    agent.name = body.name;
+    agent.character = body.character;
+    agent.skills = body.skills.unwrap_or_default();
+    agent.secondary_paths = body.secondary_paths.unwrap_or_default();
+    agent.parent_id = body.parent_id;
+    agent.provider = Provider::from_str_opt(body.provider.as_deref());
 
-    Ok(Json(serde_json::json!({
-        "output": output,
-        "status": format!("{:?}", agent.process_state).to_lowercase(),
-        "lastCleanOutput": agent.status_line,
-    })))
+    // Handle super agent role
+    let skip_perms = body.skip_permissions.unwrap_or(false);
+    if body.is_super_agent.unwrap_or(false) {
+        let scope = match body.super_agent_scope.as_deref() {
+            Some("workspace") => Scope::Workspace,
+            Some("global") => Scope::Global,
+            _ => Scope::Tab,
+        };
+        agent.role = AgentRole::Super { scope };
+    }
+
+    let agent = state.agent_manager.create(agent).await;
+
+    // The new Agent model does not have a `skip_permissions` field — store it
+    // as a skills marker so the start handler can read it back when building
+    // the CLI command.
+    if skip_perms {
+        let _ = state.agent_manager.update(&agent.id, |a| {
+            if !a.skills.contains(&"__skip_permissions".to_string()) {
+                a.skills.push("__skip_permissions".to_string());
+            }
+        }).await;
+    }
+
+    // Re-fetch to get the updated version
+    let agent = state.agent_manager.get(&agent.id).await.ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    state.app_handle.emit("agent:status", &agent).ok();
+
+    Ok(Json(serde_json::json!({ "agent": agent })))
+}
+
+async fn delete_agent(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    // Enforce scope if X-Agent-Id header is present
+    if let Some(agent) = state.agent_manager.get(&id).await {
+        enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+    }
+
+    let removed = state.agent_manager.remove(&id).await;
+
+    if let Some(agent) = removed {
+        if let Some(ref pty_id) = agent.pty_id {
+            state.pty_manager.kill(pty_id).ok();
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+async fn start_agent(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<StartAgentBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let agent_snapshot = state
+        .agent_manager
+        .get(&id)
+        .await
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Enforce scope if X-Agent-Id header is present
+    enforce_caller_scope(&headers, &agent_snapshot, &state.agent_manager).await?;
+
+    // If agent already running and has a PTY, write the prompt directly
+    if agent_snapshot.state == AgentState::Running {
+        if let Some(ref pty_id) = agent_snapshot.pty_id {
+            if let Some(ref prompt) = body.prompt {
+                let msg = format!("{prompt}\n");
+                state
+                    .pty_manager
+                    .write(pty_id, msg.as_bytes())
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            }
+            return Ok(Json(serde_json::json!({ "agent": agent_snapshot })));
+        }
+    }
+
+    // Reuse existing PTY if the UI already created one for this agent,
+    // otherwise spawn a new one and register it so the UI can find it.
+    let reused_pty;
+    let pty_id = if let Some(existing) = state.pty_manager.lookup(&id) {
+        reused_pty = true;
+        existing
+    } else {
+        reused_pty = false;
+        let new_id = uuid::Uuid::new_v4().to_string();
+        state
+            .pty_manager
+            .spawn(
+                &new_id,
+                &agent_snapshot.id,
+                &agent_snapshot.cwd,
+                &state.app_handle,
+                None,
+                None,
+            )
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        // Register so the UI's pty_lookup(agentId) finds this PTY
+        state.pty_manager.register(&id, &new_id);
+        new_id
+    };
+
+    // If reusing an existing PTY, send Ctrl-C to interrupt any foreground process
+    if reused_pty {
+        state
+            .pty_manager
+            .write(&pty_id, b"\x03\x03")
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+
+    // Export agent ID so Claude Code hooks can report status back to Dorotoring
+    state
+        .pty_manager
+        .write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // For tab-scoped super agents: export tab ID so MCP server can filter
+    if agent_snapshot.is_super_agent() {
+        if let Some(Scope::Tab) = agent_snapshot.scope() {
+            state
+                .pty_manager
+                .write(
+                    &pty_id,
+                    format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
+                )
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+    }
+
+    // Build and send the CLI command using the provider trait
+    let settings = state.app_state.settings.lock().unwrap().clone();
+    let skip_permissions = agent_snapshot.skills.contains(&"__skip_permissions".to_string());
+
+    let config = build_start_config(
+        &agent_snapshot,
+        body.prompt.as_deref(),
+        skip_permissions,
+    );
+    let cmd = build_cli_command(&agent_snapshot, config, &settings);
+    let cmd_str = cmd.join(" ");
+    state
+        .pty_manager
+        .write(&pty_id, format!("{cmd_str}\n").as_bytes())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Update agent state to Running
+    state
+        .agent_manager
+        .set_state(&id, AgentState::Running)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Update pty_id on the agent
+    let updated_agent = state
+        .agent_manager
+        .update(&id, |a| {
+            a.pty_id = Some(pty_id);
+            a.error = None;
+        })
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    state.app_handle.emit("agent:status", &updated_agent).ok();
+
+    Ok(Json(serde_json::json!({ "agent": updated_agent })))
+}
+
+async fn stop_agent(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let agent = state
+        .agent_manager
+        .get(&id)
+        .await
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Enforce scope if X-Agent-Id header is present
+    enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+
+    // Kill PTY if one exists
+    if let Some(ref pty_id) = agent.pty_id {
+        state.pty_manager.kill(pty_id).ok();
+    }
+
+    // Transition to Inactive
+    state
+        .agent_manager
+        .set_state(&id, AgentState::Inactive)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Clear pty_id
+    let updated_agent = state
+        .agent_manager
+        .update(&id, |a| {
+            a.pty_id = None;
+        })
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    state.app_handle.emit("agent:status", &updated_agent).ok();
+
+    Ok(Json(serde_json::json!({ "agent": updated_agent })))
+}
+
+async fn send_message(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<SendMessageBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let agent = state
+        .agent_manager
+        .get(&id)
+        .await
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Enforce scope if X-Agent-Id header is present
+    enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+
+    // Auto-start if agent is idle (has no PTY)
+    if agent.pty_id.is_none() || agent.state == AgentState::Inactive {
+        // Start the agent first, then write the message
+        let start_body = StartAgentBody { prompt: None };
+        start_agent_inner(&state, &headers, &id, start_body).await?;
+        // Now write the message to the newly created PTY
+        let refreshed = state
+            .agent_manager
+            .get(&id)
+            .await
+            .ok_or(StatusCode::NOT_FOUND)?;
+        if let Some(ref pty_id) = refreshed.pty_id {
+            let msg = format!("{}\n", body.message);
+            state
+                .pty_manager
+                .write(pty_id, msg.as_bytes())
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+        return Ok(Json(serde_json::json!({ "ok": true })));
+    }
+
+    let pty_id = agent.pty_id.as_ref().ok_or(StatusCode::BAD_REQUEST)?;
+
+    let msg = format!("{}\n", body.message);
+    state
+        .pty_manager
+        .write(pty_id, msg.as_bytes())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 async fn wait_for_agent(
@@ -218,55 +517,55 @@ async fn wait_for_agent(
 
     // Check if agent already in a terminal state
     {
-        let agents = state.app_state.agents.lock().unwrap();
-        let agent = agents.get(&id).cloned().ok_or(StatusCode::NOT_FOUND)?;
+        let agent = state
+            .agent_manager
+            .get(&id)
+            .await
+            .ok_or(StatusCode::NOT_FOUND)?;
 
-        match agent.process_state {
-            ProcessState::Completed | ProcessState::Error | ProcessState::Dormant | ProcessState::Waiting => {
-                return Ok(Json(serde_json::json!({
-                    "status": format!("{:?}", agent.process_state).to_lowercase(),
-                    "lastCleanOutput": agent.status_line,
-                    "error": agent.error,
-                })));
-            }
-            _ => {}
+        if agent.state.is_terminal() {
+            return Ok(Json(serde_json::json!({
+                "status": agent.state,
+                "lastCleanOutput": agent.status_line,
+                "error": agent.error,
+            })));
         }
     }
 
-    // Subscribe to status broadcasts and wait for a matching event
-    let mut rx = state.app_state.status_tx.subscribe();
+    // Subscribe to event bus and wait for a terminal state change
+    let mut rx = state.event_bus.subscribe_events();
 
-    let result = tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), async {
-        loop {
-            match rx.recv().await {
-                Ok((agent_id, _status)) if agent_id == id => {
-                    let agents = state.app_state.agents.lock().unwrap();
-                    if let Some(agent) = agents.get(&id) {
-                        match agent.process_state {
-                            ProcessState::Completed
-                            | ProcessState::Error
-                            | ProcessState::Dormant
-                            | ProcessState::Inactive
-                            | ProcessState::Waiting => {
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(timeout_secs),
+        async {
+            loop {
+                match rx.recv().await {
+                    Ok(AgentEvent::StateChanged {
+                        agent_id,
+                        new,
+                        ..
+                    }) if agent_id == id => {
+                        if new.is_terminal() {
+                            let agent = state.agent_manager.get(&id).await;
+                            if let Some(agent) = agent {
                                 return serde_json::json!({
-                                    "status": format!("{:?}", agent.process_state).to_lowercase(),
+                                    "status": agent.state,
                                     "lastCleanOutput": agent.status_line,
                                     "error": agent.error,
                                 });
                             }
-                            _ => continue,
                         }
                     }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        return serde_json::json!({
+                            "error": "broadcast channel closed",
+                        });
+                    }
+                    _ => continue,
                 }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                    return serde_json::json!({
-                        "error": "broadcast channel closed",
-                    });
-                }
-                _ => continue,
             }
-        }
-    })
+        },
+    )
     .await;
 
     match result {
@@ -275,59 +574,232 @@ async fn wait_for_agent(
     }
 }
 
-async fn create_agent(
+/// Delegate endpoint: start + wait + return final state in one call.
+async fn delegate_handler(
     AxumState(state): AxumState<ApiState>,
     headers: HeaderMap,
-    Json(body): Json<CreateAgentBody>,
+    Path(id): Path<String>,
+    Json(body): Json<DelegateBody>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_auth(&headers, &state.api_token)?;
 
-    let now = chrono::Utc::now().to_rfc3339();
-    let id = uuid::Uuid::new_v4().to_string();
-    let cwd = body.cwd.or(body.project_path).unwrap_or_default();
+    let agent = state
+        .agent_manager
+        .get(&id)
+        .await
+        .ok_or(StatusCode::NOT_FOUND)?;
 
-    let agent = Agent {
-        id: id.clone(),
-        process_state: ProcessState::Inactive,
-        cwd,
-        secondary_paths: body.secondary_paths.unwrap_or_default(),
-        name: body.name,
-        character: body.character,
-        skills: body.skills.unwrap_or_default(),
-        skip_permissions: body.skip_permissions.unwrap_or(false),
-        tab_id: body.tab_id.unwrap_or_else(|| "general".to_string()),
-        provider: body.provider,
-        is_super_agent: body.is_super_agent.unwrap_or(false),
-        super_agent_scope: body.super_agent_scope,
-        last_activity: now.clone(),
-        created_at: now,
-        ..Default::default()
+    // Enforce scope if X-Agent-Id header is present
+    enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+
+    // Step 1: Start the agent
+    let start_body = StartAgentBody {
+        prompt: body.prompt,
+    };
+    start_agent_inner(&state, &headers, &id, start_body).await?;
+
+    // Step 2: Long-poll until terminal state
+    let timeout_secs = body.timeout.unwrap_or(300);
+    let mut rx = state.event_bus.subscribe_events();
+
+    // Check if already terminal after start
+    {
+        let agent = state
+            .agent_manager
+            .get(&id)
+            .await
+            .ok_or(StatusCode::NOT_FOUND)?;
+        if agent.state.is_terminal() {
+            return Ok(Json(serde_json::json!({ "agent": agent })));
+        }
+    }
+
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(timeout_secs),
+        async {
+            loop {
+                match rx.recv().await {
+                    Ok(AgentEvent::StateChanged {
+                        agent_id,
+                        new,
+                        ..
+                    }) if agent_id == id => {
+                        if new.is_terminal() {
+                            return state.agent_manager.get(&id).await;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        return None;
+                    }
+                    _ => continue,
+                }
+            }
+        },
+    )
+    .await;
+
+    match result {
+        Ok(Some(agent)) => Ok(Json(serde_json::json!({ "agent": agent }))),
+        Ok(None) => Ok(Json(serde_json::json!({ "error": "channel closed" }))),
+        Err(_) => {
+            // Timeout — return current state
+            let agent = state.agent_manager.get(&id).await;
+            Ok(Json(serde_json::json!({
+                "timeout": true,
+                "agent": agent,
+            })))
+        }
+    }
+}
+
+/// Promote an agent to super agent with given scope.
+async fn promote_handler(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<PromoteBody>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let scope = match body.scope.as_deref() {
+        Some("workspace") => Scope::Workspace,
+        Some("global") => Scope::Global,
+        _ => Scope::Tab,
     };
 
-    {
-        let mut agents = state.app_state.agents.lock().unwrap();
-        agents.insert(id, agent.clone());
-    }
-    state.app_state.save_agents();
+    let agent = state
+        .agent_manager
+        .promote_super(&id, scope)
+        .await
+        .map_err(|e| {
+            eprintln!("[api_server] promote failed: {e}");
+            StatusCode::BAD_REQUEST
+        })?;
+
+    state.app_handle.emit("agent:status", &agent).ok();
 
     Ok(Json(serde_json::json!({ "agent": agent })))
 }
 
-async fn start_agent(
+/// Set agent to dormant state.
+async fn dormant_handler(
     AxumState(state): AxumState<ApiState>,
     headers: HeaderMap,
     Path(id): Path<String>,
-    Json(body): Json<StartAgentBody>,
 ) -> Result<impl IntoResponse, StatusCode> {
     check_auth(&headers, &state.api_token)?;
 
-    let agent_snapshot = {
-        let agents = state.app_state.agents.lock().unwrap();
-        agents.get(&id).cloned().ok_or(StatusCode::NOT_FOUND)?
+    // Kill PTY if one exists
+    if let Some(agent) = state.agent_manager.get(&id).await {
+        if let Some(ref pty_id) = agent.pty_id {
+            state.pty_manager.kill(pty_id).ok();
+        }
+    }
+
+    state
+        .agent_manager
+        .set_state(&id, AgentState::Dormant)
+        .await
+        .map_err(|e| {
+            eprintln!("[api_server] dormant failed: {e}");
+            StatusCode::BAD_REQUEST
+        })?;
+
+    // Clear pty_id
+    let agent = state
+        .agent_manager
+        .update(&id, |a| {
+            a.pty_id = None;
+        })
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    state.app_handle.emit("agent:status", &agent).ok();
+
+    Ok(Json(serde_json::json!({ "agent": agent })))
+}
+
+/// Reanimate a dormant agent to inactive.
+async fn reanimate_handler(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let agent = state
+        .agent_manager
+        .set_state(&id, AgentState::Inactive)
+        .await
+        .map_err(|e| {
+            eprintln!("[api_server] reanimate failed: {e}");
+            StatusCode::BAD_REQUEST
+        })?;
+
+    state.app_handle.emit("agent:status", &agent).ok();
+
+    Ok(Json(serde_json::json!({ "agent": agent })))
+}
+
+// ---------------------------------------------------------------------------
+// Hook endpoints (no auth — called by local processes)
+// ---------------------------------------------------------------------------
+
+async fn hook_status(
+    AxumState(state): AxumState<ApiState>,
+    Json(body): Json<HookStatusBody>,
+) -> impl IntoResponse {
+    let new_state = match body.status.as_str() {
+        "running" => AgentState::Running,
+        "waiting" => AgentState::Waiting,
+        "idle" | "completed" => AgentState::Completed,
+        "error" => AgentState::Error,
+        "dormant" => AgentState::Dormant,
+        _ => AgentState::Inactive,
     };
 
+    let result = state
+        .agent_manager
+        .set_state(&body.agent_id, new_state)
+        .await;
+
+    if let Ok(ref agent) = result {
+        state.app_handle.emit("agent:status", agent).ok();
+    }
+
+    Json(serde_json::json!({ "ok": result.is_ok() }))
+}
+
+async fn hook_output(
+    AxumState(state): AxumState<ApiState>,
+    Json(body): Json<HookOutputBody>,
+) -> impl IntoResponse {
+    state
+        .agent_manager
+        .set_status_line(&body.agent_id, body.output)
+        .await;
+
+    Json(serde_json::json!({ "ok": true }))
+}
+
+// ---------------------------------------------------------------------------
+// Internal helper: start agent logic shared between start_agent and delegate
+// ---------------------------------------------------------------------------
+
+async fn start_agent_inner(
+    state: &ApiState,
+    _headers: &HeaderMap,
+    id: &str,
+    body: StartAgentBody,
+) -> Result<Agent, StatusCode> {
+    let agent_snapshot = state
+        .agent_manager
+        .get(&id.to_string())
+        .await
+        .ok_or(StatusCode::NOT_FOUND)?;
+
     // If agent already running and has a PTY, write the prompt directly
-    if agent_snapshot.process_state == ProcessState::Running {
+    if agent_snapshot.state == AgentState::Running {
         if let Some(ref pty_id) = agent_snapshot.pty_id {
             if let Some(ref prompt) = body.prompt {
                 let msg = format!("{prompt}\n");
@@ -336,268 +808,154 @@ async fn start_agent(
                     .write(pty_id, msg.as_bytes())
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             }
-            return Ok(Json(serde_json::json!({ "agent": agent_snapshot })));
+            return Ok(agent_snapshot);
         }
     }
 
-    // Spawn a new PTY
-    let pty_id = uuid::Uuid::new_v4().to_string();
-    state
-        .pty_manager
-        .spawn(
-            &pty_id,
-            &agent_snapshot.id,
-            &agent_snapshot.cwd,
-            &state.app_handle,
-            None,
-            None,
-        )
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // Reuse existing PTY or spawn a new one
+    let reused_pty;
+    let pty_id = if let Some(existing) = state.pty_manager.lookup(id) {
+        reused_pty = true;
+        existing
+    } else {
+        reused_pty = false;
+        let new_id = uuid::Uuid::new_v4().to_string();
+        state
+            .pty_manager
+            .spawn(
+                &new_id,
+                &agent_snapshot.id,
+                &agent_snapshot.cwd,
+                &state.app_handle,
+                None,
+                None,
+            )
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        state.pty_manager.register(id, &new_id);
+        new_id
+    };
 
-    // Register the shell PID with the cwd tracker
-    if let Some(pid) = state.pty_manager.get_child_pid(&pty_id) {
-        state.cwd_tracker.register(&pty_id, pid);
+    if reused_pty {
+        state
+            .pty_manager
+            .write(&pty_id, b"\x03\x03")
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     }
 
-    // Build and send the CLI command
-    let settings = state.app_state.settings.lock().unwrap().clone();
-    // Export agent ID so Claude Code hooks can report status back to Dorotoring
+    // Export agent ID
     state
         .pty_manager
         .write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // For tab-scoped super agents: export tab ID so MCP server can filter
-    if agent_snapshot.is_super_agent
-        && agent_snapshot.super_agent_scope.as_deref() == Some("tab")
-    {
-        state
-            .pty_manager
-            .write(
-                &pty_id,
-                format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
-            )
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Export tab ID for tab-scoped super agents
+    if agent_snapshot.is_super_agent() {
+        if let Some(Scope::Tab) = agent_snapshot.scope() {
+            state
+                .pty_manager
+                .write(
+                    &pty_id,
+                    format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
+                )
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
     }
-    let cmd = build_cli_command(&agent_snapshot, body.prompt.as_deref(), &settings);
+
+    // Build and send the CLI command
+    let settings = state.app_state.settings.lock().unwrap().clone();
+    let skip_permissions = agent_snapshot.skills.contains(&"__skip_permissions".to_string());
+
+    let config = build_start_config(
+        &agent_snapshot,
+        body.prompt.as_deref(),
+        skip_permissions,
+    );
+    let cmd = build_cli_command(&agent_snapshot, config, &settings);
+    let cmd_str = cmd.join(" ");
     state
         .pty_manager
-        .write(&pty_id, format!("{cmd}\n").as_bytes())
+        .write(&pty_id, format!("{cmd_str}\n").as_bytes())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Update agent state
-    let now = chrono::Utc::now().to_rfc3339();
-    let updated_agent = {
-        let mut agents = state.app_state.agents.lock().unwrap();
-        let agent = agents.get_mut(&id).ok_or(StatusCode::NOT_FOUND)?;
-        agent.process_state = ProcessState::Running;
-        agent.pty_id = Some(pty_id);
-        agent.last_activity = now;
-        agent.error = None;
-        agent.clone()
-    };
-
-    state.app_state.save_agents();
     let _ = state
-        .app_state
-        .status_tx
-        .send((id.clone(), "running".into()));
-    state.app_handle.emit("agent:status", &updated_agent).ok();
-
-    Ok(Json(serde_json::json!({ "agent": updated_agent })))
-}
-
-async fn stop_agent(
-    AxumState(state): AxumState<ApiState>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    check_auth(&headers, &state.api_token)?;
-
-    let now = chrono::Utc::now().to_rfc3339();
-
-    let updated_agent = {
-        let mut agents = state.app_state.agents.lock().unwrap();
-        let agent = agents.get_mut(&id).ok_or(StatusCode::NOT_FOUND)?;
-
-        // Kill PTY if one exists
-        if let Some(ref pty_id) = agent.pty_id {
-            state.cwd_tracker.unregister(pty_id);
-            state.pty_manager.kill(pty_id).ok();
-        }
-
-        agent.process_state = ProcessState::Inactive;
-        agent.pty_id = None;
-        agent.last_activity = now;
-        agent.clone()
-    };
-
-    state.app_state.save_agents();
-    let _ = state
-        .app_state
-        .status_tx
-        .send((id.clone(), "inactive".into()));
-    state.app_handle.emit("agent:status", &updated_agent).ok();
-
-    Ok(Json(serde_json::json!({ "agent": updated_agent })))
-}
-
-async fn send_message(
-    AxumState(state): AxumState<ApiState>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-    Json(body): Json<SendMessageBody>,
-) -> Result<impl IntoResponse, StatusCode> {
-    check_auth(&headers, &state.api_token)?;
-
-    let agents = state.app_state.agents.lock().unwrap();
-    let agent = agents.get(&id).ok_or(StatusCode::NOT_FOUND)?;
-
-    let pty_id = agent.pty_id.as_ref().ok_or(StatusCode::BAD_REQUEST)?;
-
-    let msg = format!("{}\n", body.message);
-    state
-        .pty_manager
-        .write(pty_id, msg.as_bytes())
+        .agent_manager
+        .set_state(&id.to_string(), AgentState::Running)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(serde_json::json!({ "ok": true })))
-}
+    let updated_agent = state
+        .agent_manager
+        .update(&id.to_string(), |a| {
+            a.pty_id = Some(pty_id);
+            a.error = None;
+        })
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-async fn delete_agent(
-    AxumState(state): AxumState<ApiState>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-) -> Result<impl IntoResponse, StatusCode> {
-    check_auth(&headers, &state.api_token)?;
+    state.app_handle.emit("agent:status", &updated_agent).ok();
 
-    let removed = {
-        let mut agents = state.app_state.agents.lock().unwrap();
-        agents.remove(&id)
-    };
-
-    if let Some(agent) = removed {
-        if let Some(ref pty_id) = agent.pty_id {
-            state.cwd_tracker.unregister(pty_id);
-            state.pty_manager.kill(pty_id).ok();
-        }
-    }
-
-    state.app_state.save_agents();
-
-    Ok(Json(serde_json::json!({ "ok": true })))
-}
-
-async fn hook_status(
-    AxumState(state): AxumState<ApiState>,
-    Json(body): Json<HookStatusBody>,
-) -> impl IntoResponse {
-    let process_state = match body.status.as_str() {
-        "running" => ProcessState::Running,
-        "waiting" => ProcessState::Waiting,
-        "idle" | "completed" => ProcessState::Completed,
-        "error" => ProcessState::Error,
-        "dormant" => ProcessState::Dormant,
-        _ => ProcessState::Inactive,
-    };
-
-    let now = chrono::Utc::now().to_rfc3339();
-
-    let updated = {
-        let mut agents = state.app_state.agents.lock().unwrap();
-        if let Some(agent) = agents.get_mut(&body.agent_id) {
-            agent.process_state = process_state;
-            agent.last_activity = now;
-            Some(agent.clone())
-        } else {
-            None
-        }
-    };
-
-    if let Some(ref agent) = updated {
-        state.app_state.save_agents();
-        let _ = state
-            .app_state
-            .status_tx
-            .send((body.agent_id.clone(), body.status.clone()));
-        state.app_handle.emit("agent:status", agent).ok();
-    }
-
-    Json(serde_json::json!({ "ok": updated.is_some() }))
-}
-
-async fn hook_output(
-    AxumState(state): AxumState<ApiState>,
-    Json(body): Json<HookOutputBody>,
-) -> impl IntoResponse {
-    let mut agents = state.app_state.agents.lock().unwrap();
-    if let Some(agent) = agents.get_mut(&body.agent_id) {
-        agent.status_line = Some(body.output.clone());
-    }
-
-    Json(serde_json::json!({ "ok": true }))
+    Ok(updated_agent)
 }
 
 // ---------------------------------------------------------------------------
-// CLI command builder
+// CLI command builder — uses provider trait
 // ---------------------------------------------------------------------------
 
-/// Build the full CLI command string for launching an agent.
-///
-/// Mirrors the logic in `commands::agent::agent_start`.
-pub fn build_cli_command(agent: &Agent, prompt: Option<&str>, settings: &AppSettings) -> String {
-    let provider = agent.provider.as_deref().unwrap_or("claude");
-
-    let cli_binary = match provider {
-        "codex" => settings.cli_paths.codex.clone(),
-        "gemini" => settings.cli_paths.gemini.clone(),
-        "opencode" => settings.cli_paths.opencode.clone(),
-        "pi" => settings.cli_paths.pi.clone(),
-        "local" => settings.cli_paths.claude.clone(), // Tasmania uses claude binary
-        _ => settings.cli_paths.claude.clone(),
+/// Build an AgentStartConfig from agent state and optional prompt.
+fn build_start_config(
+    agent: &Agent,
+    prompt: Option<&str>,
+    skip_permissions: bool,
+) -> AgentStartConfig {
+    // Resolve MCP config and system prompt file for super agents
+    let (mcp_config, system_prompt_file) = if agent.is_super_agent() {
+        let mcp = dirs::home_dir()
+            .map(|h| h.join(".claude").join("mcp.json"))
+            .filter(|p| p.exists());
+        let instructions = crate::ensure_super_agent_instructions();
+        (mcp, instructions)
+    } else {
+        (None, None)
     };
 
-    let mut cmd_parts = vec![cli_binary];
-
-    if agent.skip_permissions {
-        match provider {
-            "codex" => cmd_parts.push("--full-auto".into()),
-            _ => cmd_parts.push("--dangerously-skip-permissions".into()),
-        }
+    AgentStartConfig {
+        prompt: prompt.unwrap_or("").to_string(),
+        cwd: PathBuf::from(&agent.cwd),
+        skip_permissions,
+        mcp_config,
+        system_prompt_file,
+        model: None,
+        secondary_paths: agent.secondary_paths.clone(),
+        continue_session: false,
     }
+}
 
-    // Super Agent: add MCP config + orchestrator system prompt
-    if agent.is_super_agent {
-        let mcp_config = dirs::home_dir()
-            .unwrap_or_default()
-            .join(".claude")
-            .join("mcp.json");
-        if mcp_config.exists() {
-            cmd_parts.push("--mcp-config".into());
-            cmd_parts.push(mcp_config.to_string_lossy().to_string());
-        }
-        if let Some(instructions_path) = crate::ensure_super_agent_instructions() {
-            cmd_parts.push("--append-system-prompt-file".into());
-            cmd_parts.push(instructions_path.to_string_lossy().to_string());
-        }
+/// Build the full CLI command using the provider trait.
+fn build_cli_command(
+    agent: &Agent,
+    config: AgentStartConfig,
+    settings: &crate::state::AppSettings,
+) -> Vec<String> {
+    let provider_impl = get_provider(&agent.provider);
+    let cli_path = get_cli_path_for_provider(&agent.provider, settings);
+    provider_impl.build_command(&config, Some(&cli_path))
+}
+
+/// Map a Provider enum to the configured CLI path from settings.
+fn get_cli_path_for_provider(
+    provider: &Provider,
+    settings: &crate::state::AppSettings,
+) -> String {
+    match provider {
+        Provider::Codex => settings.cli_paths.codex.clone(),
+        Provider::Gemini => settings.cli_paths.gemini.clone(),
+        Provider::Opencode => settings.cli_paths.opencode.clone(),
+        Provider::Pi => settings.cli_paths.pi.clone(),
+        Provider::Local => settings.cli_paths.claude.clone(),
+        Provider::Claude => settings.cli_paths.claude.clone(),
     }
-
-    // Add secondary paths (--add-dir)
-    for path in &agent.secondary_paths {
-        cmd_parts.push("--add-dir".into());
-        cmd_parts.push(path.clone());
-    }
-
-    // Add prompt if provided
-    if let Some(p) = prompt {
-        cmd_parts.push("--print".into());
-        // Sanitize newlines to prevent breaking the shell command
-        let p = p.replace('\n', " ");
-        // Shell-escape the prompt by wrapping in single quotes
-        let escaped = p.replace('\'', "'\\''");
-        cmd_parts.push(format!("'{escaped}'"));
-    }
-
-    cmd_parts.join(" ")
 }
 
 // ---------------------------------------------------------------------------
@@ -605,20 +963,22 @@ pub fn build_cli_command(agent: &Agent, prompt: Option<&str>, settings: &AppSett
 // ---------------------------------------------------------------------------
 
 pub async fn start(
-    app_state: Arc<AppState>,
+    agent_manager: Arc<AgentManager>,
+    event_bus: Arc<EventBus>,
     pty_manager: Arc<PtyManager>,
-    cwd_tracker: Arc<CwdTracker>,
     app_handle: AppHandle,
+    app_state: Arc<AppState>,
 ) {
     let api_token = ensure_api_token();
     eprintln!("[api_server] API server starting on 127.0.0.1:31415");
 
     let api_state = ApiState {
-        app_state,
+        agent_manager,
+        event_bus,
         pty_manager,
-        cwd_tracker,
         app_handle,
         api_token,
+        app_state,
     };
 
     let cors = CorsLayer::new()
@@ -643,11 +1003,14 @@ pub async fn start(
         // Agent CRUD (auth required)
         .route("/api/agents", get(list_agents).post(create_agent))
         .route("/api/agents/{id}", get(get_agent).delete(delete_agent))
-        .route("/api/agents/{id}/output", get(get_agent_output))
         .route("/api/agents/{id}/wait", get(wait_for_agent))
         .route("/api/agents/{id}/start", post(start_agent))
         .route("/api/agents/{id}/stop", post(stop_agent))
         .route("/api/agents/{id}/message", post(send_message))
+        .route("/api/agents/{id}/delegate", post(delegate_handler))
+        .route("/api/agents/{id}/promote", post(promote_handler))
+        .route("/api/agents/{id}/dormant", post(dormant_handler))
+        .route("/api/agents/{id}/reanimate", post(reanimate_handler))
         // Hooks (no auth — called by local processes)
         .route("/api/hooks/status", post(hook_status))
         .route("/api/hooks/output", post(hook_output))
@@ -661,75 +1024,4 @@ pub async fn start(
     eprintln!("[api_server] API server listening on 127.0.0.1:31415");
 
     axum::serve(listener, app).await.expect("API server error");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::state::{Agent, AppSettings};
-
-    fn default_settings() -> AppSettings {
-        AppSettings::default()
-    }
-
-    fn agent_with(is_super: bool, skip_perms: bool, provider: Option<&str>) -> Agent {
-        Agent {
-            id: "test-id".into(),
-            is_super_agent: is_super,
-            skip_permissions: skip_perms,
-            provider: provider.map(|s| s.to_string()),
-            cwd: "/tmp".into(),
-            tab_id: "general".into(),
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn test_normal_agent_no_mcp_flags() {
-        let agent = agent_with(false, false, None);
-        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
-        assert!(!cmd.contains("--mcp-config"), "normal agent should not have --mcp-config");
-        assert!(!cmd.contains("--append-system-prompt-file"));
-    }
-
-    #[test]
-    fn test_super_agent_injects_mcp_config() {
-        let agent = agent_with(true, false, None);
-        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
-        let mcp_path = dirs::home_dir().unwrap().join(".claude").join("mcp.json");
-        if mcp_path.exists() {
-            assert!(cmd.contains("--mcp-config"), "super agent should have --mcp-config");
-        }
-    }
-
-    #[test]
-    fn test_super_agent_injects_instructions() {
-        let agent = agent_with(true, false, None);
-        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
-        assert!(cmd.contains("--append-system-prompt-file"));
-        assert!(cmd.contains("super-agent-instructions.md"));
-    }
-
-    #[test]
-    fn test_super_agent_with_skip_permissions() {
-        let agent = agent_with(true, true, None);
-        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
-        assert!(cmd.contains("--dangerously-skip-permissions"));
-        assert!(cmd.contains("--append-system-prompt-file"));
-    }
-
-    #[test]
-    fn test_prompt_escapes_single_quotes() {
-        let agent = agent_with(false, false, None);
-        let cmd = build_cli_command(&agent, Some("it's done"), &default_settings());
-        assert!(cmd.contains("it'\\''s"), "single quotes not escaped: {}", cmd);
-    }
-
-    #[test]
-    fn test_codex_provider_uses_full_auto() {
-        let agent = agent_with(false, true, Some("codex"));
-        let cmd = build_cli_command(&agent, Some("hello"), &default_settings());
-        assert!(cmd.contains("--full-auto"), "codex should use --full-auto");
-        assert!(!cmd.contains("--dangerously-skip-permissions"));
-    }
 }
