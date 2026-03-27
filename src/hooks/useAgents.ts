@@ -22,9 +22,7 @@ export function useAgents() {
 
   useEffect(() => {
     fetchAgents();
-    // Poll every 10 seconds to reduce CPU usage
-    const interval = setInterval(fetchAgents, 10000);
-    return () => clearInterval(interval);
+    // No polling — WebSocket events in useElectronAgents provide real-time updates
   }, [fetchAgents]);
 
   const createAgent = async (cwd: string, skills: string[], prompt?: string, model?: string) => {

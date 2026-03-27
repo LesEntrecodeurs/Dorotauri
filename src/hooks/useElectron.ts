@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/hooks/useTauri';
+import { useAgentEvents } from '@/hooks/useAgentWebSocket';
 import type { Agent, AgentEvent, AgentCharacter, AgentProvider, AgentTickItem } from '@/types/electron';
 
 // Re-export isTauri as isElectron for backward compatibility with consuming components
@@ -172,7 +173,34 @@ export function useElectronAgents() {
     await invoke('agent_update_business_state', { id, businessState });
   }, []);
 
-  // Subscribe to agent events
+  // Subscribe to real-time WebSocket events for instant agent state updates
+  useAgentEvents((event) => {
+    switch (event.type) {
+      case 'state_changed':
+        setAgents(prev => prev.map(a =>
+          a.id === event.agent_id
+            ? { ...a, state: event.new as Agent['state'], processState: event.new as Agent['state'] }
+            : a
+        ));
+        break;
+      case 'created':
+        // Refresh full list to get the new agent's complete data
+        fetchAgents();
+        break;
+      case 'removed':
+        setAgents(prev => prev.filter(a => a.id !== event.agent_id));
+        break;
+      case 'status_line_updated':
+        setAgents(prev => prev.map(a =>
+          a.id === event.agent_id
+            ? { ...a, statusLine: event.line }
+            : a
+        ));
+        break;
+    }
+  });
+
+  // Subscribe to Tauri agent events (kept as fallback for non-WebSocket consumers)
   useEffect(() => {
     if (!isTauri()) return;
 
@@ -187,20 +215,49 @@ export function useElectronAgents() {
       fetchAgents();
     }).then(fn => unlistenFns.push(fn));
 
-    listen<{ agentId: string; processState: string; timestamp: string }>('agent:status', (event) => {
+    listen<{ agentId: string }>('agent:removed', (event) => {
+      const { agentId } = event.payload;
+      setAgents(prev => prev.filter(a => a.id !== agentId));
+    }).then(fn => unlistenFns.push(fn));
+
+    listen<Record<string, unknown>>('agent:status', (event) => {
       const e = event.payload;
-      setAgents(prev => prev.map(a =>
-        a.id === e.agentId
-          ? { ...a, processState: e.processState as Agent['processState'], lastActivity: e.timestamp || new Date().toISOString() }
-          : a
-      ));
+      // The payload may be a full Agent struct (has `id`) or a minimal object (has `agentId`)
+      const agentId = (e.agentId ?? e.id) as string | undefined;
+      if (!agentId) return;
+      setAgents(prev => prev.map(a => {
+        if (a.id !== agentId) return a;
+        const updates: Partial<Agent> = {};
+        if (e.processState) updates.processState = e.processState as Agent['processState'];
+        if (e.lastActivity) updates.lastActivity = e.lastActivity as string;
+        else updates.lastActivity = new Date().toISOString();
+        if (e.ptyId !== undefined) updates.ptyId = e.ptyId as string;
+        return { ...a, ...updates };
+      }));
     }).then(fn => unlistenFns.push(fn));
 
     // Also subscribe to agents:tick for reliable live status updates
     listen<AgentTickItem[]>('agents:tick', (event) => {
       const tickAgents = event.payload;
       setAgents(prev => {
-        if (prev.length !== tickAgents.length) return prev;
+        // When an agent was removed, filter it out of local state
+        if (prev.length > tickAgents.length) {
+          const tickIds = new Set(tickAgents.map(t => t.id));
+          const filtered = prev.filter(a => tickIds.has(a.id));
+          // Also apply status updates
+          return filtered.map(a => {
+            const tick = tickAgents.find(t => t.id === a.id);
+            if (tick && a.processState !== tick.processState) {
+              return { ...a, processState: tick.processState as Agent['processState'], lastActivity: tick.lastActivity };
+            }
+            return a;
+          });
+        }
+        // When an agent was added externally, do a full refresh
+        if (prev.length < tickAgents.length) {
+          fetchAgents();
+          return prev;
+        }
         const hasStatusChange = tickAgents.some(t => {
           const existing = prev.find(a => a.id === t.id);
           return existing && existing.processState !== t.processState;
