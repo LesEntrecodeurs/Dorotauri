@@ -70,6 +70,19 @@ impl VaultDb {
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS sftp_hosts (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                hostname TEXT NOT NULL,
+                port INTEGER NOT NULL DEFAULT 22,
+                username TEXT NOT NULL,
+                auth_type TEXT NOT NULL DEFAULT 'password',
+                password TEXT,
+                key_path TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
         ",
         )
         .map_err(|e| e.to_string())?;

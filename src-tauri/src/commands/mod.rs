@@ -6,6 +6,7 @@ pub mod orchestrator;
 pub mod pty;
 pub mod settings;
 pub mod shell;
+pub mod sftp;
 pub mod ssh;
 pub mod tab;
 pub mod vault;

@@ -10,6 +10,7 @@ mod db;
 pub mod migration;
 mod notifications;
 mod pty;
+pub mod sftp;
 pub mod state;
 mod usage_watcher;
 mod windows;
@@ -32,6 +33,7 @@ pub fn run() {
     let pty_manager = Arc::new(pty::PtyManager::new());
     let window_registry = windows::WindowRegistry::new();
     let vault_db = db::VaultDb::open().expect("Failed to initialize vault database");
+    let sftp_manager = Arc::new(sftp::SftpManager::new());
     let cwd_tracker = Arc::new(cwd_tracker::CwdTracker::new());
 
     // Clone the agents Arc so the polling thread can share it
@@ -47,6 +49,7 @@ pub fn run() {
         .manage(pty_manager)
         .manage(window_registry)
         .manage(vault_db)
+        .manage(sftp_manager)
         .manage(cwd_tracker)
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -198,6 +201,25 @@ pub fn run() {
             commands::ssh::ssh_connect,
             commands::ssh::ssh_read_file,
             commands::ssh::ssh_open_window,
+            // SFTP host CRUD commands
+            commands::sftp::sftp_list_hosts,
+            commands::sftp::sftp_get_host,
+            commands::sftp::sftp_create_host,
+            commands::sftp::sftp_update_host,
+            commands::sftp::sftp_delete_host,
+            commands::sftp::sftp_read_file,
+            // SFTP session commands
+            commands::sftp::sftp_connect,
+            commands::sftp::sftp_disconnect,
+            commands::sftp::sftp_list_dir,
+            commands::sftp::sftp_list_local_dir,
+            commands::sftp::sftp_download,
+            commands::sftp::sftp_upload,
+            commands::sftp::sftp_mkdir,
+            commands::sftp::sftp_delete,
+            commands::sftp::sftp_rename,
+            commands::sftp::sftp_home_dir,
+            commands::sftp::sftp_open_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useHosts } from '@/hooks/useHosts';
+import { useSftpHosts } from '@/hooks/useSftpHosts';
 import { isTauri } from '@/hooks/useTauri';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -9,9 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { SshHost } from '@/types/ssh';
+import type { SftpHost } from '@/types/sftp-host';
 import {
-  Server, Plus, Search, Loader2, AlertTriangle, Terminal as TerminalIcon,
+  FolderSync, Plus, Search, Loader2, AlertTriangle,
   Pencil, Trash2, X, Key, Lock, Eye, EyeOff, FolderOpen,
 } from 'lucide-react';
 
@@ -30,7 +30,7 @@ interface HostFormData {
 const emptyForm: HostFormData = { name: '', hostname: '', port: 22, username: '', authType: 'password', password: '', keyPath: '' };
 
 function HostFormDialog({ host, onSave, onClose }: {
-  host: SshHost | null; // null = create mode
+  host: SftpHost | null;
   onSave: (data: HostFormData) => Promise<void>;
   onClose: () => void;
 }) {
@@ -76,7 +76,7 @@ function HostFormDialog({ host, onSave, onClose }: {
         className="bg-card border border-border rounded-xl w-full max-w-md p-6 shadow-xl"
         onClick={e => e.stopPropagation()}>
 
-        <h2 className="text-lg font-semibold mb-4">{host ? 'Edit Host' : 'New Host'}</h2>
+        <h2 className="text-lg font-semibold mb-4">{host ? 'Edit SFTP Host' : 'New SFTP Host'}</h2>
 
         <div className="space-y-3">
           <div>
@@ -116,10 +116,10 @@ function HostFormDialog({ host, onSave, onClose }: {
 
           {form.authType === 'password' && (
             <div>
-              <Label className="text-xs text-muted-foreground">Password <span className="text-muted-foreground/60">(optional — you can type it at connect)</span></Label>
+              <Label className="text-xs text-muted-foreground">Password</Label>
               <div className="relative">
                 <Input type={showPassword ? 'text' : 'password'} value={form.password}
-                  onChange={e => update({ password: e.target.value })} placeholder="Leave empty to type at connect" />
+                  onChange={e => update({ password: e.target.value })} placeholder="Enter password" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -157,7 +157,7 @@ function HostFormDialog({ host, onSave, onClose }: {
 // ── Delete Confirm Dialog ────────────────────────────────────────────────────
 
 function DeleteConfirmDialog({ host, onConfirm, onClose }: {
-  host: SshHost; onConfirm: () => void; onClose: () => void;
+  host: SftpHost; onConfirm: () => void; onClose: () => void;
 }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -165,7 +165,7 @@ function DeleteConfirmDialog({ host, onConfirm, onClose }: {
       <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
         className="bg-card border border-border rounded-xl w-full max-w-sm p-6 shadow-xl"
         onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-2">Delete Host</h2>
+        <h2 className="text-lg font-semibold mb-2">Delete SFTP Host</h2>
         <p className="text-sm text-muted-foreground mb-4">
           Remove <strong>{host.name}</strong> ({host.username}@{host.hostname})? This cannot be undone.
         </p>
@@ -180,14 +180,14 @@ function DeleteConfirmDialog({ host, onConfirm, onClose }: {
 
 // ── Host Card ────────────────────────────────────────────────────────────────
 
-function HostCard({ host, onConnect, onEdit, onDelete }: {
-  host: SshHost; onConnect: () => void; onEdit: () => void; onDelete: () => void;
+function SftpHostCard({ host, onConnect, onEdit, onDelete }: {
+  host: SftpHost; onConnect: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   return (
     <motion.div layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors">
       <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-        <Server className="w-5 h-5 text-muted-foreground" />
+        <FolderSync className="w-5 h-5 text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -202,7 +202,7 @@ function HostCard({ host, onConnect, onEdit, onDelete }: {
       </div>
       <div className="flex items-center gap-0.5 shrink-0">
         <Button variant="default" size="sm" className="h-8 px-3" onClick={onConnect}>
-          <TerminalIcon className="w-3.5 h-3.5 mr-1.5" />Connect
+          <FolderSync className="w-3.5 h-3.5 mr-1.5" />Connect
         </Button>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onEdit} title="Edit">
           <Pencil className="w-3.5 h-3.5" />
@@ -223,7 +223,6 @@ interface ParsedHost {
 }
 
 function parseImportFile(text: string): ParsedHost[] {
-  // Auto-detect format: SSH config has "Host " lines, CSV has commas in first line
   const firstLine = text.split('\n')[0]?.trim() || '';
   if (firstLine.toLowerCase().startsWith('host ') || /^#/.test(firstLine) || /^\s*Host\s/im.test(text)) {
     return parseSshConfig(text);
@@ -253,7 +252,6 @@ function parseSshConfig(text: string): ParsedHost[] {
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
-
     const match = line.match(/^(\S+)\s+(.+)$/);
     if (!match) continue;
     const [, key, value] = match;
@@ -261,7 +259,6 @@ function parseSshConfig(text: string): ParsedHost[] {
 
     if (k === 'host') {
       flush();
-      // Skip wildcards like Host *
       if (value.includes('*')) continue;
       current.alias = value.trim();
     } else if (k === 'hostname') {
@@ -276,13 +273,11 @@ function parseSshConfig(text: string): ParsedHost[] {
   }
   flush();
 
-  // Resolve ~ in keyPath using a common prefix
   for (const h of results) {
     if (h.keyPath && !h.keyPath.startsWith('/')) {
       h.keyPath = `~${h.keyPath}`;
     }
   }
-
   return results;
 }
 
@@ -322,7 +317,6 @@ function parseTermiusCsv(csvText: string): ParsedHost[] {
       authType: keyPath ? 'key' : 'password',
     });
   }
-
   return results;
 }
 
@@ -365,12 +359,12 @@ function ImportResultDialog({ imported, skipped, onClose }: { imported: number; 
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
-export default function HostsPage() {
-  const { hosts, loading, error, createHost, updateHost, deleteHost, connectHost } = useHosts();
+export default function SftpHostsPage() {
+  const { hosts, loading, error, createHost, updateHost, deleteHost, openSftp } = useSftpHosts();
 
   const [search, setSearch] = useState('');
-  const [formDialog, setFormDialog] = useState<SshHost | 'new' | null>(null);
-  const [deleteDialog, setDeleteDialog] = useState<SshHost | null>(null);
+  const [formDialog, setFormDialog] = useState<SftpHost | 'new' | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<SftpHost | null>(null);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [importing, setImporting] = useState(false);
 
@@ -379,12 +373,9 @@ export default function HostsPage() {
     return h.name.toLowerCase().includes(q) || h.hostname.toLowerCase().includes(q) || h.username.toLowerCase().includes(q);
   });
 
-  const handleConnect = useCallback(async (host: SshHost) => {
-    const ptyId = `ssh-${host.id}-${Date.now()}`;
-    const password = await connectHost(host.id, ptyId);
-    const label = `${host.name} — ${host.username}@${host.hostname}`;
-    await invoke('ssh_open_window', { ptyId, label, password: password || null });
-  }, [connectHost]);
+  const handleConnect = useCallback(async (host: SftpHost) => {
+    await openSftp(host);
+  }, [openSftp]);
 
   const handleSave = useCallback(async (data: HostFormData) => {
     if (formDialog === 'new') {
@@ -405,7 +396,7 @@ export default function HostsPage() {
     try {
       const home = await homeDir();
       const configPath = await join(home, '.ssh', 'config');
-      const configText = await invoke<string>('ssh_read_file', { path: configPath });
+      const configText = await invoke<string>('sftp_read_file', { path: configPath });
       const parsed = parseSshConfig(configText);
 
       const existingKeys = new Set(hosts.map(h => `${h.username}@${h.hostname}:${h.port}`));
@@ -437,7 +428,7 @@ export default function HostsPage() {
 
     setImporting(true);
     try {
-      const fileText = await invoke<string>('ssh_read_file', { path: filePath });
+      const fileText = await invoke<string>('sftp_read_file', { path: filePath });
       const parsed = parseImportFile(fileText);
 
       const existingKeys = new Set(hosts.map(h => `${h.username}@${h.hostname}:${h.port}`));
@@ -464,8 +455,8 @@ export default function HostsPage() {
     return (
       <div className="flex items-center justify-center h-[60vh] text-center">
         <div>
-          <Server className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">SSH Hosts is only available in the desktop app.</p>
+          <FolderSync className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">SFTP is only available in the desktop app.</p>
         </div>
       </div>
     );
@@ -476,7 +467,7 @@ export default function HostsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold">Hosts</h1>
+          <h1 className="text-2xl font-bold">SFTP</h1>
           <p className="text-sm text-muted-foreground">{hosts.length} saved connection{hosts.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -514,13 +505,13 @@ export default function HostsPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
-            <Server className="w-8 h-8 mb-2 opacity-30" />
-            <p className="text-sm">{search ? 'No hosts match your search.' : 'No hosts yet. Add one to get started.'}</p>
+            <FolderSync className="w-8 h-8 mb-2 opacity-30" />
+            <p className="text-sm">{search ? 'No hosts match your search.' : 'No SFTP hosts yet. Add one to get started.'}</p>
           </div>
         ) : (
           <div className="grid gap-2 pb-4">
             {filtered.map(h => (
-              <HostCard key={h.id} host={h}
+              <SftpHostCard key={h.id} host={h}
                 onConnect={() => handleConnect(h)}
                 onEdit={() => setFormDialog(h)}
                 onDelete={() => setDeleteDialog(h)} />
@@ -528,8 +519,6 @@ export default function HostsPage() {
           </div>
         )}
       </div>
-
-
 
       {/* Dialogs */}
       <AnimatePresence>

@@ -24,6 +24,8 @@ const WhatsNewPage = lazy(() => import('./routes/whats-new'))
 const DockerPage = lazy(() => import('./routes/docker'))
 const HostsPage = lazy(() => import('./routes/hosts'))
 const SshTerminal = lazy(() => import('./routes/ssh-terminal'))
+const SftpHostsPage = lazy(() => import('./routes/sftp-hosts'))
+const SftpBrowser = lazy(() => import('./routes/sftp-browser'))
 const TrayPanel = lazy(() => import('./routes/tray-panel'))
 
 function PageLoader() {
@@ -81,9 +83,11 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/whats-new" element={<WhatsNewPage />} />
               <Route path="/docker" element={<DockerPage />} />
               <Route path="/hosts" element={<HostsPage />} />
+              <Route path="/sftp" element={<SftpHostsPage />} />
             </Route>
             <Route path="/console/:agentId" element={<Console />} />
             <Route path="/ssh-terminal/:ptyId" element={<SshTerminal />} />
+            <Route path="/sftp-browser/:hostId" element={<SftpBrowser />} />
             <Route path="/tray-panel" element={<TrayPanel />} />
           </Routes>
         </Suspense>
