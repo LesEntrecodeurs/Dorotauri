@@ -14,7 +14,7 @@ export default function StatusBar({ agents }: StatusBarProps) {
   const error = agents.filter(a => a.processState === 'error').length;
 
   // Estimate total output tokens (rough: each output line ~10 tokens)
-  const totalOutputLines = agents.reduce((sum, a) => sum + a.output.length, 0);
+  const totalOutputLines = agents.reduce((sum, a) => sum + (a.output ?? []).length, 0);
 
   return (
     <div className="flex items-center gap-4 px-3 py-1 bg-secondary border-t border-border !rounded-none text-[10px] text-muted-foreground">

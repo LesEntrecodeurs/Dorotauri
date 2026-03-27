@@ -212,7 +212,7 @@ export default function TerminalsView() {
   const handleCopyOutput = useCallback((agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     if (agent) {
-      navigator.clipboard.writeText(agent.output.join('')).catch(() => { });
+      navigator.clipboard.writeText((agent.output ?? []).join('')).catch(() => { });
     }
   }, [agents]);
 
@@ -258,20 +258,10 @@ export default function TerminalsView() {
     setShowNewChatModal(false);
   }, [createAgent, tabManager]);
 
-  // Auto-start agents that have no PTY (freshly loaded from disk).
-  // Skip agents that already have a live PTY — they're idle but have an
-  // active Claude session waiting for the next prompt.
-  const autoStartedRef = useRef(false);
-  useEffect(() => {
-    if (isLoading || autoStartedRef.current) return;
-    autoStartedRef.current = true;
-    const needsStart = agents.filter(a =>
-      (a.processState === 'inactive' || a.processState === 'completed') && !a.ptyId
-    );
-    for (const agent of needsStart) {
-      startAgent(agent.id, '', { resume: true }).catch(() => { });
-    }
-  }, [isLoading, agents, startAgent]);
+  // TerminalTile creates a PTY (shell) for each agent on mount.
+  // Agents are started explicitly by user action or MCP calls — no auto-start
+  // needed here. Starting with an empty prompt caused conflicts with MCP
+  // start_agent writing to the same PTY.
 
   // Exit view fullscreen on Escape
   useEffect(() => {

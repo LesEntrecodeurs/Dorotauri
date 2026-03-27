@@ -23,9 +23,10 @@ export function useTerminalSearch(agents: Agent[]) {
 
     for (const agent of agents) {
       const name = agent.name || `Agent ${agent.id.slice(0, 6)}`;
-      for (let i = 0; i < agent.output.length; i++) {
+      const output = agent.output ?? [];
+      for (let i = 0; i < output.length; i++) {
         // Strip ANSI escape codes for searching
-        const clean = agent.output[i].replace(/\x1b\[[0-9;]*m/g, '');
+        const clean = output[i].replace(/\x1b\[[0-9;]*m/g, '');
         const lower = clean.toLowerCase();
         const idx = lower.indexOf(query);
         if (idx !== -1) {
