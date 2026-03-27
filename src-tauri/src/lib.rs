@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::Manager;
 use dirs;
 
+pub mod agent;
 pub mod api_server;
 pub mod business_state;
 mod commands;
