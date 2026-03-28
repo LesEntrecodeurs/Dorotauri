@@ -19,7 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 type Provider = 'claude' | 'codex' | 'gemini';
 
@@ -90,6 +90,39 @@ export function McpSection() {
     setShowAddModal(true);
   };
 
+  const loadServers = useCallback(async (p: Provider) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.electronAPI?.mcp?.list({ provider: p });
+      if (result?.error) {
+        setError(result.error);
+        setServers([]);
+      } else {
+        setServers(result?.servers || []);
+        // Initialize edit states
+        const states: Record<string, EditState> = {};
+        for (const s of result?.servers || []) {
+          states[s.name] = { command: s.command, args: [...s.args], env: { ...s.env } };
+        }
+        setEditStates(states);
+        // All env values start masked
+        const allKeys = new Set<string>();
+        for (const s of result?.servers || []) {
+          for (const k of Object.keys(s.env)) {
+            allKeys.add(`${s.name}:${k}`);
+          }
+        }
+        setMaskedEnvKeys(allKeys);
+      }
+    } catch (err) {
+      setError(String(err));
+      setServers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleAdd = async () => {
     const trimmedName = draftName.trim();
     if (!trimmedName) {
@@ -128,39 +161,6 @@ export function McpSection() {
       setAddSaving(false);
     }
   };
-
-  const loadServers = useCallback(async (p: Provider) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await window.electronAPI?.mcp?.list({ provider: p });
-      if (result?.error) {
-        setError(result.error);
-        setServers([]);
-      } else {
-        setServers(result?.servers || []);
-        // Initialize edit states
-        const states: Record<string, EditState> = {};
-        for (const s of result?.servers || []) {
-          states[s.name] = { command: s.command, args: [...s.args], env: { ...s.env } };
-        }
-        setEditStates(states);
-        // All env values start masked
-        const allKeys = new Set<string>();
-        for (const s of result?.servers || []) {
-          for (const k of Object.keys(s.env)) {
-            allKeys.add(`${s.name}:${k}`);
-          }
-        }
-        setMaskedEnvKeys(allKeys);
-      }
-    } catch (err) {
-      setError(String(err));
-      setServers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     loadServers(provider);
@@ -551,6 +551,7 @@ export function McpSection() {
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent className="max-w-lg">
           <DialogTitle>Add MCP Server</DialogTitle>
+          <DialogDescription>Configure command, arguments, and environment variables.</DialogDescription>
 
           <div className="space-y-4 mt-2">
             {/* Name */}
