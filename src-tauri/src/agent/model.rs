@@ -110,6 +110,11 @@ pub struct Agent {
 
     pub last_activity: String,
     pub created_at: String,
+
+    /// Whether this agent runs with --dangerously-skip-permissions.
+    /// Kept in sync with the `__skip_permissions` skills marker.
+    #[serde(default)]
+    pub skip_permissions: bool,
 }
 
 impl Agent {
@@ -131,6 +136,7 @@ impl Agent {
             error: None,
             last_activity: now.clone(),
             created_at: now,
+            skip_permissions: false,
         }
     }
 }

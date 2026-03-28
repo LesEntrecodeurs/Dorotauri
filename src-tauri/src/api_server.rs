@@ -244,26 +244,12 @@ async fn create_agent(
     agent.parent_id = body.parent_id;
     agent.provider = Provider::from_str_opt(body.provider.as_deref());
 
-    let skip_perms = body.skip_permissions.unwrap_or(false);
+    agent.skip_permissions = body.skip_permissions.unwrap_or(false);
     if agent.character.is_none() {
         agent.character = Some(AgentManager::assign_random_character());
     }
 
     let agent = state.agent_manager.create(agent).await;
-
-    // The new Agent model does not have a `skip_permissions` field — store it
-    // as a skills marker so the start handler can read it back when building
-    // the CLI command.
-    if skip_perms {
-        let _ = state.agent_manager.update(&agent.id, |a| {
-            if !a.skills.contains(&"__skip_permissions".to_string()) {
-                a.skills.push("__skip_permissions".to_string());
-            }
-        }).await;
-    }
-
-    // Re-fetch to get the updated version
-    let agent = state.agent_manager.get(&agent.id).await.ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
     state.app_handle.emit("agent:status", &agent).ok();
 
@@ -387,12 +373,11 @@ async fn start_agent(
 
     // Build and send the CLI command using the provider trait
     let settings = state.app_state.settings.lock().unwrap().clone();
-    let skip_permissions = agent_snapshot.skills.contains(&"__skip_permissions".to_string());
 
     let config = build_start_config(
         &agent_snapshot,
         body.prompt.as_deref(),
-        skip_permissions,
+        agent_snapshot.skip_permissions,
     );
     let cmd = build_cli_command(&agent_snapshot, config, &settings);
     let cmd_str = cmd.join(" ");
@@ -974,12 +959,11 @@ async fn start_agent_inner(
 
     // Build and send the CLI command
     let settings = state.app_state.settings.lock().unwrap().clone();
-    let skip_permissions = agent_snapshot.skills.contains(&"__skip_permissions".to_string());
 
     let config = build_start_config(
         &agent_snapshot,
         body.prompt.as_deref(),
-        skip_permissions,
+        agent_snapshot.skip_permissions,
     );
     let cmd = build_cli_command(&agent_snapshot, config, &settings);
     let cmd_str = cmd.join(" ");

@@ -107,14 +107,10 @@ pub async fn agent_create(
         agent.character = Some(crate::agent::manager::AgentManager::assign_random_character());
     }
 
-    // Store skip_permissions as a skills marker (new model doesn't have the field)
-    let skip_permissions = config
+    agent.skip_permissions = config
         .get("skipPermissions")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    if skip_permissions && !agent.skills.contains(&"__skip_permissions".to_string()) {
-        agent.skills.push("__skip_permissions".to_string());
-    }
 
     let created = state.agent_manager.create(agent).await;
 
@@ -300,14 +296,10 @@ pub async fn agent_start(
 
     // Build CLI command using provider trait
     let settings = state.settings.lock().unwrap().clone();
-    let skip_permissions = agent_snapshot
-        .skills
-        .contains(&"__skip_permissions".to_string());
-
     let config = build_start_config(
         &agent_snapshot,
         prompt.as_deref(),
-        skip_permissions,
+        agent_snapshot.skip_permissions,
         false,
     );
     let cmd = build_cli_command(&agent_snapshot, config, &settings);
@@ -496,13 +488,7 @@ pub async fn agent_update(
                 }
             }
             if let Some(skip) = params.get("skipPermissions").and_then(|v| v.as_bool()) {
-                // Store as skills marker for the new model
-                let marker = "__skip_permissions".to_string();
-                if skip && !agent.skills.contains(&marker) {
-                    agent.skills.push(marker);
-                } else if !skip {
-                    agent.skills.retain(|s| s != "__skip_permissions");
-                }
+                agent.skip_permissions = skip;
             }
             if let Some(provider) = params.get("provider").and_then(|v| v.as_str()) {
                 agent.provider = Provider::from_str_opt(Some(provider));
