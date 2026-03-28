@@ -307,14 +307,23 @@ export function McpSection() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => loadServers(provider)}
-              disabled={loading}
-              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={openAddModal}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Add server"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => loadServers(provider)}
+                disabled={loading}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
 
           <Separator />
