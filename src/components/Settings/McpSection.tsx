@@ -76,7 +76,7 @@ export function McpSection() {
   const [draftName, setDraftName] = useState('');
   const [draftCommand, setDraftCommand] = useState('');
   const [draftArgs, setDraftArgs] = useState<string[]>([]);
-  const [draftEnv, setDraftEnv] = useState<Record<string, string>>({});
+  const [draftEnv, setDraftEnv] = useState<Array<{ key: string; value: string }>>([]);
   const [addError, setAddError] = useState<string | null>(null);
   const [addSaving, setAddSaving] = useState(false);
 
@@ -84,7 +84,7 @@ export function McpSection() {
     setDraftName('');
     setDraftCommand('');
     setDraftArgs([]);
-    setDraftEnv({});
+    setDraftEnv([]);
     setAddError(null);
     setAddSaving(false);
     setShowAddModal(true);
@@ -146,7 +146,9 @@ export function McpSection() {
         command: draftCommand.trim(),
         args: draftArgs.filter(a => a.trim() !== ''),
         env: Object.fromEntries(
-          Object.entries(draftEnv).filter(([k]) => k.trim() !== '')
+          draftEnv
+            .filter(entry => entry.key.trim() !== '')
+            .map(entry => [entry.key, entry.value])
         ),
       });
       if (result?.success) {
@@ -561,6 +563,7 @@ export function McpSection() {
                 type="text"
                 value={draftName}
                 onChange={e => setDraftName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
                 placeholder="my-mcp-server"
                 className="font-mono"
                 autoFocus
@@ -574,6 +577,7 @@ export function McpSection() {
                 type="text"
                 value={draftCommand}
                 onChange={e => setDraftCommand(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
                 placeholder="npx"
                 className="font-mono"
               />
@@ -623,48 +627,42 @@ export function McpSection() {
               <div className="flex items-center justify-between mb-1">
                 <Label className="text-xs text-muted-foreground">Environment Variables</Label>
                 <button
-                  onClick={() => setDraftEnv(prev => ({ ...prev, '': '' }))}
+                  onClick={() => setDraftEnv(prev => [...prev, { key: '', value: '' }])}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                 >
                   <Plus className="w-3 h-3" /> Add
                 </button>
               </div>
-              {Object.keys(draftEnv).length === 0 && (
+              {draftEnv.length === 0 && (
                 <p className="text-xs text-muted-foreground italic">No environment variables</p>
               )}
               <div className="space-y-1">
-                {Object.entries(draftEnv).map(([key, value]) => (
-                  <div key={key} className="flex gap-1">
+                {draftEnv.map((entry, idx) => (
+                  <div key={idx} className="flex gap-1">
                     <Input
                       type="text"
-                      value={key}
-                      onChange={e => {
-                        const newKey = e.target.value;
-                        setDraftEnv(prev => {
-                          const entries = Object.entries(prev);
-                          const newEnv: Record<string, string> = {};
-                          for (const [k, v] of entries) {
-                            newEnv[k === key ? newKey : k] = v;
-                          }
-                          return newEnv;
-                        });
-                      }}
+                      value={entry.key}
+                      onChange={e => setDraftEnv(prev => {
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], key: e.target.value };
+                        return next;
+                      })}
                       className="w-[40%] font-mono h-8"
                       placeholder="KEY"
                     />
                     <Input
                       type="text"
-                      value={value}
-                      onChange={e => setDraftEnv(prev => ({ ...prev, [key]: e.target.value }))}
+                      value={entry.value}
+                      onChange={e => setDraftEnv(prev => {
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], value: e.target.value };
+                        return next;
+                      })}
                       className="flex-1 font-mono h-8"
                       placeholder="value"
                     />
                     <button
-                      onClick={() => setDraftEnv(prev => {
-                        const next = { ...prev };
-                        delete next[key];
-                        return next;
-                      })}
+                      onClick={() => setDraftEnv(prev => prev.filter((_, i) => i !== idx))}
                       className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
