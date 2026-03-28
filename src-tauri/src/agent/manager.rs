@@ -48,8 +48,8 @@ impl AgentManager {
             Ok(f) => f,
             Err(_) => return,
         };
-        // blocking_lock is safe here — called once at startup, no contention
-        let mut agents = self.agents.blocking_lock();
+        // try_lock is safe here — called once at startup, no contention
+        let mut agents = self.agents.try_lock().expect("load_sync: mutex should be uncontested at startup");
         *agents = file.agents;
     }
 

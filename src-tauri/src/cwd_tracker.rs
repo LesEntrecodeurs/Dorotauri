@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::state::{Agent, AgentId};
+use crate::agent::manager::AgentManager;
+use crate::agent::model::AgentId;
 
 // ---------------------------------------------------------------------------
 // Event payload emitted when an agent's cwd changes
@@ -87,24 +87,21 @@ impl CwdTracker {
     // Polling loop
     // -------------------------------------------------------------------------
 
-    /// Spawn a background thread that polls every 2 seconds.
+    /// Spawn an async task that polls every 2 seconds.
     ///
-    /// The agents mutex is passed in so the tracker can update `cwd` and
-    /// `path_missing` directly.  To minimise lock contention, cwd values are
-    /// collected outside the agents lock, and the lock is only held briefly to
-    /// apply the changes.
+    /// Updates agent `cwd` in the AgentManager and persists changes to disk.
     pub fn start_polling(
         &self,
         app: AppHandle,
-        agents: Arc<Mutex<HashMap<AgentId, Agent>>>,
+        agent_manager: Arc<AgentManager>,
     ) {
         let pids = Arc::clone(&self.pids);
 
-        thread::spawn(move || {
+        tauri::async_runtime::spawn(async move {
             loop {
-                thread::sleep(Duration::from_secs(2));
+                tokio::time::sleep(Duration::from_secs(2)).await;
 
-                // --- Phase 1: collect (pty_id, pid) pairs without holding the agents lock ---
+                // --- Phase 1: collect (pty_id, pid) pairs ---
                 let pid_snapshot: Vec<(String, u32)> = {
                     pids.lock()
                         .unwrap()
@@ -113,21 +110,21 @@ impl CwdTracker {
                         .collect()
                 };
 
-                // --- Phase 2: resolve cwd for each pid (no locks held) ---
-                // We need to map pty_id → agent_id, which requires a brief
-                // read of the agents map.
-                let pty_to_agent: HashMap<String, (AgentId, String)> = {
-                    let locked = agents.lock().unwrap();
-                    locked
-                        .iter()
-                        .filter_map(|(agent_id, agent)| {
-                            let pty_id = agent.pty_id.as_ref()?;
-                            Some((pty_id.clone(), (agent_id.clone(), agent.cwd.clone())))
-                        })
-                        .collect()
-                };
+                if pid_snapshot.is_empty() {
+                    continue;
+                }
 
-                // For each registered pty, resolve new cwd outside any lock.
+                // --- Phase 2: build pty_id → (agent_id, old_cwd) map from AgentManager ---
+                let all_agents = agent_manager.list(None).await;
+                let pty_to_agent: HashMap<String, (AgentId, String)> = all_agents
+                    .into_iter()
+                    .filter_map(|agent| {
+                        let pty_id = agent.pty_id.clone()?;
+                        Some((pty_id, (agent.id, agent.cwd)))
+                    })
+                    .collect();
+
+                // --- Phase 3: resolve cwd for each pid and detect changes ---
                 let mut updates: Vec<(AgentId, String)> = Vec::new();
 
                 for (pty_id, pid) in &pid_snapshot {
@@ -147,22 +144,17 @@ impl CwdTracker {
                     continue;
                 }
 
-                // --- Phase 3: apply updates — briefly acquire agents lock ---
-                {
-                    let mut locked = agents.lock().unwrap();
-                    for (agent_id, new_cwd) in &updates {
-                        if let Some(agent) = locked.get_mut(agent_id) {
-                            agent.cwd = new_cwd.clone();
-                            agent.path_missing = if std::path::Path::new(new_cwd).exists() {
-                                None
-                            } else {
-                                Some(true)
-                            };
-                        }
-                    }
+                // --- Phase 4: apply updates via AgentManager (persists to disk) ---
+                for (agent_id, new_cwd) in &updates {
+                    let cwd = new_cwd.clone();
+                    let _ = agent_manager
+                        .update(agent_id, |agent| {
+                            agent.cwd = cwd;
+                        })
+                        .await;
                 }
 
-                // --- Phase 4: emit events (no lock needed) ---
+                // --- Phase 5: emit events to frontend ---
                 for (agent_id, new_cwd) in updates {
                     let event = CwdChangedEvent {
                         agent_id: agent_id.clone(),

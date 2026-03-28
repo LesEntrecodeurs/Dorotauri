@@ -207,7 +207,7 @@ const Sidebar = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          "group/sidebar peer hidden md:flex h-svh shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-linear overflow-hidden z-50",
+          "group/sidebar peer hidden md:flex h-svh shrink-0 flex-col bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-linear overflow-hidden z-[201]",
           "w-[--sidebar-width]",
           "data-[collapsible=offcanvas]:w-0",
           variant === "floating" || variant === "inset"

@@ -37,8 +37,8 @@ pub fn run() {
     let sftp_manager = Arc::new(sftp::SftpManager::new());
     let cwd_tracker = Arc::new(cwd_tracker::CwdTracker::new());
 
-    // Clone the agents Arc so the polling thread can share it
-    let agents_arc = Arc::clone(&app_state.agents);
+    // Clone the AgentManager Arc so the polling task can update cwd
+    let cwd_agent_manager = Arc::clone(&app_state.agent_manager);
 
     // Clone Arcs for the API server
     let api_app_state = Arc::clone(&app_state);
@@ -81,7 +81,7 @@ pub fn run() {
 
             // Start the cwd polling thread
             let tracker = app.state::<Arc<cwd_tracker::CwdTracker>>();
-            tracker.start_polling(app.handle().clone(), agents_arc);
+            tracker.start_polling(app.handle().clone(), cwd_agent_manager);
 
             // Install statusline script & configure Claude Code
             usage_watcher::ensure_statusline();
