@@ -99,6 +99,17 @@ pub(crate) fn remove_inner(config_path: &Path) -> Result<(), String> {
     fs::write(config_path, format!("{}\n", json)).map_err(|e| e.to_string())
 }
 
+/// Auto-setup the MCP orchestrator at app startup.
+pub fn ensure_orchestrator_setup() -> Result<(), String> {
+    let bundle = bundle_path().ok_or("MCP orchestrator bundle not found")?;
+    let config_path = mcp_config_path();
+    if !get_status_inner(&config_path) {
+        setup_inner(&config_path, &bundle)?;
+    }
+    crate::api_server::ensure_api_token();
+    Ok(())
+}
+
 // --- Tauri command wrappers ---
 
 #[tauri::command]

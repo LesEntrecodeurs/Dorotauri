@@ -16,14 +16,13 @@ pub mod state;
 mod usage_watcher;
 mod windows;
 
-/// Writes the embedded super-agent instructions to ~/.dorotoring/ and returns the path.
-/// Called before launching any Super Agent to ensure the instructions file is up-to-date.
-pub fn ensure_super_agent_instructions() -> Option<std::path::PathBuf> {
+/// Writes the embedded agent instructions to ~/.dorotoring/ and returns the path.
+pub fn ensure_agent_instructions() -> Option<std::path::PathBuf> {
     const INSTRUCTIONS: &str =
-        include_str!("../../electron/resources/super-agent-instructions.md");
+        include_str!("../../electron/resources/agent-instructions.md");
     let path = dirs::home_dir()?
         .join(".dorotoring")
-        .join("super-agent-instructions.md");
+        .join("agent-instructions.md");
     std::fs::create_dir_all(path.parent()?).ok()?;
     std::fs::write(&path, INSTRUCTIONS).ok()?;
     Some(path)
@@ -87,6 +86,11 @@ pub fn run() {
             usage_watcher::ensure_statusline();
             // Install hooks script so Claude Code reports agent status to Dorotoring
             usage_watcher::ensure_hooks();
+
+            // Auto-setup MCP orchestrator for universal orchestration
+            if let Err(e) = commands::orchestrator::ensure_orchestrator_setup() {
+                eprintln!("[setup] MCP orchestrator auto-setup failed: {e}");
+            }
 
             // Start the usage rate-limits watcher
             usage_watcher::start(app.handle().clone());
