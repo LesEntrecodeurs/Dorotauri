@@ -58,21 +58,25 @@ interface NavItem {
 
 // --- Constants ---
 
+// Active nav items — fully functional
 const NAV_ITEMS: NavItem[] = [
   { href: '/', icon: LayoutDashboard, label: 'Hub' },
   { href: '/agents', icon: Bot, label: 'Agents' },
-  { href: '/kanban', icon: Columns3, label: 'Kanban' },
-  { href: '/memory', icon: Brain, label: 'Memory' },
-  { href: '/vault', icon: Archive, label: 'Vault' },
   { href: '/skills', icon: Sparkles, label: 'Skills' },
-  { href: '/automations', icon: Zap, label: 'Automations' },
   { href: '/plugins', icon: Puzzle, label: 'Plugins' },
   { href: '/projects', icon: FolderGit2, label: 'Projects' },
-  { href: '/recurring-tasks', icon: Clock, label: 'Recurring Tasks' },
   { href: '/docker', icon: Container, label: 'Docker' },
   { href: '/hosts', icon: Server, label: 'Hosts' },
   { href: '/sftp', icon: FolderSync, label: 'SFTP' },
-  { href: '/usage', icon: BarChart3, label: 'Usage' },
+];
+
+// Disabled nav items — visible but marked as disabled
+const DISABLED_NAV_ITEMS: NavItem[] = [
+  { href: '/kanban', icon: Columns3, label: 'Kanban' },
+  { href: '/memory', icon: Brain, label: 'Memory' },
+  { href: '/vault', icon: Archive, label: 'Vault' },
+  { href: '/automations', icon: Zap, label: 'Automations' },
+  { href: '/recurring-tasks', icon: Clock, label: 'Recurring Tasks' },
   { href: '/whats-new', icon: Megaphone, label: "What's New" },
 ];
 
@@ -159,11 +163,11 @@ function NavBadge({ href }: { href: string }) {
         </SidebarMenuBadge>
       );
     }
-    if (href === '/agents' && undismissed.length > 0) {
+    if (href === '/projects') {
       return (
         <SidebarMenuBadge>
-          <Badge variant="destructive" className="h-5 min-w-5 px-1 text-[10px] bg-orange-500">
-            {undismissed.length}
+          <Badge variant="secondary" className="h-5 px-1.5 text-[9px] bg-green-500/15 text-green-500 border border-green-500/20">
+            working
           </Badge>
         </SidebarMenuBadge>
       );
@@ -181,15 +185,12 @@ function NavBadge({ href }: { href: string }) {
   // Collapsed mode: absolute-positioned dots on the icon
   const showDot =
     (href === '/vault' && vaultUnreadCount > 0) ||
-    (href === '/agents' && undismissed.length > 0) ||
     (href === '/whats-new' && whatsNewHasNew);
 
   if (!showDot) return null;
 
-  const dotColor = href === '/agents' ? 'bg-orange-500' : 'bg-red-500';
-
   return (
-    <span className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${dotColor} z-10`} />
+    <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 z-10" />
   );
 }
 
@@ -392,6 +393,36 @@ export default function AppSidebar({
                       <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
+                  <NavBadge href={item.href} />
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        {/* Disabled items */}
+        <SidebarGroup className="group-data-[collapsible=icon]/sidebar:px-1 border-t border-sidebar-border pt-1">
+          <SidebarMenu className="gap-px">
+            {DISABLED_NAV_ITEMS.map((item) => {
+              const active = isActive(item.href, pathname);
+              return (
+                <SidebarMenuItem key={item.href} className="relative">
+                  <SidebarMenuButton
+                    asChild
+                    isActive={active}
+                    tooltip={item.label}
+                    className="rounded-[6px] text-[12.5px] text-sidebar-foreground-muted data-[active=true]:text-sidebar-foreground data-[active=true]:bg-sidebar-accent hover:bg-sidebar-accent/60 transition-colors duration-150 opacity-50"
+                  >
+                    <Link to={item.href}>
+                      <item.icon className="opacity-30" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                  <SidebarMenuBadge className="group-data-[collapsible=icon]/sidebar:hidden">
+                    <Badge variant="secondary" className="h-4 px-1 text-[8px] bg-muted text-muted-foreground">
+                      disabled
+                    </Badge>
+                  </SidebarMenuBadge>
                   <NavBadge href={item.href} />
                 </SidebarMenuItem>
               );
