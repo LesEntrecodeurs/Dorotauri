@@ -1,6 +1,6 @@
 # Architecture MCP Orchestrateur
 
-Ce document explique comment les agents Claude Code (Super Agents / orchestrateurs) communiquent avec d'autres agents dans Dorotoring.
+Ce document explique comment les agents Claude Code utilisent les capacités d'orchestration pour communiquer avec d'autres agents dans Dorotoring. Tous les agents disposent des mêmes capacités d'orchestration, sans distinction de rôle spécial.
 
 ## Vue d'ensemble — les 4 couches
 
@@ -11,30 +11,29 @@ Ce document explique comment les agents Claude Code (Super Agents / orchestrateu
 │  │  Tauri IPC Commands  │  │  HTTP API Server (Axum)      │ │
 │  │  orchestrator.rs     │  │  127.0.0.1:31415             │ │
 │  └──────────────────────┘  └──────────────────────────────┘ │
-│         │ écrit                        ↑                     │
+│         │ écrit (auto-startup)            ↑                 │
 │         ↓                              │ REST + long-poll    │
 │   ~/.claude/mcp.json          PTY Manager (pty.rs)          │
 └─────────────────────────────────────────────────────────────┘
                                          │ spawn PTY
 ┌────────────────────────────────────────↓────────────────────┐
-│  Super Agent (Claude Code process)                          │
+│  Agent (Claude Code process)                                │
 │  claude --mcp-config ~/.claude/mcp.json                     │
-│         --append-system-prompt-file ...                     │
 │              ↕ stdio (protocole MCP)                        │
 │  MCP Orchestrator Server (Node.js subprocess)               │
 │              ↕ HTTP 127.0.0.1:31415                         │
 └─────────────────────────────────────────────────────────────┘
                                          │ delegate_task()
 ┌────────────────────────────────────────↓────────────────────┐
-│  Sub-Agent A (PTY)     Sub-Agent B (PTY)     ...            │
-│  claude ...            claude ...                           │
+│  Agent A (PTY)     Agent B (PTY)     ...                    │
+│  claude ...        claude ...                               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **Résumé du flux :**
-1. Dorotoring écrit `~/.claude/mcp.json` pour enregistrer le serveur MCP
-2. Le Super Agent est lancé avec `--mcp-config` → Claude Code démarre le serveur MCP en subprocess
-3. Le Super Agent appelle les outils MCP pour orchestrer d'autres agents
+1. Dorotoring écrit `~/.claude/mcp.json` pour enregistrer le serveur MCP (auto-configuré au démarrage de l'app)
+2. Tout agent Claude Code lancé reçoit `--mcp-config` → Claude Code démarre le serveur MCP en subprocess
+3. L'agent appelle les outils MCP pour orchestrer d'autres agents
 4. Le serveur MCP traduit ces appels en requêtes HTTP vers l'API REST Rust
 5. L'API Rust spawne des PTY, gère les statuts, répond au long-poll
 
@@ -81,23 +80,16 @@ Résultat dans `~/.claude/mcp.json` :
 
 ---
 
-## Étape 2 — Lancement du Super Agent
+## Étape 2 — Lancement des Agents
 
 **Fichier :** `src-tauri/src/api_server.rs`, fonction `build_cli_command` (ligne 514)
 
-Quand un agent a `is_super_agent = true`, la commande CLI reçoit deux flags supplémentaires :
+Tous les agents reçoivent le flag `--mcp-config` pour charger le serveur MCP orchestrateur :
 
 ```rust
-// api_server.rs:536-548
-if agent.is_super_agent {
-    // Flag 1 : charge le serveur MCP
-    cmd_parts.push("--mcp-config".into());
-    cmd_parts.push(mcp_config.to_string_lossy().to_string()); // ~/.claude/mcp.json
-
-    // Flag 2 : injecte les instructions d'orchestration dans le system prompt
-    cmd_parts.push("--append-system-prompt-file".into());
-    cmd_parts.push(instructions_path.to_string_lossy().to_string()); // ~/.dorotoring/super-agent-instructions.md
-}
+// api_server.rs
+cmd_parts.push("--mcp-config".into());
+cmd_parts.push(mcp_config.to_string_lossy().to_string()); // ~/.claude/mcp.json
 ```
 
 Commande finale envoyée au PTY :
@@ -105,11 +97,10 @@ Commande finale envoyée au PTY :
 ```bash
 claude --dangerously-skip-permissions \
   --mcp-config ~/.claude/mcp.json \
-  --append-system-prompt-file ~/.dorotoring/super-agent-instructions.md \
   --print 'ta tâche...'
 ```
 
-Le fichier `super-agent-instructions.md` est embarqué dans le binaire Rust via `include_str!` et écrit sur disque au démarrage (`lib.rs:17-28`).
+Le serveur MCP Orchestrator se connecte automatiquement à l'API REST via le client HTTP configuré en variables d'environnement (`CLAUDE_MGR_API_URL`).
 
 ---
 
@@ -268,17 +259,17 @@ POST /api/hooks/status
 broadcast channel Tokio
     │
     ↓ débloque wait_for_agent
-Super Agent reçoit le résultat
+Agent reçoit le résultat
 ```
 
 Le hook `/api/hooks/output` capture le texte propre du transcript (sans codes ANSI) et le stocke dans `agent.lastCleanOutput` — c'est ce que retourne `get_agent_output` / `delegate_task`.
 
 ---
 
-## Flux complet : Super Agent délègue une tâche
+## Flux complet : Un agent délègue une tâche
 
 ```
-Super Agent (Claude Code)
+Agent (Claude Code)
 │
 │  "Implémente la feature X dans /project"
 │
@@ -292,7 +283,7 @@ Super Agent (Claude Code)
 │             PTY: "claude --dangerously-skip-permissions --print 'Implémente feature X'"
 │      → GET /api/agents/abc123/wait?timeout=300   ← bloque ici
 │                                      │
-│                         Sub-Agent travaille...
+│                         Agent travaille...
 │                         hook → POST /api/hooks/output { lastCleanOutput: "..." }
 │                         hook → POST /api/hooks/status { status: "completed" }
 │                                      │ broadcast Tokio
@@ -310,15 +301,13 @@ Super Agent (Claude Code)
 |---|---|
 | `src-tauri/src/commands/orchestrator.rs` | Gère `~/.claude/mcp.json` (setup/remove/status) |
 | `src-tauri/src/api_server.rs` | API REST Axum `:31415` + `build_cli_command` |
-| `src-tauri/src/lib.rs` | Démarre l'API au boot + écrit `super-agent-instructions.md` |
-| `src-tauri/src/state.rs` | État partagé des agents (fields `is_super_agent`, `lastCleanOutput`...) |
+| `src-tauri/src/lib.rs` | Démarre l'API au boot + auto-configure MCP |
+| `src-tauri/src/state.rs` | État partagé des agents (`lastCleanOutput`, statuts...) |
 | `mcp-orchestrator/src/index.ts` | Point d'entrée du serveur MCP Node.js |
 | `mcp-orchestrator/src/tools/agents.ts` | Les 9 outils MCP (list, create, delegate...) |
 | `mcp-orchestrator/src/tools/scheduler.ts` | Outils de scheduling (launchd/cron) |
 | `mcp-orchestrator/src/tools/automations.ts` | Intégrations GitHub/JIRA |
 | `mcp-orchestrator/src/utils/api.ts` | Client HTTP vers `:31415` |
-| `electron/resources/super-agent-instructions.md` | System prompt embarqué pour le Super Agent |
 | `~/.claude/mcp.json` | Config MCP lue par Claude Code au démarrage |
 | `~/.dorotoring/api-token` | Token Bearer partagé entre l'API et le serveur MCP |
-| `~/.dorotoring/super-agent-instructions.md` | System prompt écrit sur disque au boot |
 | `~/.claude/schedules.json` | Tâches planifiées (créées par `create_scheduled_task`) |
