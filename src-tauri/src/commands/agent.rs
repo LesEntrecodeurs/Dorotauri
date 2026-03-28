@@ -246,7 +246,11 @@ pub async fn agent_start(
     prompt: Option<String>,
     options: Option<serde_json::Value>,
 ) -> Result<Agent, String> {
-    let _ = &options; // reserved for future use
+    let continue_session = options
+        .as_ref()
+        .and_then(|o| o.get("continueSession"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     // Get a snapshot of the agent
     let agent_snapshot = state
@@ -300,7 +304,7 @@ pub async fn agent_start(
         &agent_snapshot,
         prompt.as_deref(),
         agent_snapshot.skip_permissions,
-        false,
+        continue_session,
     );
     let cmd = build_cli_command(&agent_snapshot, config, &settings);
     let cmd_string = cmd.join(" ");

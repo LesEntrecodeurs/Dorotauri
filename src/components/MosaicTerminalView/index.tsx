@@ -556,6 +556,16 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
     }
   }, [updateAgent]);
 
+  // Toggle skip-permissions: update, stop, restart with --continue
+  const handleToggleSkipPermissions = useCallback(async (id: string, skipPermissions: boolean) => {
+    try {
+      await updateAgent({ id, skipPermissions });
+      await invoke('agent_stop', { id });
+      await invoke('agent_start', { id, prompt: null, options: { continueSession: true } });
+    } catch (err) {
+      console.error('Failed to toggle skip permissions:', err);
+    }
+  }, [updateAgent]);
 
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
@@ -904,7 +914,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
                       <div className="group/toolbar relative w-full h-0" data-agent-id={id}>
                         <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border border-border/50 rounded px-1 py-0.5 z-10 backdrop-blur-sm">
                           <span className="text-[10px] px-1 text-muted-foreground">{getAgentTitle(id)}</span>
-                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} onRerollName={handleRerollName} />}
+                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} onRerollName={handleRerollName} onToggleSkipPermissions={handleToggleSkipPermissions} />}
                           <button onClick={(e) => { e.stopPropagation(); handlePopout(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                             <ExternalLink className="w-3 h-3" />
                           </button>
@@ -924,7 +934,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
                         <span className="text-xs text-foreground truncate max-w-[120px] font-medium">{getAgentTitle(id)}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
                         <div className="flex-1" />
-                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} onRerollName={handleRerollName} />}
+                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} onRerollName={handleRerollName} onToggleSkipPermissions={handleToggleSkipPermissions} />}
                         <button onClick={(e) => { e.stopPropagation(); handleMaximize(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Maximize">
                           <Maximize2 className="w-3 h-3" />
                         </button>

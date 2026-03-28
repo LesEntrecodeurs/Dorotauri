@@ -24,6 +24,8 @@ interface ConfigWheelProps {
   availableSkills?: string[];
   /** Callback to re-roll the agent name (random LoL champion) */
   onRerollName?: (id: string) => void;
+  /** Toggle skip-permissions: update + stop + restart with --continue */
+  onToggleSkipPermissions?: (id: string, skipPermissions: boolean) => void;
 }
 
 export const ConfigWheel = memo(function ConfigWheel({
@@ -31,6 +33,7 @@ export const ConfigWheel = memo(function ConfigWheel({
   onUpdate,
   availableSkills = [],
   onRerollName,
+  onToggleSkipPermissions,
 }: ConfigWheelProps) {
   const update = useCallback(
     (updates: Partial<Agent>) => onUpdate(agent.id, updates),
@@ -163,7 +166,13 @@ export const ConfigWheel = memo(function ConfigWheel({
             <Switch
               id="cw-autonomous"
               checked={agent.skipPermissions ?? false}
-              onCheckedChange={(checked) => update({ skipPermissions: checked })}
+              onCheckedChange={(checked) => {
+                if (onToggleSkipPermissions && (agent.state === 'running' || agent.processState === 'running')) {
+                  onToggleSkipPermissions(agent.id, checked);
+                } else {
+                  update({ skipPermissions: checked });
+                }
+              }}
               className="scale-75 origin-right"
             />
           </div>
