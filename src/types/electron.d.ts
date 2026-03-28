@@ -130,19 +130,6 @@ export type AgentCharacter = 'robot' | 'ninja' | 'wizard' | 'astronaut' | 'knigh
 
 export type AgentProvider = 'claude' | 'codex' | 'gemini' | 'opencode' | 'pi' | 'local';
 
-export type Scope = 'tab' | 'workspace' | 'global';
-
-export interface AgentRoleNormal {
-  type: 'normal';
-}
-
-export interface AgentRoleSuper {
-  type: 'super';
-  scope: Scope;
-}
-
-export type AgentRole = AgentRoleNormal | AgentRoleSuper;
-
 export interface Agent {
   id: string;
   name?: string;
@@ -155,9 +142,6 @@ export interface Agent {
   // Runtime
   state: ProcessState;  // renamed from processState
   ptyId?: string;
-
-  // Role
-  role: AgentRole;  // NEW — replaces isSuperAgent + superAgentScope
 
   // Config
   cwd: string;
@@ -173,9 +157,6 @@ export interface Agent {
   lastActivity: string;
   createdAt: string;
 
-  // Legacy compat (kept temporarily — remove once all consumers are migrated)
-  isSuperAgent?: boolean;
-  superAgentScope?: 'tab' | 'all';
   processState: ProcessState;
   businessState?: string;
   businessStateUpdatedBy?: 'inference' | 'super_agent';
