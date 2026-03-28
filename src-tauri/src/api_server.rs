@@ -21,9 +21,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::agent::event_bus::{AgentEvent, EventBus};
 use crate::agent::manager::AgentManager;
-use crate::agent::model::{
-    Agent, AgentRole, AgentState, Provider, Scope,
-};
+use crate::agent::model::{Agent, AgentState, Provider};
 use crate::agent::provider::{get_provider, AgentStartConfig};
 use crate::pty::PtyManager;
 use crate::state::AppState;
@@ -89,9 +87,9 @@ fn check_auth(headers: &HeaderMap, token: &str) -> Result<(), StatusCode> {
 // ---------------------------------------------------------------------------
 
 /// If the `X-Agent-Id` header is present, look up the caller agent and enforce
-/// scope against the target agent. Returns Ok(()) if either no header is
-/// present (direct call, not MCP-originated) or if the scope check passes.
-async fn enforce_caller_scope(
+/// tab visibility against the target agent. Returns Ok(()) if either no header
+/// is present (direct call, not MCP-originated) or if the tab check passes.
+async fn enforce_caller_tab(
     headers: &HeaderMap,
     target: &Agent,
     agent_manager: &AgentManager,
@@ -101,7 +99,7 @@ async fn enforce_caller_scope(
             .get(&caller_id.to_string())
             .await
             .ok_or(StatusCode::FORBIDDEN)?;
-        AgentManager::enforce_scope(&caller, target)
+        AgentManager::enforce_tab_visibility(&caller, target)
             .map_err(|_| StatusCode::FORBIDDEN)?;
     }
     Ok(())
@@ -133,8 +131,6 @@ struct CreateAgentBody {
     skip_permissions: Option<bool>,
     tab_id: Option<String>,
     provider: Option<String>,
-    is_super_agent: Option<bool>,
-    super_agent_scope: Option<String>,
     secondary_paths: Option<Vec<String>>,
     parent_id: Option<String>,
 }
@@ -156,15 +152,10 @@ struct DelegateBody {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PromoteBody {
-    scope: Option<String>,
-}
-
-#[derive(Deserialize)]
 struct HookStatusBody {
     agent_id: String,
     status: String,
+    cwd: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -253,15 +244,9 @@ async fn create_agent(
     agent.parent_id = body.parent_id;
     agent.provider = Provider::from_str_opt(body.provider.as_deref());
 
-    // Handle super agent role
     let skip_perms = body.skip_permissions.unwrap_or(false);
-    if body.is_super_agent.unwrap_or(false) {
-        let scope = match body.super_agent_scope.as_deref() {
-            Some("workspace") => Scope::Workspace,
-            Some("global") => Scope::Global,
-            _ => Scope::Tab,
-        };
-        agent.role = AgentRole::Super { scope };
+    if agent.character.is_none() {
+        agent.character = Some(AgentManager::assign_random_character());
     }
 
     let agent = state.agent_manager.create(agent).await;
@@ -294,7 +279,7 @@ async fn delete_agent(
 
     // Enforce scope if X-Agent-Id header is present
     if let Some(agent) = state.agent_manager.get(&id).await {
-        enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+        enforce_caller_tab(&headers, &agent, &state.agent_manager).await?;
     }
 
     let removed = state.agent_manager.remove(&id).await;
@@ -323,7 +308,7 @@ async fn start_agent(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // Enforce scope if X-Agent-Id header is present
-    enforce_caller_scope(&headers, &agent_snapshot, &state.agent_manager).await?;
+    enforce_caller_tab(&headers, &agent_snapshot, &state.agent_manager).await?;
 
     // If agent already running and has a PTY, write the prompt directly
     if agent_snapshot.state == AgentState::Running {
@@ -391,18 +376,14 @@ async fn start_agent(
         .write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // For tab-scoped super agents: export tab ID so MCP server can filter
-    if agent_snapshot.is_super_agent() {
-        if let Some(Scope::Tab) = agent_snapshot.scope() {
-            state
-                .pty_manager
-                .write(
-                    &pty_id,
-                    format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
-                )
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        }
-    }
+    // Export tab ID for tab-scoped visibility
+    state
+        .pty_manager
+        .write(
+            &pty_id,
+            format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Build and send the CLI command using the provider trait
     let settings = state.app_state.settings.lock().unwrap().clone();
@@ -456,7 +437,7 @@ async fn stop_agent(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // Enforce scope if X-Agent-Id header is present
-    enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+    enforce_caller_tab(&headers, &agent, &state.agent_manager).await?;
 
     // Kill PTY if one exists
     if let Some(ref pty_id) = agent.pty_id {
@@ -499,7 +480,7 @@ async fn send_message(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // Enforce scope if X-Agent-Id header is present
-    enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+    enforce_caller_tab(&headers, &agent, &state.agent_manager).await?;
 
     // Auto-start if agent is idle (has no PTY)
     if agent.pty_id.is_none() || agent.state == AgentState::Inactive {
@@ -607,7 +588,7 @@ async fn delegate_handler(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // Enforce scope if X-Agent-Id header is present
-    enforce_caller_scope(&headers, &agent, &state.agent_manager).await?;
+    enforce_caller_tab(&headers, &agent, &state.agent_manager).await?;
 
     // Step 1: Start the agent
     let start_body = StartAgentBody {
@@ -667,35 +648,6 @@ async fn delegate_handler(
             })))
         }
     }
-}
-
-/// Promote an agent to super agent with given scope.
-async fn promote_handler(
-    AxumState(state): AxumState<ApiState>,
-    headers: HeaderMap,
-    Path(id): Path<String>,
-    Json(body): Json<PromoteBody>,
-) -> Result<impl IntoResponse, StatusCode> {
-    check_auth(&headers, &state.api_token)?;
-
-    let scope = match body.scope.as_deref() {
-        Some("workspace") => Scope::Workspace,
-        Some("global") => Scope::Global,
-        _ => Scope::Tab,
-    };
-
-    let agent = state
-        .agent_manager
-        .promote_super(&id, scope)
-        .await
-        .map_err(|e| {
-            eprintln!("[api_server] promote failed: {e}");
-            StatusCode::BAD_REQUEST
-        })?;
-
-    state.app_handle.emit("agent:status", &agent).ok();
-
-    Ok(Json(serde_json::json!({ "agent": agent })))
 }
 
 /// Set agent to dormant state.
@@ -779,6 +731,26 @@ async fn hook_status(
         .agent_manager
         .set_state(&body.agent_id, new_state)
         .await;
+
+    // Update cwd if provided by the hook (tracks real project directory)
+    if let Some(cwd) = body.cwd {
+        if !cwd.is_empty() {
+            let cwd_clone = cwd.clone();
+            let _ = state
+                .agent_manager
+                .update(&body.agent_id, |agent| {
+                    agent.cwd = cwd_clone;
+                })
+                .await;
+            state
+                .app_handle
+                .emit(
+                    "agent:cwd-changed",
+                    serde_json::json!({ "agentId": body.agent_id, "cwd": cwd }),
+                )
+                .ok();
+        }
+    }
 
     if let Ok(ref agent) = result {
         state.app_handle.emit("agent:status", agent).ok();
@@ -991,18 +963,14 @@ async fn start_agent_inner(
         .write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // Export tab ID for tab-scoped super agents
-    if agent_snapshot.is_super_agent() {
-        if let Some(Scope::Tab) = agent_snapshot.scope() {
-            state
-                .pty_manager
-                .write(
-                    &pty_id,
-                    format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
-                )
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        }
-    }
+    // Export tab ID for tab-scoped visibility
+    state
+        .pty_manager
+        .write(
+            &pty_id,
+            format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes(),
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Build and send the CLI command
     let settings = state.app_state.settings.lock().unwrap().clone();
@@ -1051,16 +1019,11 @@ fn build_start_config(
     prompt: Option<&str>,
     skip_permissions: bool,
 ) -> AgentStartConfig {
-    // Resolve MCP config and system prompt file for super agents
-    let (mcp_config, system_prompt_file) = if agent.is_super_agent() {
-        let mcp = dirs::home_dir()
-            .map(|h| h.join(".claude").join("mcp.json"))
-            .filter(|p| p.exists());
-        let instructions = crate::ensure_super_agent_instructions();
-        (mcp, instructions)
-    } else {
-        (None, None)
-    };
+    // All agents get MCP config and the lightweight orchestration prompt
+    let mcp_config = dirs::home_dir()
+        .map(|h| h.join(".claude").join("mcp.json"))
+        .filter(|p| p.exists());
+    let system_prompt_file = crate::ensure_agent_instructions();
 
     AgentStartConfig {
         prompt: prompt.unwrap_or("").to_string(),
@@ -1150,7 +1113,6 @@ pub async fn start(
         .route("/api/agents/{id}/stop", post(stop_agent))
         .route("/api/agents/{id}/message", post(send_message))
         .route("/api/agents/{id}/delegate", post(delegate_handler))
-        .route("/api/agents/{id}/promote", post(promote_handler))
         .route("/api/agents/{id}/dormant", post(dormant_handler))
         .route("/api/agents/{id}/reanimate", post(reanimate_handler))
         // Hooks (no auth — called by local processes)
