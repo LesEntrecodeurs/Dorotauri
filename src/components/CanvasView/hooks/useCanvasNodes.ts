@@ -2,12 +2,6 @@ import { useMemo } from 'react';
 import type { Agent } from '@/types/electron';
 import type { AgentNode, ProjectNode, ConnectionData } from '../types';
 
-export function isSuperAgent(agent: { name?: string; role?: { type: string } }): boolean {
-  if ((agent as any).role?.type === 'super') return true;
-  const name = agent.name?.toLowerCase() || '';
-  return name.includes('super agent') || name.includes('orchestrator');
-}
-
 export function useCanvasNodes(
   electronAgents: Agent[],
   agentPositions: Record<string, { x: number; y: number }>,
@@ -16,10 +10,9 @@ export function useCanvasNodes(
   projectFilter: string,
   searchQuery: string
 ) {
-  // Build agent nodes from real data (excluding super agent)
+  // Build agent nodes from real data
   const agentNodes: AgentNode[] = useMemo(() => {
     return electronAgents
-      .filter(agent => !isSuperAgent(agent))
       .map((agent, index) => {
         const defaultPos = { x: 100 + (index % 3) * 320, y: 80 + Math.floor(index / 3) * 200 };
         const pos = agentPositions[agent.id] || defaultPos;
@@ -42,7 +35,6 @@ export function useCanvasNodes(
     const projectMap = new Map<string, ProjectNode>();
 
     electronAgents
-      .filter(agent => !isSuperAgent(agent))
       .forEach((agent) => {
         const projectPath = agent.cwd;
         const projectName = projectPath.split('/').pop() || projectPath;
@@ -129,11 +121,6 @@ export function useCanvasNodes(
     return lines;
   }, [filteredAgents, filteredProjects]);
 
-  // Find existing super agent
-  const superAgent: Agent | null = useMemo(() => {
-    return electronAgents.find(a => isSuperAgent(a)) || null;
-  }, [electronAgents]);
-
   const runningCount = filteredAgents.filter(a => a.status === 'running').length;
   const waitingCount = filteredAgents.filter(a => a.status === 'waiting').length;
 
@@ -144,7 +131,6 @@ export function useCanvasNodes(
     filteredProjects,
     uniqueProjects,
     connections,
-    superAgent,
     runningCount,
     waitingCount,
   };

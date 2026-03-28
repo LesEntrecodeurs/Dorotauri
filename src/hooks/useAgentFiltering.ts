@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Agent } from '@/types/electron';
-import { isSuperAgentCheck, getStatusPriority } from '@/components/AgentList/constants';
+import { getStatusPriority } from '@/components/AgentList/constants';
 
 interface UseAgentFilteringProps {
   agents: Agent[];
@@ -43,11 +43,6 @@ export function useAgentFiltering({ agents, projectFilter, statusFilter, searchQ
     }
 
     return [...filtered].sort((a, b) => {
-      const aIsSuper = isSuperAgentCheck(a);
-      const bIsSuper = isSuperAgentCheck(b);
-      if (aIsSuper && !bIsSuper) return -1;
-      if (!aIsSuper && bIsSuper) return 1;
-
       if (sortBy === 'name') {
         return (a.name || '').localeCompare(b.name || '');
       }

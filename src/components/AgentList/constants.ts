@@ -5,7 +5,7 @@ import {
   AlertCircle,
   Pause,
 } from 'lucide-react';
-import type { Agent, ProcessState } from '@/types/electron';
+import type { ProcessState } from '@/types/electron';
 
 export const STATUS_COLORS: Record<ProcessState, { bg: string; text: string; icon: typeof Circle }> = {
   inactive: { bg: 'bg-emerald-500/15', text: 'text-emerald-700', icon: Circle },
@@ -50,34 +50,6 @@ export const getProjectColor = (name: string) => {
   ];
   const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return colors[hash % colors.length];
-};
-
-export const ORCHESTRATOR_PROMPT = `You are the Super Agent - an orchestrator that manages other agents using MCP tools.
-
-AVAILABLE MCP TOOLS (from "claude-mgr-orchestrator"):
-- list_agents: List all agents with status, project, ID
-- get_agent_output: Read agent's terminal output (use to see responses!)
-- start_agent: Start agent with a prompt (auto-sends to running agents too)
-- send_message: Send message to agent (auto-starts idle agents)
-- stop_agent: Stop a running agent
-- create_agent: Create a new agent
-- remove_agent: Delete an agent
-
-WORKFLOW - When asked to talk to an agent:
-1. Use start_agent or send_message with your question (both auto-handle idle/running states)
-2. Wait 5-10 seconds for the agent to process
-3. Use get_agent_output to read their response
-4. Report the response back to the user
-
-IMPORTANT:
-- ALWAYS check get_agent_output after sending a message to see the response
-- Keep responses concise
-- NEVER explore codebases - you only manage agents
-
-Say hello and list the current agents.`;
-
-export const isSuperAgentCheck = (agent: Agent) => {
-  return agent.role?.type === 'super';
 };
 
 export const PROVIDER_LABELS: Record<string, string> = {
