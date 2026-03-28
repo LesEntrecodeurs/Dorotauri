@@ -7,7 +7,6 @@ import {
   STATUS_COLORS,
   STATUS_LABELS,
   CHARACTER_FACES,
-  isSuperAgentCheck,
 } from '@/components/AgentList/constants';
 import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
@@ -34,12 +33,9 @@ interface AgentManagementCardProps {
 
 export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, onRemove, agents = [] }: AgentManagementCardProps) {
   const statusConfig = STATUS_COLORS[agent.processState ?? agent.state ?? 'inactive'];
-  const isSuper = isSuperAgentCheck(agent);
-  const isGlobalScope = agent.role?.type === 'super' && (agent.role?.scope === 'workspace' || agent.role?.scope === 'global');
   const isSubAgent = agent.parentId != null;
   const parentAgent = isSubAgent ? agents.find(a => a.id === agent.parentId) : undefined;
   const parentName = parentAgent?.name || agent.parentId || 'parent';
-  const crownBadge = isSuper ? (isGlobalScope ? '\u{1F451}\u{1F451}' : '\u{1F451}') : '';
   const isRunning = agent.processState === 'running' || agent.processState === 'waiting';
   const isError = agent.processState === 'error';
 
@@ -52,22 +48,16 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
       onClick={onClick}
       className={`
         group relative cursor-pointer transition-all hover:bg-accent/10 shadow-sm
-        ${isSuper ? 'border-l-[3px] border-l-amber-500/60' : ''}
-        ${isRunning && !isSuper ? 'border-l-[3px] border-l-primary/60' : ''}
+        ${isRunning ? 'border-l-[3px] border-l-primary/60' : ''}
         ${isError ? 'border-l-[3px] border-l-red-500/60' : ''}
-        ${isGlobalScope ? 'ring-2 ring-amber-500/50' : ''}
-        ${isSubAgent && !isSuper && !isRunning && !isError ? 'border-l-[3px] border-l-muted-foreground/30' : ''}
+        ${isSubAgent && !isRunning && !isError ? 'border-l-[3px] border-l-muted-foreground/30' : ''}
       `}
     >
       <CardContent className="p-3">
         {/* Row 1: Avatar + Name + Status (top-right) */}
         <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 flex items-center justify-center shrink-0 text-base overflow-hidden rounded-sm ${
-            isSuper ? 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20' : statusConfig.bg
-          }`}>
-            {isSuper ? (
-              isGlobalScope ? '\u{1F451}\u{1F451}' : '\u{1F451}'
-            ) : (() => {
+          <div className={`w-8 h-8 flex items-center justify-center shrink-0 text-base overflow-hidden rounded-sm ${statusConfig.bg}`}>
+            {(() => {
               const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
               if (iconUrl) return <img src={iconUrl} alt="" className="w-8 h-8 object-cover" />;
               return <span>{agent.character ? (CHARACTER_FACES[agent.character] || '\u{1F916}') : '\u{1F916}'}</span>;
@@ -76,8 +66,7 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              {crownBadge && <span className="text-xs shrink-0">{crownBadge}</span>}
-              <span className={`text-sm truncate text-foreground ${isSuper ? 'font-bold' : 'font-medium'}`}>
+              <span className="text-sm truncate text-foreground font-medium">
                 {agent.name || 'Unnamed Agent'}
               </span>
             </div>
@@ -86,11 +75,7 @@ export function AgentManagementCard({ agent, onClick, onEdit, onStart, onStop, o
           {/* Status pill -- top right */}
           <Badge
             variant="secondary"
-            className={`text-[11px] px-2 py-0.5 font-medium shrink-0 ${
-              isSuper && isRunning
-                ? 'bg-amber-500/20 text-amber-400'
-                : `${statusConfig.bg} ${statusConfig.text}`
-            }`}
+            className={`text-[11px] px-2 py-0.5 font-medium shrink-0 ${statusConfig.bg} ${statusConfig.text}`}
           >
             {STATUS_LABELS[agent.processState]}
           </Badge>

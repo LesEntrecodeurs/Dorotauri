@@ -1,8 +1,9 @@
-import { Loader2, AlertTriangle, GitBranch, Pencil, Crown, Cpu } from 'lucide-react';
+import { Loader2, AlertTriangle, GitBranch, Pencil, Cpu } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Agent } from '@/types/electron';
-import { STATUS_COLORS, STATUS_LABELS, CHARACTER_FACES, getProjectColor, isSuperAgentCheck } from '@/components/AgentList/constants';
+import { STATUS_COLORS, STATUS_LABELS, CHARACTER_FACES, getProjectColor } from '@/components/AgentList/constants';
 import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 
 const PROVIDER_ICONS: Record<string, { src: string; alt: string }> = {
@@ -24,7 +25,7 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit, agents = [] }: 
   const StatusIcon = statusConfig.icon;
   const projectName = agent.cwd.split('/').pop() || 'Unknown';
   const projectColor = getProjectColor(projectName);
-  const isSuper = isSuperAgentCheck(agent);
+  const navigate = useNavigate();
   const isSubAgent = agent.parentId != null;
   const parentAgent = isSubAgent ? agents.find(a => a.id === agent.parentId) : undefined;
   const parentName = parentAgent?.name || agent.parentId || 'parent';
@@ -35,29 +36,19 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit, agents = [] }: 
       onClick={onSelect}
       className={`
         p-4 cursor-pointer transition-all relative
-        ${isSuper
-          ? 'bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent border-l-2 border-l-amber-500/50 border-b border-amber-500/20'
-          : isSubAgent
-            ? 'border-b border-border/50 border-l-2 border-l-muted-foreground/30'
-            : 'border-b border-border/50'}
-        ${isSelected ? 'bg-primary/10' : isSuper ? '' : 'hover:bg-muted/50'}
+        ${isSubAgent
+          ? 'border-b border-border/50 border-l-2 border-l-muted-foreground/30'
+          : 'border-b border-border/50'}
+        ${isSelected ? 'bg-primary/10' : 'hover:bg-muted/50'}
       `}
     >
-      {/* Subtle gold shimmer for Super Agent */}
-      {isSuper && (
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-400/5 to-transparent pointer-events-none" />
-      )}
       <div className="flex items-start gap-3 relative">
         <div className={`w-10 h-10 flex items-center justify-center shrink-0 relative overflow-hidden rounded-sm ${
-          isSuper
-            ? 'bg-gradient-to-br from-amber-500/30 to-yellow-600/20 ring-1 ring-amber-500/30'
-            : agent.name?.toLowerCase() === 'bitwonka'
-              ? 'bg-success/20'
-              : statusConfig.bg
+          agent.name?.toLowerCase() === 'bitwonka'
+            ? 'bg-success/20'
+            : statusConfig.bg
         }`}>
-          {isSuper ? (
-            <span className="text-xl">👑</span>
-          ) : (() => {
+          {(() => {
             const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
             if (iconUrl) return <img src={iconUrl} alt="" className="w-10 h-10 object-cover" />;
             if (agent.name?.toLowerCase() === 'bitwonka') return <span className="text-xl">🐸</span>;
@@ -65,14 +56,13 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit, agents = [] }: 
             if (agent.processState === 'running') return <Loader2 className={`w-5 h-5 ${statusConfig.text} animate-spin`} />;
             return <StatusIcon className={`w-5 h-5 ${statusConfig.text}`} />;
           })()}
-          {agent.processState === 'running' && (agent.character || agent.name?.toLowerCase() === 'bitwonka' || isSuper) && (
-            <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full animate-pulse ${isSuper ? 'bg-amber-400' : 'bg-primary'}`} />
+          {agent.processState === 'running' && (agent.character || agent.name?.toLowerCase() === 'bitwonka') && (
+            <span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full animate-pulse bg-primary" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <h4 className={`font-medium text-sm truncate flex items-center gap-1.5 font-sans ${isSuper ? 'text-foreground' : ''}`}>
-              {isSuper && <Crown className="w-3.5 h-3.5 text-amber-600" />}
+            <h4 className="font-medium text-sm truncate flex items-center gap-1.5 font-sans">
               {agent.name || 'Unnamed Agent'}
               {(() => {
                 const p = agent.provider && agent.provider !== 'local' ? agent.provider : 'claude';
@@ -111,11 +101,7 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit, agents = [] }: 
               </Button>
               <Badge
                 variant="secondary"
-                className={`text-[10px] px-2 py-0.5 ${
-                  isSuper && agent.processState === 'running'
-                    ? 'bg-amber-500/20 text-amber-400'
-                    : `${statusConfig.bg} ${statusConfig.text}`
-                }`}
+                className={`text-[10px] px-2 py-0.5 ${statusConfig.bg} ${statusConfig.text}`}
               >
                 {STATUS_LABELS[agent.processState]}
               </Badge>
@@ -135,8 +121,12 @@ export function AgentCard({ agent, isSelected, onSelect, onEdit, agents = [] }: 
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <Badge
               variant="secondary"
-              className={`text-[10px] px-1.5 py-0.5 font-medium truncate max-w-[100px] ${projectColor.bg} ${projectColor.text}`}
-              title={agent.cwd}
+              className={`text-[10px] px-1.5 py-0.5 font-medium truncate max-w-[100px] cursor-pointer hover:opacity-80 transition-opacity ${projectColor.bg} ${projectColor.text}`}
+              title={`${agent.cwd} — click to view project`}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/projects?select=${encodeURIComponent(agent.cwd)}`);
+              }}
             >
               {projectName}
             </Badge>
