@@ -223,14 +223,6 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-primary/20 text-primary',
 };
 
-function getSuperAgentBadge(agent: Agent | undefined): string {
-  if (agent?.role?.type !== 'super') return '';
-  return (agent.role.scope === 'workspace' || agent.role.scope === 'global') ? '\u{1F451}\u{1F451}' : '\u{1F451}';
-}
-
-function isWideScopeSuper(agent: Agent | undefined): boolean {
-  return agent?.role?.type === 'super' && (agent.role.scope === 'workspace' || agent.role.scope === 'global');
-}
 
 export default function MosaicTerminalView({ agents, zenMode = false, onToggleZenMode, createAgent, updateAgent }: MosaicTerminalViewProps) {
   const [tabs, setTabs] = useState<WorkspaceTab[]>(loadTabs);
@@ -564,16 +556,6 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
     }
   }, [updateAgent]);
 
-  // Promote to Super Agent — gracefully reloads claude with MCP tools
-  const handlePromoteSuper = useCallback(async (id: string, scope: 'tab' | 'all') => {
-    try {
-      await invoke('agent_promote_super', { id, scope });
-      // Update frontend state immediately so the toggle reflects the change
-      await handleConfigUpdate(id, { role: { type: 'super', scope } } as any);
-    } catch (err) {
-      console.error('Failed to promote super agent:', err);
-    }
-  }, [handleConfigUpdate]);
 
   const getAgentTitle = useCallback((id: string): string => {
     const agent = agentMap.get(id);
@@ -601,11 +583,6 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
 
   const layout = activeTab?.layout || null;
 
-  // Check if the current tab already has a Super Agent
-  const tabHasSuperAgent = useMemo(() => {
-    const ids = activeTab?.agentIds || [];
-    return ids.some(id => agentMap.get(id)?.role?.type === 'super');
-  }, [activeTab, agentMap]);
 
   // Right-click context menu handler (works in both zen and normal mode)
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -832,7 +809,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
                   <button
                     key={agent.id}
                     onClick={() => addAgentToTab(agent.id)}
-                    className={`flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0 ${isWideScopeSuper(agent) ? 'bg-amber-500/5' : ''}`}
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-left hover:bg-secondary transition-colors border-b border-border/50 last:border-0"
                   >
                     <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOTS[agent.processState] || STATUS_DOTS.inactive}`} />
                     {getAgentIconUrl(agent.id) ? (
@@ -841,8 +818,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
                       <span className="text-sm">{getAgentEmoji(agent.id)}</span>
                     )}
                     <div className="flex flex-col min-w-0">
-                      <span className={`truncate ${agent.role?.type === 'super' ? 'font-bold' : 'font-medium'}`}>
-                        {getSuperAgentBadge(agent) && <span className="mr-1">{getSuperAgentBadge(agent)}</span>}
+                      <span className="truncate font-medium">
                         {agent.name || agent.id.slice(0, 8)}
                       </span>
                       <span className="text-[10px] text-muted-foreground truncate">{agent.cwd?.split('/').pop()}</span>
@@ -892,15 +868,14 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
             </div>
           </div>
         ) : maximizedAgent && activeTab?.agentIds.includes(maximizedAgent) ? (
-          <div className={`w-full h-full flex flex-col ${isWideScopeSuper(agentMap.get(maximizedAgent)) ? 'ring-2 ring-amber-500/50 rounded' : ''}`}>
-            <div className={`flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0 ${isWideScopeSuper(agentMap.get(maximizedAgent)) ? 'bg-amber-500/5' : ''}`}>
+          <div className="w-full h-full flex flex-col">
+            <div className="flex items-center gap-2 px-3 py-1 bg-secondary border-b border-border shrink-0">
               {getAgentIconUrl(maximizedAgent) ? (
                 <img src={getAgentIconUrl(maximizedAgent)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
               ) : (
                 <span className="text-sm">{getAgentEmoji(maximizedAgent)}</span>
               )}
-              <span className={`text-xs text-foreground truncate ${agentMap.get(maximizedAgent)?.role?.type === 'super' ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(maximizedAgent)}</span>
-              {getSuperAgentBadge(agentMap.get(maximizedAgent)) && <span className="text-xs shrink-0">{getSuperAgentBadge(agentMap.get(maximizedAgent))}</span>}
+              <span className="text-xs text-foreground truncate font-medium">{getAgentTitle(maximizedAgent)}</span>
               <div className="flex-1" />
               <button onClick={() => handlePopout(maximizedAgent)} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                 <ExternalLink className="w-3 h-3" />
@@ -927,10 +902,9 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
                     renderToolbar={() => zenMode ? (
                       /* Zen mode: floating overlay toolbar, visible on hover */
                       <div className="group/toolbar relative w-full h-0" data-agent-id={id}>
-                        <div className={`absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border rounded px-1 py-0.5 z-10 backdrop-blur-sm ${isWideScopeSuper(agent) ? 'border-amber-500/50' : 'border-border/50'}`}>
-                          {getSuperAgentBadge(agent) && <span className="text-[10px] px-0.5">{getSuperAgentBadge(agent)}</span>}
-                          <span className={`text-[10px] px-1 ${agent?.role?.type === 'super' ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>{getAgentTitle(id)}</span>
-                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} onRerollName={handleRerollName} onPromoteSuper={handlePromoteSuper} />}
+                        <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/toolbar:opacity-100 hover:!opacity-100 transition-opacity bg-card/90 border border-border/50 rounded px-1 py-0.5 z-10 backdrop-blur-sm">
+                          <span className="text-[10px] px-1 text-muted-foreground">{getAgentTitle(id)}</span>
+                          {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} onRerollName={handleRerollName} />}
                           <button onClick={(e) => { e.stopPropagation(); handlePopout(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Pop out">
                             <ExternalLink className="w-3 h-3" />
                           </button>
@@ -941,17 +915,16 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
                       </div>
                     ) : (
                       /* Normal mode: fixed toolbar */
-                      <div className={`flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b select-none mosaic-custom-toolbar ${isWideScopeSuper(agent) ? 'border-amber-500/50 bg-amber-500/5' : 'border-border'}`} data-agent-id={id}>
+                      <div className="flex items-center gap-2 px-3 py-1 w-full bg-secondary border-b border-border select-none mosaic-custom-toolbar" data-agent-id={id}>
                         {getAgentIconUrl(id) ? (
                           <img src={getAgentIconUrl(id)!} alt="" className="w-5 h-5 rounded-sm object-cover shrink-0" />
                         ) : (
                           <span className="text-sm">{getAgentEmoji(id)}</span>
                         )}
-                        <span className={`text-xs text-foreground truncate max-w-[120px] ${agent?.role?.type === 'super' ? 'font-bold' : 'font-medium'}`}>{getAgentTitle(id)}</span>
-                        {getSuperAgentBadge(agent) && <span className="text-xs shrink-0">{getSuperAgentBadge(agent)}</span>}
+                        <span className="text-xs text-foreground truncate max-w-[120px] font-medium">{getAgentTitle(id)}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 font-medium ${statusClass}`}>{agent?.processState || 'unknown'}</span>
                         <div className="flex-1" />
-                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} tabHasSuperAgent={tabHasSuperAgent} onRerollName={handleRerollName} onPromoteSuper={handlePromoteSuper} />}
+                        {agent && <ConfigWheel agent={agent} onUpdate={handleConfigUpdate} onRerollName={handleRerollName} />}
                         <button onClick={(e) => { e.stopPropagation(); handleMaximize(id); }} className="p-1 hover:bg-primary/10 text-muted-foreground hover:text-foreground" title="Maximize">
                           <Maximize2 className="w-3 h-3" />
                         </button>
@@ -964,7 +937,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
                       </div>
                     )}
                   >
-                    <div data-agent-id={id} className={`h-full ${isWideScopeSuper(agent) ? 'ring-2 ring-amber-500/50' : ''}`}>
+                    <div data-agent-id={id} className="h-full">
                       <TerminalTile agentId={id} />
                     </div>
                   </MosaicWindow>
