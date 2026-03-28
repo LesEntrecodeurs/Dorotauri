@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { X, Maximize2, Minimize2, FolderOpen, GitBranch, Layers, Crown } from 'lucide-react';
+import { X, Maximize2, Minimize2, FolderOpen, GitBranch, Layers } from 'lucide-react';
 import type { Agent } from '@/types/electron';
 import { CHARACTER_FACES } from './constants';
 import { getChampionIconUrl } from '@/components/NewChatModal/constants';
@@ -9,7 +9,6 @@ interface AgentDialogHeaderProps {
   character: string;
   isFullscreen: boolean;
   hasSecondaryProject: boolean;
-  isSuperAgentMode: boolean;
   onOpenInFinder: () => void;
   onToggleFullscreen: () => void;
   onClose: () => void;
@@ -20,7 +19,6 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
   character,
   isFullscreen,
   hasSecondaryProject,
-  isSuperAgentMode,
   onOpenInFinder,
   onToggleFullscreen,
   onClose,
@@ -29,7 +27,6 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
     <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-muted/30">
       <div className="flex items-center gap-3">
         {(() => {
-          if (isSuperAgentMode) return <span className="text-2xl">👑</span>;
           const iconUrl = agent.name ? getChampionIconUrl(agent.name) : null;
           if (iconUrl) return <img src={iconUrl} alt="" className="w-7 h-7 rounded-sm object-cover shrink-0" />;
           return <span className="text-2xl">{CHARACTER_FACES[character as keyof typeof CHARACTER_FACES] || '🤖'}</span>;
@@ -50,47 +47,34 @@ export const AgentDialogHeader = memo(function AgentDialogHeader({
             </span>
           </h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {isSuperAgentMode ? (
-              <span className="text-amber-400 flex items-center gap-1">
-                <Crown className="w-3 h-3" />
-                Orchestrator
+            <span className="font-mono truncate max-w-[200px]">
+              {agent.cwd.split('/').pop()}
+            </span>
+            {agent.branchName && (
+              <span className="text-primary flex items-center gap-1">
+                <GitBranch className="w-3 h-3" />
+                {agent.branchName}
               </span>
-            ) : (
-              <>
-                <span className="font-mono truncate max-w-[200px]">
-                  {agent.cwd.split('/').pop()}
-                </span>
-                {agent.branchName && (
-                  <span className="text-primary flex items-center gap-1">
-                    <GitBranch className="w-3 h-3" />
-                    {agent.branchName}
-                  </span>
-                )}
-                {hasSecondaryProject && (
-                  <span className="text-amber-400 flex items-center gap-1">
-                    <Layers className="w-3 h-3" />
-                    +1 context
-                  </span>
-                )}
-              </>
+            )}
+            {hasSecondaryProject && (
+              <span className="text-amber-400 flex items-center gap-1">
+                <Layers className="w-3 h-3" />
+                +1 context
+              </span>
             )}
           </div>
         </div>
       </div>
 
       <div className="flex items-center gap-1">
-        {!isSuperAgentMode && (
-          <>
-            <button
-              onClick={onOpenInFinder}
-              className="p-2 hover:bg-muted rounded-none transition-colors"
-              title="Open in Finder"
-            >
-              <FolderOpen className="w-4 h-4 text-muted-foreground" />
-            </button>
-            <div className="w-px h-5 bg-border-primary mx-1" />
-          </>
-        )}
+        <button
+          onClick={onOpenInFinder}
+          className="p-2 hover:bg-muted rounded-none transition-colors"
+          title="Open in Finder"
+        >
+          <FolderOpen className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <div className="w-px h-5 bg-border-primary mx-1" />
         <button
           onClick={onToggleFullscreen}
           className="p-2 hover:bg-muted rounded-none transition-colors"

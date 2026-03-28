@@ -7,12 +7,10 @@ import type { Agent, AgentWsEvent } from '@/types/electron';
 import 'xterm/css/xterm.css';
 
 import type { AgentTerminalDialogProps, PanelType } from './AgentDialogTypes';
-import { isSuperAgent } from './AgentDialogTypes';
 import { useAgentEvents } from '@/hooks/useAgentWebSocket';
 import { AgentDialogHeader } from './AgentDialogHeader';
 import { AgentDialogFooter } from './AgentDialogFooter';
 import { AgentDialogSidebar } from './AgentDialogSidebar';
-import { AgentDialogSuperAgentSidebar } from './AgentDialogSuperAgentSidebar';
 import { useAgentDialogTerminal } from './useAgentDialogTerminal';
 import { useQuickTerminal } from './useQuickTerminal';
 
@@ -31,8 +29,6 @@ export default function AgentTerminalDialog({
   skipHistoricalOutput = false,
   onSubAgentCreated,
 }: AgentTerminalDialogProps) {
-  const isSuperAgentMode = isSuperAgent(agent);
-
   // UI state
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -202,7 +198,6 @@ export default function AgentTerminalDialog({
             character={character}
             isFullscreen={isFullscreen}
             hasSecondaryProject={hasSecondaryProject}
-            isSuperAgentMode={isSuperAgentMode}
             onOpenInFinder={handleOpenInFinder}
             onToggleFullscreen={() => setIsFullscreen(v => !v)}
             onClose={onClose}
@@ -223,7 +218,7 @@ export default function AgentTerminalDialog({
                 </div>
               )}
               {/* Sidebar toggle button (bottom-right of terminal) */}
-              {!sidebarOpen && !isSuperAgentMode && (
+              {!sidebarOpen && (
                 <button
                   onClick={() => setSidebarOpen(true)}
                   className="absolute top-2 right-2 p-1.5 rounded bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-colors z-10"
@@ -242,43 +237,37 @@ export default function AgentTerminalDialog({
             </div>
 
             {/* Right sidebar — collapsible */}
-            {(sidebarOpen || isSuperAgentMode) && (
+            {sidebarOpen && (
               <div className="border-l border-border bg-muted/20 flex flex-col overflow-hidden" style={{ width: '480px' }}>
-                {isSuperAgentMode ? (
-                  <AgentDialogSuperAgentSidebar agents={agents} projects={projects} />
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setSidebarOpen(false)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground border-b border-border transition-colors"
-                    >
-                      <PanelRight className="w-3.5 h-3.5" />
-                      Hide sidebar
-                    </button>
-                    <AgentDialogSidebar
-                      agent={agent}
-                      projectPath={projectPath}
-                      expandedPanels={expandedPanels}
-                      onTogglePanel={togglePanel}
-                      gitBranch={gitBranch}
-                      onGitBranchChange={setGitBranch}
-                      quickTerminalRef={quickTerminalRef}
-                      quickXtermRef={quickXtermRef}
-                      quickTerminalReady={quickTerminalReady}
-                      hasActiveTerminal={hasActiveTerminal}
-                      onCloseQuickTerminal={closeQuickTerminal}
-                      hasSecondaryProject={hasSecondaryProject}
-                      availableProjects={availableProjects}
-                      customSecondaryPath={customSecondaryPath}
-                      onCustomSecondaryPathChange={setCustomSecondaryPath}
-                      onSetSecondaryProject={handleSetSecondaryProject}
-                      onBrowseFolder={onBrowseFolder}
-                      editSkipPermissions={editSkipPermissions}
-                      isSavingSettings={isSavingSettings}
-                      onSaveSkipPermissions={handleSaveSkipPermissions}
-                    />
-                  </>
-                )}
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground border-b border-border transition-colors"
+                >
+                  <PanelRight className="w-3.5 h-3.5" />
+                  Hide sidebar
+                </button>
+                <AgentDialogSidebar
+                  agent={agent}
+                  projectPath={projectPath}
+                  expandedPanels={expandedPanels}
+                  onTogglePanel={togglePanel}
+                  gitBranch={gitBranch}
+                  onGitBranchChange={setGitBranch}
+                  quickTerminalRef={quickTerminalRef}
+                  quickXtermRef={quickXtermRef}
+                  quickTerminalReady={quickTerminalReady}
+                  hasActiveTerminal={hasActiveTerminal}
+                  onCloseQuickTerminal={closeQuickTerminal}
+                  hasSecondaryProject={hasSecondaryProject}
+                  availableProjects={availableProjects}
+                  customSecondaryPath={customSecondaryPath}
+                  onCustomSecondaryPathChange={setCustomSecondaryPath}
+                  onSetSecondaryProject={handleSetSecondaryProject}
+                  onBrowseFolder={onBrowseFolder}
+                  editSkipPermissions={editSkipPermissions}
+                  isSavingSettings={isSavingSettings}
+                  onSaveSkipPermissions={handleSaveSkipPermissions}
+                />
               </div>
             )}
           </div>
