@@ -367,6 +367,12 @@ async fn start_agent(
         new_id
     };
 
+    // Ensure EventBus PTY channel exists (for reused PTYs that were spawned without one)
+    if reused_pty {
+        let bus_tx = state.event_bus.create_pty_channel(&id);
+        state.pty_manager.set_event_bus_tx(&pty_id, bus_tx);
+    }
+
     // If reusing an existing PTY, send Ctrl-C to interrupt any foreground process
     if reused_pty {
         state
@@ -961,6 +967,12 @@ async fn start_agent_inner(
         state.pty_manager.register(id, &new_id);
         new_id
     };
+
+    // Ensure EventBus PTY channel exists (for reused PTYs spawned without one)
+    if reused_pty {
+        let bus_tx = state.event_bus.create_pty_channel(&id.to_string());
+        state.pty_manager.set_event_bus_tx(&pty_id, bus_tx);
+    }
 
     if reused_pty {
         state

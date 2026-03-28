@@ -307,6 +307,12 @@ pub async fn agent_start(
         new_id
     };
 
+    // Ensure EventBus PTY channel exists (for reused PTYs spawned without one)
+    if reused_pty {
+        let bus_tx = state.event_bus.create_pty_channel(&id);
+        pty_manager.set_event_bus_tx(&pty_id, bus_tx);
+    }
+
     // Build CLI command using provider trait
     let settings = state.settings.lock().unwrap().clone();
     let skip_permissions = agent_snapshot

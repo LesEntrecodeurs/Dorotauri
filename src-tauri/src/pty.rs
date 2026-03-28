@@ -33,6 +33,9 @@ pub struct PtyHandle {
     pub agent_id: String,
     pub child_pid: Option<u32>,
     pub paused: Arc<AtomicBool>,
+    /// Shared sender for EventBus PTY streaming. Set dynamically so reused PTYs
+    /// can be bridged to WebSocket after their reader thread is already running.
+    pub event_bus_tx: Arc<Mutex<Option<broadcast::Sender<Bytes>>>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +119,11 @@ impl PtyManager {
         let paused = Arc::new(AtomicBool::new(false));
         let paused_clone = Arc::clone(&paused);
 
+        // Shared EventBus sender — can be set/changed after spawn for reused PTYs
+        let shared_tx: Arc<Mutex<Option<broadcast::Sender<Bytes>>>> =
+            Arc::new(Mutex::new(event_bus_tx));
+        let shared_tx_clone = Arc::clone(&shared_tx);
+
         thread::spawn(move || {
             let mut buf = [0u8; 4096];
             loop {
@@ -135,9 +143,11 @@ impl PtyManager {
 
                         let data = &buf[..n];
 
-                        // Push to EventBus for WebSocket streaming
-                        if let Some(ref tx) = event_bus_tx {
-                            let _ = tx.send(Bytes::copy_from_slice(data));
+                        // Push to EventBus for WebSocket streaming (if sender is set)
+                        if let Ok(guard) = shared_tx_clone.lock() {
+                            if let Some(ref tx) = *guard {
+                                let _ = tx.send(Bytes::copy_from_slice(data));
+                            }
                         }
 
                         // Emit Tauri event for legacy frontend consumers
@@ -163,6 +173,7 @@ impl PtyManager {
             agent_id: agent_id.to_string(),
             child_pid,
             paused,
+            event_bus_tx: shared_tx,
         };
 
         self.handles
@@ -171,6 +182,15 @@ impl PtyManager {
             .insert(pty_id.to_string(), pty_handle);
 
         Ok(())
+    }
+
+    /// Set or replace the EventBus sender on an existing PTY.
+    /// Used when reusing a PTY that was spawned without an EventBus channel.
+    pub fn set_event_bus_tx(&self, pty_id: &str, tx: broadcast::Sender<Bytes>) {
+        let handles = self.handles.lock().unwrap();
+        if let Some(handle) = handles.get(pty_id) {
+            *handle.event_bus_tx.lock().unwrap() = Some(tx);
+        }
     }
 
     /// Write raw bytes to a PTY's stdin.

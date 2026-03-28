@@ -742,6 +742,7 @@ pub fn docker_container_logs(
         agent_id: format!("docker-logs-{}", pty_id),
         child_pid: None,
         paused,
+        event_bus_tx: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
 
     pty_manager.handles.lock().unwrap().insert(pty_id, pty_handle);
@@ -804,6 +805,7 @@ pub fn docker_exec_shell(
         agent_id: format!("docker-exec-{}", pty_id),
         child_pid: None,
         paused,
+        event_bus_tx: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
 
     pty_manager.handles.lock().unwrap().insert(pty_id, pty_handle);
@@ -890,6 +892,7 @@ fn docker_compose_action(
         agent_id: format!("docker-compose-{}", pty_id),
         child_pid: None,
         paused,
+        event_bus_tx: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
 
     pty_manager.handles.lock().unwrap().insert(pty_id.to_string(), pty_handle);
@@ -1121,6 +1124,7 @@ pub fn docker_pull_image(
         master: pair.master, writer, child,
         agent_id: format!("docker-pull-{}", pty_id),
         child_pid: None, paused,
+        event_bus_tx: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
     pty_manager.handles.lock().unwrap().insert(pty_id, pty_handle);
     Ok(())
