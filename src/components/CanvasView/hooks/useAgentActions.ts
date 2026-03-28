@@ -66,11 +66,9 @@ export function useAgentActions({
     _provider?: import('@/types/electron').AgentProvider,
     _localModel?: string,
     _obsidianVaultPaths?: string[],
-    isSuperAgent?: boolean,
-    superAgentScope?: 'tab' | 'all',
   ) => {
     try {
-      const agent = await createAgent({ skills, worktree, character, name, skipPermissions, ...(isSuperAgent ? { role: { type: 'super' as const, scope: superAgentScope === 'all' ? 'workspace' : (superAgentScope || 'tab') } } : {}) });
+      const agent = await createAgent({ skills, worktree, character, name, skipPermissions });
       setShowCreateAgentModal(false);
       setCreateAgentProjectPath(null);
 

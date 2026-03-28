@@ -159,7 +159,7 @@ export interface Agent {
 
   processState: ProcessState;
   businessState?: string;
-  businessStateUpdatedBy?: 'inference' | 'super_agent';
+  businessStateUpdatedBy?: 'inference' | 'agent';
   businessStateUpdatedAt?: string;
   skipPermissions?: boolean;
   localModel?: string;
@@ -234,8 +234,6 @@ export interface ElectronAPI {
       provider?: AgentProvider;
       localModel?: string;
       tabId?: string;
-      isSuperAgent?: boolean;
-      superAgentScope?: 'tab' | 'all';
       businessState?: string;
       statusLine?: string;
       obsidianVaultPaths?: string[];

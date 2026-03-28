@@ -221,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn test_claude_super_agent_flags() {
+    fn test_claude_mcp_and_system_prompt_flags() {
         let provider = ClaudeProvider;
         let mut config = default_config("orchestrate");
         config.skip_permissions = true;

@@ -124,8 +124,6 @@ fn convert_v0_agent(id: &str, v: &serde_json::Value, now: &str) -> Agent {
         business_state_updated_by: None,
         business_state_updated_at: None,
         tab_id: "general".to_string(),
-        is_super_agent: false,
-        super_agent_scope: None,
         scheduled_task_ids: Vec::new(),
         automation_ids: Vec::new(),
     }

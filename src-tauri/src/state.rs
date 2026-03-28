@@ -89,10 +89,6 @@ pub struct Agent {
     pub business_state_updated_at: Option<String>,
     pub tab_id: String,
     #[serde(default)]
-    pub is_super_agent: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub super_agent_scope: Option<String>,
-    #[serde(default)]
     pub scheduled_task_ids: Vec<String>,
     #[serde(default)]
     pub automation_ids: Vec<String>,
@@ -128,8 +124,6 @@ impl Default for Agent {
             business_state_updated_by: None,
             business_state_updated_at: None,
             tab_id: "general".to_string(),
-            is_super_agent: false,
-            super_agent_scope: None,
             scheduled_task_ids: Vec::new(),
             automation_ids: Vec::new(),
         }
