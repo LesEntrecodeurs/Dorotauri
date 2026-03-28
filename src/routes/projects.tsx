@@ -1,6 +1,7 @@
 
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderKanban,
@@ -33,6 +34,7 @@ import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from 
 import type { ClaudeProject } from '@/lib/claude-code';
 import type { Agent, AgentCharacter, AgentProvider } from '@/types/electron';
 import NewChatModal from '@/components/NewChatModal';
+import { ProjectDocsPanel } from '@/components/ProjectDocs/ProjectDocsPanel';
 
 // Generate consistent colors for projects based on name
 const getProjectColor = (name: string) => {
@@ -102,6 +104,7 @@ export default function ProjectsPage() {
   const [gitLoading, setGitLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [defaultProjectPath, setDefaultProjectPath] = useState<string>('');
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Agent dialog state
   const [showAgentDialog, setShowAgentDialog] = useState(false);
@@ -332,8 +335,6 @@ export default function ProjectsPage() {
     provider?: AgentProvider,
     localModel?: string,
     obsidianVaultPaths?: string[],
-    isSuperAgent?: boolean,
-    superAgentScope?: 'tab' | 'all',
   ) => {
     try {
       const agent = await createAgent({
@@ -345,7 +346,6 @@ export default function ProjectsPage() {
         provider,
         localModel,
         obsidianVaultPaths,
-        ...(isSuperAgent ? { role: { type: 'super' as const, scope: superAgentScope === 'all' ? 'workspace' : (superAgentScope || 'tab') } } : {}),
       });
 
       if (prompt) {
@@ -393,6 +393,19 @@ export default function ProjectsPage() {
     });
     return merged;
   }, [claudeProjects, customProjects]);
+
+  // Auto-select project from query param (e.g. from agent card click)
+  useEffect(() => {
+    const selectPath = searchParams.get('select');
+    if (selectPath && allProjects.length > 0) {
+      const match = allProjects.find(p => pathsMatch(p.path, selectPath));
+      if (match) {
+        setSelectedProject(match);
+      }
+      // Clear the query param after processing
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, allProjects]);
 
   // Filter projects based on active tab and search query
   const projects = useMemo(() => {
@@ -485,7 +498,10 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-4 lg:space-y-6 pt-4 lg:pt-6">
+    <div className="flex h-full">
+      {/* Left panel: project list */}
+      <div className={`${selectedProject ? 'w-[420px] shrink-0 border-r border-border' : 'flex-1'} overflow-y-auto`}>
+      <div className="space-y-4 lg:space-y-6 pt-4 lg:pt-6 px-4 lg:px-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -1129,6 +1145,20 @@ export default function ProjectsPage() {
         installedSkills={installedSkills}
         onRefreshSkills={refreshSkills}
       />
+      </div>{/* end space-y wrapper */}
+      </div>{/* end left panel */}
+
+      {/* Right panel: documentation viewer */}
+      {selectedProject && (
+        <div className="flex-1 min-w-0">
+          <ProjectDocsPanel
+            projectPath={selectedProject.path}
+            projectName={selectedProject.name}
+            agentCount={agents.filter(a => pathsMatch(a.cwd, selectedProject.path)).length}
+            onClose={() => setSelectedProject(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }

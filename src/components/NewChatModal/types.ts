@@ -38,8 +38,6 @@ export interface NewChatModalProps {
     provider?: AgentProvider,
     localModel?: string,
     obsidianVaultPaths?: string[],
-    isSuperAgent?: boolean,
-    superAgentScope?: 'tab' | 'all',
   ) => void;
   onUpdate?: (id: string, updates: {
     skills?: string[];

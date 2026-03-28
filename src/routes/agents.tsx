@@ -92,11 +92,9 @@ export default function AgentsPage() {
     provider?: AgentProvider,
     localModel?: string,
     obsidianVaultPaths?: string[],
-    isSuperAgent?: boolean,
-    superAgentScope?: 'tab' | 'all',
   ) => {
     try {
-      const agent = await createAgent({ skills, worktree, character, name, skipPermissions, provider, localModel, obsidianVaultPaths, ...(isSuperAgent ? { role: { type: 'super' as const, scope: superAgentScope === 'all' ? 'workspace' : (superAgentScope || 'tab') } } : {}) });
+      const agent = await createAgent({ skills, worktree, character, name, skipPermissions, provider, localModel, obsidianVaultPaths });
       if (prompt) {
         const options = { model: provider === 'local' ? undefined : model, provider, localModel };
         await startAgent(agent.id, prompt, options);

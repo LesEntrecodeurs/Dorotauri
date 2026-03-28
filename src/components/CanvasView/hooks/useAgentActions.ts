@@ -7,7 +7,6 @@ interface CreateAgentConfig {
   character?: AgentCharacter;
   name?: string;
   skipPermissions?: boolean;
-  role?: { type: 'super'; scope: string };
 }
 
 interface UseAgentActionsProps {
