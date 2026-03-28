@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { FileText, Bot, ArrowLeft, Loader2, FolderOpen } from 'lucide-react';
+import { FileText, Bot, ArrowLeft, Loader2, FolderOpen, Search } from 'lucide-react';
 import { DocFileTree } from './DocFileTree';
 import type { DocEntry } from './DocFileTree';
 import { SimpleMarkdown } from '@/components/VaultView/components/MarkdownRenderer';
+import { DocSearchModal } from './DocSearchModal';
 
 interface ProjectDocsPanelProps {
   projectPath: string;
@@ -20,6 +21,21 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
   const [loadingFiles, setLoadingFiles] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const isResizing = useRef(false);
+  const [targetLine, setTargetLine] = useState<number | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Ctrl+F / Cmd+F to open search modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Drag-to-resize sidebar
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -97,6 +113,29 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
     }
   }, [selectedDoc, loadDoc]);
 
+  // Scroll to target line after content loads
+  useEffect(() => {
+    if (targetLine && !loading && docContent && contentRef.current) {
+      const timer = setTimeout(() => {
+        const el = contentRef.current?.querySelector(`[id="doc-line-${targetLine}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [targetLine, loading, docContent]);
+
+  const handleSearchSelect = useCallback((filePath: string, lineNumber: number) => {
+    setTargetLine(lineNumber);
+    setSelectedDoc(filePath);
+  }, []);
+
+  const handleSelectDoc = useCallback((path: string) => {
+    setTargetLine(null);
+    setSelectedDoc(path);
+  }, []);
+
   const selectedFileName = selectedDoc
     ? docFiles.find((f) => f.path === selectedDoc)?.relative || selectedDoc.split('/').pop()
     : null;
@@ -125,6 +164,13 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
           </div>
           <p className="text-[10px] text-muted-foreground truncate mt-0.5 font-mono">{projectPath}</p>
         </div>
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+          title="Search in documents (Ctrl+F)"
+        >
+          <Search className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Content area */}
@@ -146,7 +192,7 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
               <DocFileTree
                 files={docFiles}
                 selectedPath={selectedDoc}
-                onSelect={setSelectedDoc}
+                onSelect={handleSelectDoc}
               />
             )}
           </div>
@@ -159,7 +205,7 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
         />
 
         {/* Markdown content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" ref={contentRef}>
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -182,7 +228,7 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
                 prose-table:text-sm
                 prose-th:text-left prose-th:font-medium
               ">
-                <SimpleMarkdown content={docContent} />
+                <SimpleMarkdown content={docContent} highlightLine={targetLine ?? undefined} />
               </div>
             </div>
           ) : (
@@ -198,6 +244,14 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
           )}
         </div>
       </div>
+
+      {/* Search modal */}
+      <DocSearchModal
+        projectPath={projectPath}
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelect={handleSearchSelect}
+      />
     </div>
   );
 }

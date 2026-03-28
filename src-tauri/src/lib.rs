@@ -150,6 +150,7 @@ pub fn run() {
             commands::shell::projects_list,
             commands::shell::project_list_docs,
             commands::shell::project_read_doc,
+            commands::shell::project_search_docs,
             // Window commands
             commands::window::window_popout,
             commands::window::window_dock,

@@ -115,7 +115,7 @@ function renderInline(text: string): React.ReactNode {
   return <>{parts}</>;
 }
 
-export function SimpleMarkdown({ content }: { content: string }) {
+export function SimpleMarkdown({ content, highlightLine }: { content: string; highlightLine?: number }) {
   const lines = content.split('\n');
   const elements: React.ReactElement[] = [];
   let inCodeBlock = false;
@@ -241,5 +241,23 @@ export function SimpleMarkdown({ content }: { content: string }) {
     );
   }
 
-  return <div>{elements}</div>;
+  return (
+    <div>
+      {elements.map((el) => {
+        const k = el.key;
+        const lineNum = typeof k === 'string' && /^\d+$/.test(k) ? parseInt(k) + 1 : null;
+        if (!lineNum) return el;
+        return (
+          <div
+            key={k}
+            id={`doc-line-${lineNum}`}
+            data-source-line={lineNum}
+            className={highlightLine === lineNum ? 'bg-primary/15 -mx-2 px-2 rounded transition-colors' : undefined}
+          >
+            {el}
+          </div>
+        );
+      })}
+    </div>
+  );
 }

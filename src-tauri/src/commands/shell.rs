@@ -191,3 +191,45 @@ pub fn project_read_doc(file_path: String, project_root: String) -> Result<Strin
     fs::read_to_string(&canonical_file)
         .map_err(|e| format!("Failed to read file: {e}"))
 }
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DocSearchResult {
+    pub file_path: String,
+    pub relative: String,
+    pub file_name: String,
+    pub line_number: usize,
+    pub line_content: String,
+}
+
+#[tauri::command]
+pub fn project_search_docs(project_path: String, query: String) -> Vec<DocSearchResult> {
+    if query.trim().is_empty() {
+        return Vec::new();
+    }
+
+    let files = project_list_docs(project_path);
+    let query_lower = query.to_lowercase();
+    let mut results = Vec::new();
+
+    for file in files {
+        if file.is_dir {
+            continue;
+        }
+        if let Ok(content) = fs::read_to_string(&file.path) {
+            for (i, line) in content.lines().enumerate() {
+                if line.to_lowercase().contains(&query_lower) {
+                    results.push(DocSearchResult {
+                        file_path: file.path.clone(),
+                        relative: file.relative.clone(),
+                        file_name: file.name.clone(),
+                        line_number: i + 1,
+                        line_content: line.trim().to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    results
+}
