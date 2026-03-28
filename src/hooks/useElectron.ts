@@ -59,7 +59,6 @@ export function useElectronAgents() {
     localModel?: string;
     obsidianVaultPaths?: string[];
     tabId?: string;
-    role?: 'super' | { type: 'super'; scope: string };
   }) => {
     if (!isTauri()) {
       throw new Error('Tauri API not available');
@@ -404,15 +403,13 @@ export function useElectronFS() {
     }
   }, []);
 
-  const openFolderDialog = useCallback(async () => {
+  const openFolderDialog = useCallback(async (): Promise<string | null> => {
     if (!isTauri()) {
       throw new Error('Tauri API not available');
     }
-    try {
-      return await invoke<string | null>('dialog_open_folder');
-    } catch (err) {
-      throw err;
-    }
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const selected = await open({ directory: true, multiple: false });
+    return selected as string | null;
   }, []);
 
   useEffect(() => {

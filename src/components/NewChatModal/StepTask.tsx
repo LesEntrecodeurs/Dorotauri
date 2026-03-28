@@ -15,7 +15,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import type { AgentProvider } from '@/types/electron';
-import OrchestratorModeToggle from './OrchestratorModeToggle';
 
 interface StepTaskProps {
   prompt: string;
@@ -27,10 +26,6 @@ interface StepTaskProps {
   onBranchNameChange: (name: string) => void;
   skipPermissions: boolean;
   onToggleSkipPermissions: () => void;
-  isOrchestrator: boolean;
-  onOrchestratorToggle: (enabled: boolean) => void;
-  orchestratorScope: 'tab' | 'all';
-  onOrchestratorScopeChange: (scope: 'tab' | 'all') => void;
   // Summary data
   provider: AgentProvider;
   model: string;
@@ -47,10 +42,6 @@ const StepTask = React.memo(function StepTask({
   onBranchNameChange,
   skipPermissions,
   onToggleSkipPermissions,
-  isOrchestrator,
-  onOrchestratorToggle,
-  orchestratorScope,
-  onOrchestratorScopeChange,
   provider,
   model,
   selectedObsidianVaults,
@@ -195,13 +186,6 @@ const StepTask = React.memo(function StepTask({
                   </div>
                 </div>
 
-                {/* Orchestrator Mode */}
-                <OrchestratorModeToggle
-                  isOrchestrator={isOrchestrator}
-                  onToggle={onOrchestratorToggle}
-                  scope={orchestratorScope}
-                  onScopeChange={onOrchestratorScopeChange}
-                />
               </div>
             </motion.div>
           )}
