@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 pub type AgentId = String;
 pub type TabId = String;
@@ -60,27 +59,6 @@ impl AgentState {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum Scope {
-    Tab,
-    Workspace,
-    Global,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum AgentRole {
-    Normal,
-    Super { scope: Scope },
-}
-
-impl Default for AgentRole {
-    fn default() -> Self {
-        AgentRole::Normal
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
 pub enum Provider {
     Claude,
     Codex,
@@ -122,8 +100,6 @@ pub struct Agent {
     pub state: AgentState,
     pub pty_id: Option<PtyId>,
 
-    pub role: AgentRole,
-
     pub cwd: String,
     pub secondary_paths: Vec<String>,
     pub skills: Vec<String>,
@@ -147,7 +123,6 @@ impl Agent {
             parent_id: None,
             state: AgentState::default(),
             pty_id: None,
-            role: AgentRole::default(),
             cwd,
             secondary_paths: Vec::new(),
             skills: Vec::new(),
@@ -156,17 +131,6 @@ impl Agent {
             error: None,
             last_activity: now.clone(),
             created_at: now,
-        }
-    }
-
-    pub fn is_super_agent(&self) -> bool {
-        matches!(self.role, AgentRole::Super { .. })
-    }
-
-    pub fn scope(&self) -> Option<&Scope> {
-        match &self.role {
-            AgentRole::Super { scope } => Some(scope),
-            AgentRole::Normal => None,
         }
     }
 }
@@ -222,22 +186,6 @@ mod tests {
     }
 
     #[test]
-    fn test_agent_role_default_is_normal() {
-        assert_eq!(AgentRole::default(), AgentRole::Normal);
-    }
-
-    #[test]
-    fn test_agent_is_super() {
-        let mut agent = Agent::new("a1".into(), "/tmp".into(), "t1".into());
-        assert!(!agent.is_super_agent());
-        assert!(agent.scope().is_none());
-
-        agent.role = AgentRole::Super { scope: Scope::Tab };
-        assert!(agent.is_super_agent());
-        assert_eq!(agent.scope(), Some(&Scope::Tab));
-    }
-
-    #[test]
     fn test_provider_from_str() {
         assert_eq!(Provider::from_str_opt(Some("claude")), Provider::Claude);
         assert_eq!(Provider::from_str_opt(Some("codex")), Provider::Codex);
@@ -264,15 +212,4 @@ mod tests {
         assert_eq!(json, "\"inactive\"");
     }
 
-    #[test]
-    fn test_agent_role_serializes_tagged() {
-        let role = AgentRole::Super { scope: Scope::Tab };
-        let json = serde_json::to_value(&role).unwrap();
-        assert_eq!(json["type"], "super");
-        assert_eq!(json["scope"], "tab");
-
-        let role = AgentRole::Normal;
-        let json = serde_json::to_value(&role).unwrap();
-        assert_eq!(json["type"], "normal");
-    }
 }
