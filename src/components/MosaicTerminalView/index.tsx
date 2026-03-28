@@ -559,11 +559,8 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
   // Toggle skip-permissions: update, stop, restart with --continue
   const handleToggleSkipPermissions = useCallback(async (id: string, skipPermissions: boolean) => {
     try {
-      console.log('[MosaicTerminalView] toggleSkipPermissions:', { id, skipPermissions });
-      const result = await updateAgent({ id, skipPermissions });
-      console.log('[MosaicTerminalView] updateAgent result:', result);
+      await updateAgent({ id, skipPermissions });
       await invoke('agent_stop', { id });
-      console.log('[MosaicTerminalView] agent stopped, restarting with --continue');
       await invoke('agent_start', { id, prompt: null, options: { continueSession: true } });
     } catch (err) {
       console.error('Failed to toggle skip permissions:', err);

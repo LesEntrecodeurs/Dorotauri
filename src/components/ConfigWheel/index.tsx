@@ -166,19 +166,13 @@ export const ConfigWheel = memo(function ConfigWheel({
             <Switch
               id="cw-autonomous"
               checked={agent.skipPermissions ?? false}
-              onCheckedChange={async (checked) => {
-                console.log('[ConfigWheel] skipPermissions toggle:', { checked, agentState: agent.state, processState: agent.processState, currentValue: agent.skipPermissions, hasToggleCb: !!onToggleSkipPermissions });
-                try {
-                  if (onToggleSkipPermissions && (agent.state === 'running' || agent.processState === 'running')) {
-                    await onToggleSkipPermissions(agent.id, checked);
-                  } else {
-                    await onUpdate(agent.id, { skipPermissions: checked } as Partial<Agent>);
-                    console.log('[ConfigWheel] update sent OK');
-                  }
-                } catch (err) {
-                  console.error('[ConfigWheel] skipPermissions error:', err);
+              onCheckedChange={(checked) => {
+                if (onToggleSkipPermissions && (agent.state === 'running' || agent.processState === 'running')) {
+                  onToggleSkipPermissions(agent.id, checked);
+                } else {
+                  onUpdate(agent.id, { skipPermissions: checked } as Partial<Agent>);
                 }
-              }}
+              }}}
               className="scale-75 origin-right"
             />
           </div>
