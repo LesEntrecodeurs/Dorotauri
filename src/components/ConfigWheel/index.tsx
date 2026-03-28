@@ -1,5 +1,5 @@
-import { memo, useCallback, useState, useEffect } from 'react';
-import { Settings, Crown, Dices, Zap, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { memo, useCallback } from 'react';
+import { Settings, Dices, Zap } from 'lucide-react';
 import type { Agent, AgentProvider } from '@/types/electron';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CHARACTER_FACES } from '@/components/AgentList/constants';
@@ -14,8 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { SuperAgentToggle } from './SuperAgentToggle';
-import { invoke } from '@tauri-apps/api/core';
 import { ConfigWheelWorktree } from './ConfigWheelWorktree';
 
 const PROVIDERS: AgentProvider[] = ['claude', 'codex', 'gemini', 'opencode', 'pi', 'local'];
@@ -24,21 +22,15 @@ interface ConfigWheelProps {
   agent: Agent;
   onUpdate: (id: string, updates: Partial<Agent>) => void;
   availableSkills?: string[];
-  /** Whether another agent in the same tab is already a Super Agent */
-  tabHasSuperAgent?: boolean;
   /** Callback to re-roll the agent name (random LoL champion) */
   onRerollName?: (id: string) => void;
-  /** Callback to promote to Super Agent (graceful reload with MCP tools) */
-  onPromoteSuper?: (id: string, scope: 'tab' | 'all') => void;
 }
 
 export const ConfigWheel = memo(function ConfigWheel({
   agent,
   onUpdate,
   availableSkills = [],
-  tabHasSuperAgent = false,
   onRerollName,
-  onPromoteSuper,
 }: ConfigWheelProps) {
   const update = useCallback(
     (updates: Partial<Agent>) => onUpdate(agent.id, updates),
@@ -59,24 +51,6 @@ export const ConfigWheel = memo(function ConfigWheel({
   /** Stop pointer events from reaching the mosaic drag layer */
   const stopMosaicDrag = useCallback((e: React.PointerEvent | React.MouseEvent) => {
     e.stopPropagation();
-  }, []);
-
-  // MCP status for Super Agent section
-  const [mcpStatus, setMcpStatus] = useState<'loading' | 'configured' | 'not-configured' | 'error'>('loading');
-
-  useEffect(() => {
-    invoke<{ configured?: boolean; error?: string }>('orchestrator_get_status')
-      .then((r) => setMcpStatus(r.configured ? 'configured' : 'not-configured'))
-      .catch(() => setMcpStatus('not-configured'));
-  }, []);
-
-  const handleMcpSetup = useCallback(async () => {
-    try {
-      const r = await invoke<{ success?: boolean }>('orchestrator_setup');
-      if (r.success) setMcpStatus('configured');
-    } catch {
-      setMcpStatus('error');
-    }
   }, []);
 
   return (
@@ -188,7 +162,7 @@ export const ConfigWheel = memo(function ConfigWheel({
             </Label>
             <Switch
               id="cw-autonomous"
-              checked={agent.skipPermissions ?? agent.role?.type === 'super'}
+              checked={agent.skipPermissions ?? false}
               onCheckedChange={(checked) => update({ skipPermissions: checked })}
               className="scale-75 origin-right"
             />
@@ -202,49 +176,6 @@ export const ConfigWheel = memo(function ConfigWheel({
             branchName={agent.branchName}
             onUpdate={(branchName) => update({ branchName: branchName || undefined })}
           />
-        </div>
-
-        {/* ── SUPER AGENT ──────────────────────────────────────── */}
-        <div className="border-t border-border pt-2">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-            <Crown className="w-3 h-3 text-amber-400" />
-            Super Agent
-          </p>
-
-          {tabHasSuperAgent && agent.role?.type !== 'super' ? (
-            <p className="text-[10px] text-muted-foreground">A Super Agent already exists in this tab</p>
-          ) : (
-            <div className="space-y-2">
-              <SuperAgentToggle
-                isSuperAgent={agent.role?.type === 'super'}
-                scope={agent.role?.type === 'super' ? agent.role.scope : undefined}
-                onChange={(isSuperAgent, scope) => {
-                  if (isSuperAgent && onPromoteSuper) {
-                    onPromoteSuper(agent.id, scope === 'workspace' || scope === 'global' ? 'all' : 'tab');
-                  } else {
-                    update({ isSuperAgent, superAgentScope: scope === 'workspace' || scope === 'global' ? 'all' : scope });
-                  }
-                }}
-              />
-
-              {/* MCP status — shown always so user knows the state */}
-              <div className="flex items-center gap-1.5 ml-4">
-                {mcpStatus === 'loading' && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
-                {mcpStatus === 'configured' && <CheckCircle className="w-3 h-3 text-green-500" />}
-                {(mcpStatus === 'not-configured' || mcpStatus === 'error') && <XCircle className="w-3 h-3 text-destructive" />}
-                <span className="text-[10px] text-muted-foreground">
-                  {mcpStatus === 'loading' && 'Checking MCP...'}
-                  {mcpStatus === 'configured' && 'MCP ready'}
-                  {mcpStatus === 'not-configured' && (
-                    <button onClick={handleMcpSetup} className="text-primary hover:underline">
-                      Setup MCP orchestrator
-                    </button>
-                  )}
-                  {mcpStatus === 'error' && 'MCP setup failed'}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
       </PopoverContent>
     </Popover>
