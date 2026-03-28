@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ScheduledTask } from '../types';
@@ -35,22 +35,20 @@ export function EditTaskModal({
   isSaving,
   onSave,
 }: EditTaskModalProps) {
+  const { shouldRender, animationState } = useAnimatePresence(task !== null);
+
   return (
-    <AnimatePresence>
-      {task && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    <>
+      {shouldRender && (
+        <div
+          data-state={animationState}
+          className="animate-fade fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+          <div
+            data-state={animationState}
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="animate-modal bg-card border border-border w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h2 className="text-lg font-semibold">Edit Scheduled Task</h2>
@@ -147,9 +145,9 @@ export function EditTaskModal({
                 )}
               </Button>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

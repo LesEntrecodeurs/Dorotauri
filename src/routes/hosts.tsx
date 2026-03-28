@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import type { SshHost } from '@/types/ssh';
 import {
   Server, Plus, Search, Loader2, AlertTriangle, Terminal as TerminalIcon,
@@ -29,10 +29,11 @@ interface HostFormData {
 
 const emptyForm: HostFormData = { name: '', hostname: '', port: 22, username: '', authType: 'password', password: '', keyPath: '' };
 
-function HostFormDialog({ host, onSave, onClose }: {
+function HostFormDialog({ host, onSave, onClose, animationState }: {
   host: SshHost | null; // null = create mode
   onSave: (data: HostFormData) => Promise<void>;
   onClose: () => void;
+  animationState: string;
 }) {
   const [form, setForm] = useState<HostFormData>(
     host
@@ -70,10 +71,8 @@ function HostFormDialog({ host, onSave, onClose }: {
   const update = (patch: Partial<HostFormData>) => setForm(f => ({ ...f, ...patch }));
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-        className="bg-card border border-border rounded-xl w-full max-w-md p-6 shadow-xl"
+    <div data-state={animationState} className="animate-fade fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div data-state={animationState} className="animate-modal bg-card border border-border rounded-xl w-full max-w-md p-6 shadow-xl"
         onClick={e => e.stopPropagation()}>
 
         <h2 className="text-lg font-semibold mb-4">{host ? 'Edit Host' : 'New Host'}</h2>
@@ -149,21 +148,19 @@ function HostFormDialog({ host, onSave, onClose }: {
             {host ? 'Save' : 'Create'}
           </Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
 // ── Delete Confirm Dialog ────────────────────────────────────────────────────
 
-function DeleteConfirmDialog({ host, onConfirm, onClose }: {
-  host: SshHost; onConfirm: () => void; onClose: () => void;
+function DeleteConfirmDialog({ host, onConfirm, onClose, animationState }: {
+  host: SshHost; onConfirm: () => void; onClose: () => void; animationState: string;
 }) {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-        className="bg-card border border-border rounded-xl w-full max-w-sm p-6 shadow-xl"
+    <div data-state={animationState} className="animate-fade fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div data-state={animationState} className="animate-modal bg-card border border-border rounded-xl w-full max-w-sm p-6 shadow-xl"
         onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-2">Delete Host</h2>
         <p className="text-sm text-muted-foreground mb-4">
@@ -173,8 +170,8 @@ function DeleteConfirmDialog({ host, onConfirm, onClose }: {
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button variant="destructive" size="sm" onClick={onConfirm}>Delete</Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -184,8 +181,7 @@ function HostCard({ host, onConnect, onEdit, onDelete }: {
   host: SshHost; onConnect: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   return (
-    <motion.div layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors">
+    <div className="animate-mount-fade-up flex items-center gap-3 p-4 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors">
       <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
         <Server className="w-5 h-5 text-muted-foreground" />
       </div>
@@ -211,7 +207,7 @@ function HostCard({ host, onConnect, onEdit, onDelete }: {
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -343,12 +339,10 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-function ImportResultDialog({ imported, skipped, onClose }: { imported: number; skipped: number; onClose: () => void }) {
+function ImportResultDialog({ imported, skipped, onClose, animationState }: { imported: number; skipped: number; onClose: () => void; animationState: string }) {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-        className="bg-card border border-border rounded-xl w-full max-w-sm p-6 shadow-xl"
+    <div data-state={animationState} className="animate-fade fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div data-state={animationState} className="animate-modal bg-card border border-border rounded-xl w-full max-w-sm p-6 shadow-xl"
         onClick={e => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-2">Import Complete</h2>
         <div className="space-y-1 text-sm text-muted-foreground mb-4">
@@ -358,8 +352,8 @@ function ImportResultDialog({ imported, skipped, onClose }: { imported: number; 
         <div className="flex justify-end">
           <Button size="sm" onClick={onClose}>OK</Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -373,6 +367,10 @@ export default function HostsPage() {
   const [deleteDialog, setDeleteDialog] = useState<SshHost | null>(null);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [importing, setImporting] = useState(false);
+
+  const formDialogAnim = useAnimatePresence(formDialog !== null);
+  const deleteDialogAnim = useAnimatePresence(deleteDialog !== null);
+  const importResultAnim = useAnimatePresence(importResult !== null);
 
   const filtered = hosts.filter(h => {
     const q = search.toLowerCase();
@@ -529,30 +527,29 @@ export default function HostsPage() {
         )}
       </div>
 
-
-
       {/* Dialogs */}
-      <AnimatePresence>
-        {formDialog && (
-          <HostFormDialog
-            key={formDialog === 'new' ? 'new' : formDialog.id}
-            host={formDialog === 'new' ? null : formDialog}
-            onSave={handleSave}
-            onClose={() => setFormDialog(null)} />
-        )}
-        {deleteDialog && (
-          <DeleteConfirmDialog key={deleteDialog.id}
-            host={deleteDialog}
-            onConfirm={handleDelete}
-            onClose={() => setDeleteDialog(null)} />
-        )}
-        {importResult && (
-          <ImportResultDialog
-            imported={importResult.imported}
-            skipped={importResult.skipped}
-            onClose={() => setImportResult(null)} />
-        )}
-      </AnimatePresence>
+      {formDialogAnim.shouldRender && formDialog && (
+        <HostFormDialog
+          key={formDialog === 'new' ? 'new' : formDialog.id}
+          host={formDialog === 'new' ? null : formDialog}
+          onSave={handleSave}
+          onClose={() => setFormDialog(null)}
+          animationState={formDialogAnim.animationState} />
+      )}
+      {deleteDialogAnim.shouldRender && deleteDialog && (
+        <DeleteConfirmDialog key={deleteDialog.id}
+          host={deleteDialog}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteDialog(null)}
+          animationState={deleteDialogAnim.animationState} />
+      )}
+      {importResultAnim.shouldRender && importResult && (
+        <ImportResultDialog
+          imported={importResult.imported}
+          skipped={importResult.skipped}
+          onClose={() => setImportResult(null)}
+          animationState={importResultAnim.animationState} />
+      )}
     </div>
   );
 }

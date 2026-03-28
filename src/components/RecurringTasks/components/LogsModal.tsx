@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { X, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SelectedLogs } from '../types';
@@ -45,26 +45,24 @@ function parseLogContent(selectedLogs: SelectedLogs): string {
 }
 
 export function LogsModal({ selectedLogs, onClose, onRunIndexChange, logsContainerRef }: LogsModalProps) {
+  const { shouldRender, animationState } = useAnimatePresence(selectedLogs !== null);
+
   return (
-    <AnimatePresence>
-      {selectedLogs && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    <>
+      {shouldRender && (
+        <div
+          data-state={animationState}
+          className="animate-fade fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+          <div
+            data-state={animationState}
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+            className="animate-modal bg-card border border-border w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
           >
             <div className="p-4 border-b border-border flex items-center justify-between gap-3">
               <h2 className="font-semibold shrink-0">Task Logs</h2>
-              {selectedLogs.runs.length > 1 && (
+              {selectedLogs && selectedLogs.runs.length > 1 && (
                 <select
                   value={selectedLogs.selectedRunIndex}
                   onChange={(e) => onRunIndexChange(parseInt(e.target.value))}
@@ -77,7 +75,7 @@ export function LogsModal({ selectedLogs, onClose, onRunIndexChange, logsContain
                   ))}
                 </select>
               )}
-              {selectedLogs.runs.length === 1 && (
+              {selectedLogs && selectedLogs.runs.length === 1 && (
                 <span className="text-xs text-muted-foreground truncate">
                   {selectedLogs.runs[0].startedAt}{!selectedLogs.runs[0].completedAt ? ' (running)' : ''}
                 </span>
@@ -91,7 +89,7 @@ export function LogsModal({ selectedLogs, onClose, onRunIndexChange, logsContain
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            {selectedLogs.runs.length > 0 && selectedLogs.runs[selectedLogs.selectedRunIndex] && (
+            {selectedLogs && selectedLogs.runs.length > 0 && selectedLogs.runs[selectedLogs.selectedRunIndex] && (
               <div className="px-4 py-2 border-b border-border flex items-center gap-3 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
@@ -112,12 +110,12 @@ export function LogsModal({ selectedLogs, onClose, onRunIndexChange, logsContain
             )}
             <div ref={logsContainerRef} className="flex-1 overflow-auto p-4 bg-background">
               <pre className="text-xs font-mono whitespace-pre-wrap text-muted-foreground">
-                {parseLogContent(selectedLogs)}
+                {selectedLogs ? parseLogContent(selectedLogs) : ''}
               </pre>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }
