@@ -52,24 +52,19 @@ impl CwdTracker {
     // -------------------------------------------------------------------------
 
     #[cfg(target_os = "linux")]
-    fn get_cwd(pid: u32) -> Option<String> {
+    fn read_cwd(pid: u32) -> Option<String> {
         std::fs::read_link(format!("/proc/{}/cwd", pid))
             .ok()
             .map(|p| p.to_string_lossy().to_string())
     }
 
     #[cfg(target_os = "macos")]
-    fn get_cwd(pid: u32) -> Option<String> {
-        // Stub: use `lsof -p <pid> -Fn -d cwd` and parse the 'n' line.
+    fn read_cwd(pid: u32) -> Option<String> {
         let output = std::process::Command::new("lsof")
             .args(["-p", &pid.to_string(), "-Fn", "-d", "cwd"])
             .output()
             .ok()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
-        // lsof output has lines like:
-        //   p<pid>
-        //   fcwd
-        //   n<path>
         for line in stdout.lines() {
             if let Some(path) = line.strip_prefix('n') {
                 return Some(path.to_string());
@@ -79,8 +74,40 @@ impl CwdTracker {
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-    fn get_cwd(_pid: u32) -> Option<String> {
+    fn read_cwd(_pid: u32) -> Option<String> {
         None
+    }
+
+    /// Resolve the effective cwd for a shell PID by walking the process tree
+    /// to find the deepest descendant (e.g. the `claude` or `node` process
+    /// running inside the PTY shell) and returning its cwd.
+    #[cfg(target_os = "linux")]
+    fn get_cwd(shell_pid: u32) -> Option<String> {
+        let deepest = Self::find_deepest_descendant(shell_pid);
+        Self::read_cwd(deepest)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn get_cwd(shell_pid: u32) -> Option<String> {
+        Self::read_cwd(shell_pid)
+    }
+
+    /// Walk `/proc/<pid>/task/<pid>/children` recursively to find the
+    /// deepest descendant. Returns `pid` itself when there are no children.
+    #[cfg(target_os = "linux")]
+    fn find_deepest_descendant(pid: u32) -> u32 {
+        let mut current = pid;
+        loop {
+            let children_path = format!("/proc/{}/task/{}/children", current, current);
+            let content = match std::fs::read_to_string(&children_path) {
+                Ok(c) => c,
+                Err(_) => return current,
+            };
+            match content.split_whitespace().next().and_then(|s| s.parse::<u32>().ok()) {
+                Some(child) => current = child,
+                None => return current,
+            }
+        }
     }
 
     // -------------------------------------------------------------------------

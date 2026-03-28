@@ -208,6 +208,16 @@ mod tests {
         assert!(json.get("parentId").is_some());
         assert!(json.get("statusLine").is_some());
         assert!(json.get("createdAt").is_some());
+        // skipPermissions must always be present (defaults to false)
+        assert_eq!(json.get("skipPermissions").unwrap(), false);
+    }
+
+    #[test]
+    fn test_skip_permissions_serializes() {
+        let mut agent = Agent::new("a1".into(), "/tmp".into(), "t1".into());
+        agent.skip_permissions = true;
+        let json = serde_json::to_value(&agent).unwrap();
+        assert_eq!(json.get("skipPermissions").unwrap(), true);
     }
 
     #[test]

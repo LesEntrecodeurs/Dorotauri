@@ -497,11 +497,23 @@ export default function ProjectsPage() {
     );
   }
 
+  // Full-screen doc panel when a project is selected
+  if (selectedProject) {
+    return (
+      <div className="h-[calc(100vh-3rem)] overflow-hidden">
+        <ProjectDocsPanel
+          projectPath={selectedProject.path}
+          projectName={selectedProject.name}
+          agentCount={agents.filter(a => pathsMatch(a.cwd, selectedProject.path)).length}
+          onClose={() => setSelectedProject(null)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full">
-      {/* Left panel: project list */}
-      <div className={`${selectedProject ? 'w-[420px] shrink-0 border-r border-border' : 'flex-1'} overflow-y-auto`}>
-      <div className="space-y-4 lg:space-y-6 pt-4 lg:pt-6 px-4 lg:px-6">
+    <div className="h-[calc(100vh-3rem)] overflow-y-auto">
+      <div className="space-y-4 lg:space-y-6 pt-4 lg:pt-6 px-4 lg:px-6 pb-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -794,8 +806,8 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Project Detail Panel (Slide-out) */}
-      <AnimatePresence>
+      {/* Project Detail Panel (legacy — disabled, replaced by ProjectDocsPanel split view) */}
+      {false && <AnimatePresence>
         {selectedProject && (
           <>
             {/* Backdrop */}
@@ -1089,7 +1101,7 @@ export default function ProjectsPage() {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
+      </AnimatePresence>}
 
       {/* Replace Default Project Confirmation Dialog */}
       <AnimatePresence>
@@ -1146,19 +1158,6 @@ export default function ProjectsPage() {
         onRefreshSkills={refreshSkills}
       />
       </div>{/* end space-y wrapper */}
-      </div>{/* end left panel */}
-
-      {/* Right panel: documentation viewer */}
-      {selectedProject && (
-        <div className="flex-1 min-w-0">
-          <ProjectDocsPanel
-            projectPath={selectedProject.path}
-            projectName={selectedProject.name}
-            agentCount={agents.filter(a => pathsMatch(a.cwd, selectedProject.path)).length}
-            onClose={() => setSelectedProject(null)}
-          />
-        </div>
-      )}
     </div>
   );
 }
