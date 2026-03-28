@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use tauri::{AppHandle, State};
+use crate::cwd_tracker::CwdTracker;
 use crate::pty::PtyManager;
+use crate::state::AppState;
 
 /// Create a standalone PTY (not tied to an agent). Used by quick terminals,
 /// skill install dialogs, plugin install dialogs, etc.
@@ -36,9 +38,29 @@ pub fn pty_kill(pty_manager: State<'_, Arc<PtyManager>>, pty_id: String) -> Resu
 }
 
 /// Register a key (e.g. agentId) → ptyId mapping so other windows can find the PTY.
+/// Also updates the agent's pty_id and registers with CwdTracker so directory
+/// changes are tracked and reflected in agent.cwd.
 #[tauri::command]
-pub fn pty_register(pty_manager: State<'_, Arc<PtyManager>>, key: String, pty_id: String) {
+pub async fn pty_register(
+    pty_manager: State<'_, Arc<PtyManager>>,
+    cwd_tracker: State<'_, Arc<CwdTracker>>,
+    state: State<'_, Arc<AppState>>,
+    key: String,
+    pty_id: String,
+) -> Result<(), String> {
     pty_manager.register(&key, &pty_id);
+
+    // Update agent.pty_id so CwdTracker can map PTY → agent
+    let _ = state.agent_manager.update(&key, |a| {
+        a.pty_id = Some(pty_id.clone());
+    }).await;
+
+    // Register with CwdTracker so cd changes update agent.cwd
+    if let Some(pid) = pty_manager.get_child_pid(&pty_id) {
+        cwd_tracker.register(&pty_id, pid);
+    }
+
+    Ok(())
 }
 
 /// Look up ptyId by key (e.g. agentId). Returns the ptyId if found and still alive.

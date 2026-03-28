@@ -51,12 +51,21 @@ pub async fn agent_create(
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "/".to_string());
 
+    let default_project = state
+        .settings
+        .lock()
+        .unwrap()
+        .default_project_path
+        .clone()
+        .filter(|s| !s.is_empty());
+
     let cwd = config
         .get("cwd")
         .or_else(|| config.get("projectPath"))
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
+        .or(default_project)
         .unwrap_or(home);
 
     let tab_id = config

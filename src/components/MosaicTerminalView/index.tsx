@@ -449,7 +449,11 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
   const addQuickTerminal = useCallback(async () => {
     if (!isTauri()) return;
     try {
+      // Inherit cwd from the first agent in the active tab
+      const firstAgentId = activeTab?.agentIds[0];
+      const sourceAgent = firstAgentId ? agentMap.get(firstAgentId) : undefined;
       const agent = await createAgent({
+        ...(sourceAgent?.cwd ? { cwd: sourceAgent.cwd } : {}),
         skills: [],
         name: randomAgentName(),
         character: 'robot',
@@ -458,7 +462,7 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
     } catch (err) {
       console.error('Failed to create quick terminal:', err);
     }
-  }, [addAgentToTab, createAgent]);
+  }, [addAgentToTab, createAgent, activeTab, agentMap]);
 
   // Split terminal: create a new terminal next to a target agent (inherits cwd)
   const handleSplitTerminal = useCallback(async (targetAgentId: string, direction: 'row' | 'column') => {

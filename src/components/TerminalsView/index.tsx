@@ -234,7 +234,10 @@ export default function TerminalsView() {
     localModel?: string,
     obsidianVaultPaths?: string[],
   ) => {
+    // Inherit CWD from the currently focused terminal
+    const focusedAgent = focusedPanelId ? agents.find(a => a.id === focusedPanelId) : null;
     const agent = await createAgent({
+      cwd: focusedAgent?.cwd,
       skills,
       worktree,
       character: character as import('@/types/electron').AgentCharacter,
@@ -252,7 +255,7 @@ export default function TerminalsView() {
       pendingStartRef.current = { agentId: agent.id, prompt, options: { model } };
     }
     setShowNewChatModal(false);
-  }, [createAgent, tabManager]);
+  }, [createAgent, tabManager, focusedPanelId, agents]);
 
   // TerminalTile creates a PTY (shell) for each agent on mount.
   // Agents are started explicitly by user action or MCP calls — no auto-start
