@@ -1,12 +1,11 @@
 import { memo, useCallback } from 'react';
-import { Settings, Dices, Zap } from 'lucide-react';
+import { Settings, Dices, ShieldOff, Shield } from 'lucide-react';
 import type { Agent, AgentProvider } from '@/types/electron';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CHARACTER_FACES } from '@/components/AgentList/constants';
 import { getChampionIconUrl } from '@/components/NewChatModal/constants';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -24,8 +23,6 @@ interface ConfigWheelProps {
   availableSkills?: string[];
   /** Callback to re-roll the agent name (random LoL champion) */
   onRerollName?: (id: string) => void;
-  /** Toggle skip-permissions: update + stop + restart with --continue */
-  onToggleSkipPermissions?: (id: string, skipPermissions: boolean) => void;
 }
 
 export const ConfigWheel = memo(function ConfigWheel({
@@ -33,7 +30,6 @@ export const ConfigWheel = memo(function ConfigWheel({
   onUpdate,
   availableSkills = [],
   onRerollName,
-  onToggleSkipPermissions,
 }: ConfigWheelProps) {
   const update = useCallback(
     (updates: Partial<Agent>) => onUpdate(agent.id, updates),
@@ -155,26 +151,20 @@ export const ConfigWheel = memo(function ConfigWheel({
           </Select>
         </div>
 
-        {/* ── AUTONOMY ─────────────────────────────────────────── */}
+        {/* ── AUTONOMY (read-only) ────────────────────────────── */}
         <div className="border-t border-border pt-2">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">Autonomy</p>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="cw-autonomous" className="text-xs cursor-pointer flex items-center gap-1.5">
-              <Zap className="w-3 h-3 text-amber-400" />
-              Skip Permissions
-            </Label>
-            <Switch
-              id="cw-autonomous"
-              checked={agent.skipPermissions ?? false}
-              onCheckedChange={(checked) => {
-                if (onToggleSkipPermissions && (agent.state === 'running' || agent.processState === 'running')) {
-                  onToggleSkipPermissions(agent.id, checked);
-                } else {
-                  onUpdate(agent.id, { skipPermissions: checked } as Partial<Agent>);
-                }
-              }}}
-              className="scale-75 origin-right"
-            />
+          <div className="flex items-center gap-1.5">
+            {agent.skipPermissions ? (
+              <>
+                <ShieldOff className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] text-amber-400">Skip Permissions</span>
+              </>
+            ) : (
+              <>
+                <Shield className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground">Permissions enabled</span>
+              </>
+            )}
           </div>
         </div>
 
