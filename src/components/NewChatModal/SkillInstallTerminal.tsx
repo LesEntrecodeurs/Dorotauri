@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { X, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import 'xterm/css/xterm.css';
@@ -20,22 +20,19 @@ export default function SkillInstallTerminal({
   terminalRef,
   onClose,
 }: SkillInstallTerminalProps) {
+  const { shouldRender, animationState } = useAnimatePresence(show);
   return (
-    <AnimatePresence>
-      {show && installingSkill && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+    <>
+      {shouldRender && installingSkill && (
+        <div
+          data-state={animationState}
+          className="animate-fade fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+          <div
+            data-state={animationState}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-3xl bg-secondary border border-border overflow-hidden"
+            className="animate-modal w-full max-w-3xl bg-secondary border border-border overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-3">
@@ -102,9 +99,9 @@ export default function SkillInstallTerminal({
                 {installComplete ? 'Done' : 'Cancel'}
               </Button>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ export function StartPromptModal({
   value,
   onChange,
 }: StartPromptModalProps) {
+  const { shouldRender, animationState } = useAnimatePresence(open);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,20 +37,16 @@ export function StartPromptModal({
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+    <>
+      {shouldRender && (
+        <div
+          data-state={animationState}
+          className="animate-fade fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
           onClick={onClose}
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-background border border-border p-6 w-full max-w-lg mx-4 shadow-2xl"
+          <div
+            data-state={animationState}
+            className="animate-modal bg-background border border-border p-6 w-full max-w-lg mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <DialogHeader>
@@ -97,9 +94,9 @@ export function StartPromptModal({
                 Start Agent
               </Button>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

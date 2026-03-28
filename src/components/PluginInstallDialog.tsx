@@ -1,6 +1,6 @@
 
 import { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { Loader2, CheckCircle, XCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isElectron } from '@/hooks/useElectron';
@@ -15,6 +15,7 @@ interface PluginInstallDialogProps {
 }
 
 export default function PluginInstallDialog({ open, command, title, onClose }: PluginInstallDialogProps) {
+  const { shouldRender, animationState } = useAnimatePresence(open);
   const [installComplete, setInstallComplete] = useState(false);
   const [installExitCode, setInstallExitCode] = useState<number | null>(null);
   const [terminalReady, setTerminalReady] = useState(false);
@@ -149,20 +150,16 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    <>
+      {shouldRender && (
+        <div
+          data-state={animationState}
+          className="animate-fade fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+          <div
+            data-state={animationState}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl bg-card border border-border overflow-hidden"
+            className="animate-modal w-full max-w-4xl bg-card border border-border overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-3">
@@ -227,9 +224,9 @@ export default function PluginInstallDialog({ open, command, title, onClose }: P
                 {installComplete ? 'Close' : 'Cancel'}
               </Button>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }
