@@ -1023,7 +1023,7 @@ fn build_start_config(
     let mcp_config = dirs::home_dir()
         .map(|h| h.join(".claude").join("mcp.json"))
         .filter(|p| p.exists());
-    let system_prompt_file = crate::ensure_agent_instructions();
+    let system_prompt_file = crate::ensure_super_agent_instructions();
 
     AgentStartConfig {
         prompt: prompt.unwrap_or("").to_string(),

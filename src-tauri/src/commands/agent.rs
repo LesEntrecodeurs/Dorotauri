@@ -2,9 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::agent::model::{
-    Agent, AgentRole, AgentState, Provider, Scope,
-};
+use crate::agent::model::{Agent, AgentState, Provider};
 use crate::agent::provider::{get_provider, AgentStartConfig};
 use crate::cwd_tracker::CwdTracker;
 use crate::notifications;
@@ -105,21 +103,8 @@ pub async fn agent_create(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    // Handle super agent role
-    let is_super = config
-        .get("isSuperAgent")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    if is_super {
-        let scope = match config
-            .get("superAgentScope")
-            .and_then(|v| v.as_str())
-        {
-            Some("workspace") => Scope::Workspace,
-            Some("global") => Scope::Global,
-            _ => Scope::Tab,
-        };
-        agent.role = AgentRole::Super { scope };
+    if agent.character.is_none() {
+        agent.character = Some(crate::agent::manager::AgentManager::assign_random_character());
     }
 
     // Store skip_permissions as a skills marker (new model doesn't have the field)
@@ -210,15 +195,10 @@ fn build_start_config(
     skip_permissions: bool,
     continue_session: bool,
 ) -> AgentStartConfig {
-    let (mcp_config, system_prompt_file) = if agent.is_super_agent() {
-        let mcp = dirs::home_dir()
-            .map(|h| h.join(".claude").join("mcp.json"))
-            .filter(|p| p.exists());
-        let instructions = crate::ensure_super_agent_instructions();
-        (mcp, instructions)
-    } else {
-        (None, None)
-    };
+    let mcp_config = dirs::home_dir()
+        .map(|h| h.join(".claude").join("mcp.json"))
+        .filter(|p| p.exists());
+    let system_prompt_file = crate::ensure_super_agent_instructions();
 
     AgentStartConfig {
         prompt: prompt.unwrap_or("").to_string(),
@@ -311,6 +291,11 @@ pub async fn agent_start(
     if reused_pty {
         let bus_tx = state.event_bus.create_pty_channel(&id);
         pty_manager.set_event_bus_tx(&pty_id, bus_tx);
+
+        // Register reused PTY with cwd tracker so directory changes are tracked
+        if let Some(pid) = pty_manager.get_child_pid(&pty_id) {
+            cwd_tracker.register(&pty_id, pid);
+        }
     }
 
     // Build CLI command using provider trait
@@ -332,9 +317,8 @@ pub async fn agent_start(
     if let Some(log_path) = dirs::home_dir().map(|h| h.join(".dorotoring").join("agent-start.log"))
     {
         let line = format!(
-            "[agent_start] id={} is_super_agent={} cmd={}\n",
+            "[agent_start] id={} cmd={}\n",
             id,
-            agent_snapshot.is_super_agent(),
             &cmd_string
         );
         let _ = std::fs::OpenOptions::new()
@@ -357,16 +341,8 @@ pub async fn agent_start(
     // Export agent ID so Claude Code hooks can report status back to Dorotoring
     pty_manager.write(&pty_id, format!("export DOROTORING_AGENT_ID={id}\n").as_bytes())?;
 
-    // For tab-scoped super agents: export tab ID so MCP server can filter
-    if agent_snapshot.is_super_agent() {
-        if let Some(Scope::Tab) = agent_snapshot.scope() {
-            let tab_id = &agent_snapshot.tab_id;
-            pty_manager.write(
-                &pty_id,
-                format!("export DOROTORING_TAB_ID={tab_id}\n").as_bytes(),
-            )?;
-        }
-    }
+    // Export tab ID for tab-scoped visibility
+    pty_manager.write(&pty_id, format!("export DOROTORING_TAB_ID={}\n", agent_snapshot.tab_id).as_bytes())?;
 
     // Clear terminal before launching agent, then write command
     pty_manager.write(&pty_id, b"clear\n")?;
@@ -560,36 +536,6 @@ pub async fn agent_update(
                 // Store role as a skill marker for backward compat
                 agent.skills.retain(|s| !s.starts_with("__role:"));
                 agent.skills.push(format!("__role:{role}"));
-            }
-            if let Some(is_super) = params.get("isSuperAgent").and_then(|v| v.as_bool()) {
-                if is_super {
-                    let scope = match params
-                        .get("superAgentScope")
-                        .and_then(|v| v.as_str())
-                    {
-                        Some("workspace") => Scope::Workspace,
-                        Some("global") => Scope::Global,
-                        _ => Scope::Tab,
-                    };
-                    agent.role = AgentRole::Super { scope };
-                } else {
-                    agent.role = AgentRole::Normal;
-                }
-            }
-            if let Some(scope) = params.get("superAgentScope") {
-                if !scope.is_null() {
-                    if let Some(s) = scope.as_str() {
-                        // Only update scope if agent is already super
-                        if agent.is_super_agent() {
-                            let new_scope = match s {
-                                "workspace" => Scope::Workspace,
-                                "global" => Scope::Global,
-                                _ => Scope::Tab,
-                            };
-                            agent.role = AgentRole::Super { scope: new_scope };
-                        }
-                    }
-                }
             }
             if let Some(sl) = params.get("statusLine").and_then(|v| v.as_str()) {
                 agent.status_line = Some(sl.to_string());
@@ -803,97 +749,3 @@ pub async fn agent_send_input(
     pty_manager.write(&pty_id, input.as_bytes())
 }
 
-// ---------------------------------------------------------------------------
-// agent_promote_super — promote to Super Agent and reload claude with MCP tools
-// ---------------------------------------------------------------------------
-
-#[tauri::command]
-pub async fn agent_promote_super(
-    id: String,
-    scope: Option<String>,
-    state: State<'_, Arc<AppState>>,
-    pty_manager: State<'_, Arc<PtyManager>>,
-    app_handle: AppHandle,
-) -> Result<Agent, String> {
-    let scope_enum = match scope.as_deref() {
-        Some("workspace") => Scope::Workspace,
-        Some("global") => Scope::Global,
-        _ => Scope::Tab,
-    };
-
-    let agent = state
-        .agent_manager
-        .promote_super(&id, scope_enum)
-        .await
-        .map_err(|e| format!("promote failed: {e}"))?;
-
-    let was_running = matches!(agent.state, AgentState::Running | AgentState::Waiting);
-    let pty_id = agent.pty_id.clone();
-
-    // If claude is running in the PTY, gracefully exit and relaunch with MCP
-    if let Some(ref pty_id_val) = pty_id {
-        if was_running {
-            // Send /exit to quit claude gracefully
-            let _ = pty_manager.write(pty_id_val, b"/exit\n");
-
-            // Wait briefly for claude to exit, then relaunch
-            let pty_mgr = pty_manager.inner().clone();
-            let pty_id_clone = pty_id_val.clone();
-            let state_clone = state.inner().clone();
-            let agent_id = id.clone();
-            let app_handle_clone = app_handle.clone();
-
-            tokio::spawn(async move {
-                // Give claude time to exit
-                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-                // Get refreshed agent and settings
-                let agent = match state_clone.agent_manager.get(&agent_id).await {
-                    Some(a) => a,
-                    None => return,
-                };
-                let settings = state_clone.settings.lock().unwrap().clone();
-
-                let skip_permissions = agent
-                    .skills
-                    .contains(&"__skip_permissions".to_string());
-
-                let config = build_start_config(
-                    &agent,
-                    None,
-                    skip_permissions,
-                    true, // continue_session
-                );
-                let cmd = build_cli_command(&agent, config, &settings);
-                let cmd_str = cmd.join(" ");
-
-                // Export agent ID for status hooks
-                let _ = pty_mgr.write(
-                    &pty_id_clone,
-                    format!("export DOROTORING_AGENT_ID={agent_id}\n").as_bytes(),
-                );
-
-                // For tab-scoped super agents: export tab ID before relaunching
-                if agent.is_super_agent() {
-                    if let Some(Scope::Tab) = agent.scope() {
-                        let tab_id = &agent.tab_id;
-                        let _ = pty_mgr.write(
-                            &pty_id_clone,
-                            format!("export DOROTORING_TAB_ID={tab_id}\n").as_bytes(),
-                        );
-                    }
-                }
-
-                let _ = pty_mgr.write(&pty_id_clone, format!("{cmd_str}\n").as_bytes());
-
-                app_handle_clone.emit("agent:status", &agent).ok();
-            });
-        }
-    }
-
-    let _ = state.status_tx.send((id.clone(), "updated".into()));
-
-    // Return freshest version
-    let latest = state.agent_manager.get(&id).await.unwrap_or(agent);
-    Ok(latest)
-}

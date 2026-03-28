@@ -122,7 +122,6 @@ pub fn run() {
             commands::agent::agent_set_dormant,
             commands::agent::agent_reanimate,
             commands::agent::agent_update_business_state,
-            commands::agent::agent_promote_super,
             // PTY commands
             commands::pty::pty_create,
             commands::pty::pty_write,
@@ -145,6 +144,8 @@ pub fn run() {
             commands::layout::layout_save,
             // Shell/filesystem commands
             commands::shell::projects_list,
+            commands::shell::project_list_docs,
+            commands::shell::project_read_doc,
             // Window commands
             commands::window::window_popout,
             commands::window::window_dock,
