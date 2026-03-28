@@ -166,9 +166,10 @@ export const ConfigWheel = memo(function ConfigWheel({
             <Switch
               id="cw-autonomous"
               checked={agent.skipPermissions ?? false}
-              onCheckedChange={(checked) => {
+              onCheckedChange={async (checked) => {
+                console.log('[ConfigWheel] skipPermissions toggle:', { checked, agentState: agent.state, processState: agent.processState, hasToggleCb: !!onToggleSkipPermissions });
                 if (onToggleSkipPermissions && (agent.state === 'running' || agent.processState === 'running')) {
-                  onToggleSkipPermissions(agent.id, checked);
+                  await onToggleSkipPermissions(agent.id, checked);
                 } else {
                   update({ skipPermissions: checked });
                 }
