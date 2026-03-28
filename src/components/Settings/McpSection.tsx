@@ -71,6 +71,22 @@ export function McpSection() {
   const [deletingServer, setDeletingServer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [maskedEnvKeys, setMaskedEnvKeys] = useState<Set<string>>(new Set());
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftCommand, setDraftCommand] = useState('');
+  const [draftArgs, setDraftArgs] = useState<string[]>([]);
+  const [draftEnv, setDraftEnv] = useState<Record<string, string>>({});
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSaving, setAddSaving] = useState(false);
+
+  const openAddModal = () => {
+    setDraftName('');
+    setDraftCommand('');
+    setDraftArgs([]);
+    setDraftEnv({});
+    setAddError(null);
+    setShowAddModal(true);
+  };
 
   const loadServers = useCallback(async (p: Provider) => {
     setLoading(true);
