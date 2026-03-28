@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::event_bus::{AgentEvent, EventBus};
-use super::model::{Agent, AgentId, AgentRole, AgentState, Provider, Scope, TabId};
+use super::model::{Agent, AgentId, AgentState, TabId};
 
 pub struct AgentManager {
     agents: Mutex<HashMap<AgentId, Agent>>,
@@ -157,49 +157,27 @@ impl AgentManager {
         Ok(agent_clone)
     }
 
-    pub async fn promote_super(
-        &self,
-        id: &AgentId,
-        scope: Scope,
-    ) -> Result<Agent, String> {
-        let mut agents = self.agents.lock().await;
-        let agent = agents.get_mut(id).ok_or("agent not found")?;
-
-        let provider_impl = super::provider::get_provider(&agent.provider);
-        if !provider_impl.supports_mcp() {
-            return Err(format!(
-                "provider '{}' does not support MCP — cannot promote to Super Agent",
-                provider_impl.name()
-            ));
+    pub fn enforce_tab_visibility(caller: &Agent, target: &Agent) -> Result<(), String> {
+        if caller.tab_id != target.tab_id {
+            Err(format!(
+                "agent '{}' is outside your tab (caller tab: {}, target tab: {})",
+                target.id, caller.tab_id, target.tab_id
+            ))
+        } else {
+            Ok(())
         }
-        // Drop provider_impl before any .await to keep the future Send
-        drop(provider_impl);
-
-        agent.role = AgentRole::Super { scope };
-        agent.last_activity = chrono::Utc::now().to_rfc3339();
-        let agent_clone = agent.clone();
-        drop(agents);
-        self.save().await;
-        Ok(agent_clone)
     }
 
-    pub fn enforce_scope(caller: &Agent, target: &Agent) -> Result<(), String> {
-        match &caller.role {
-            AgentRole::Normal => Err("caller is not a super agent".into()),
-            AgentRole::Super { scope } => match scope {
-                Scope::Tab => {
-                    if caller.tab_id != target.tab_id {
-                        Err(format!(
-                            "agent '{}' is outside your tab scope (caller tab: {}, target tab: {})",
-                            target.id, caller.tab_id, target.tab_id
-                        ))
-                    } else {
-                        Ok(())
-                    }
-                }
-                Scope::Workspace | Scope::Global => Ok(()),
-            },
-        }
+    pub fn assign_random_character() -> String {
+        const CHARACTERS: &[&str] = &[
+            "robot", "ninja", "wizard", "astronaut", "knight", "pirate", "alien", "viking", "frog",
+        ];
+        let idx = CHARACTERS.len();
+        let random_byte = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos() as usize;
+        CHARACTERS[random_byte % idx].to_string()
     }
 
     pub async fn set_status_line(&self, id: &AgentId, line: String) {
@@ -333,63 +311,29 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_promote_super_claude() {
-        let (mgr, _) = test_manager().await;
-        mgr.create(Agent::new("a1".into(), "/tmp".into(), "t1".into())).await;
-
-        let agent = mgr.promote_super(&"a1".into(), Scope::Tab).await;
-        assert!(agent.is_ok());
-        assert!(agent.unwrap().is_super_agent());
-    }
-
-    #[tokio::test]
-    async fn test_promote_super_codex_fails() {
-        let (mgr, _) = test_manager().await;
-        let mut agent = Agent::new("a1".into(), "/tmp".into(), "t1".into());
-        agent.provider = Provider::Codex;
-        mgr.create(agent).await;
-
-        let result = mgr.promote_super(&"a1".into(), Scope::Tab).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("does not support MCP"));
-    }
-
     #[test]
-    fn test_enforce_scope_tab_same_tab() {
-        let mut caller = Agent::new("s1".into(), "/tmp".into(), "t1".into());
-        caller.role = AgentRole::Super { scope: Scope::Tab };
+    fn test_enforce_tab_visibility_same_tab() {
+        let caller = Agent::new("s1".into(), "/tmp".into(), "t1".into());
         let target = Agent::new("a1".into(), "/tmp".into(), "t1".into());
 
-        assert!(AgentManager::enforce_scope(&caller, &target).is_ok());
+        assert!(AgentManager::enforce_tab_visibility(&caller, &target).is_ok());
     }
 
     #[test]
-    fn test_enforce_scope_tab_different_tab() {
-        let mut caller = Agent::new("s1".into(), "/tmp".into(), "t1".into());
-        caller.role = AgentRole::Super { scope: Scope::Tab };
+    fn test_enforce_tab_visibility_different_tab() {
+        let caller = Agent::new("s1".into(), "/tmp".into(), "t1".into());
         let target = Agent::new("a1".into(), "/tmp".into(), "t2".into());
 
-        assert!(AgentManager::enforce_scope(&caller, &target).is_err());
+        assert!(AgentManager::enforce_tab_visibility(&caller, &target).is_err());
     }
 
     #[test]
-    fn test_enforce_scope_workspace_crosses_tabs() {
-        let mut caller = Agent::new("s1".into(), "/tmp".into(), "t1".into());
-        caller.role = AgentRole::Super {
-            scope: Scope::Workspace,
-        };
-        let target = Agent::new("a1".into(), "/tmp".into(), "t2".into());
-
-        assert!(AgentManager::enforce_scope(&caller, &target).is_ok());
-    }
-
-    #[test]
-    fn test_enforce_scope_normal_agent_fails() {
-        let caller = Agent::new("a1".into(), "/tmp".into(), "t1".into());
-        let target = Agent::new("a2".into(), "/tmp".into(), "t1".into());
-
-        assert!(AgentManager::enforce_scope(&caller, &target).is_err());
+    fn test_assign_random_character_is_valid() {
+        let character = AgentManager::assign_random_character();
+        const CHARACTERS: &[&str] = &[
+            "robot", "ninja", "wizard", "astronaut", "knight", "pirate", "alien", "viking", "frog",
+        ];
+        assert!(CHARACTERS.contains(&character.as_str()));
     }
 
     #[tokio::test]
