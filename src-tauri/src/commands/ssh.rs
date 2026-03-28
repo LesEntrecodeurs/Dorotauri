@@ -216,6 +216,7 @@ pub fn ssh_connect(
         &app,
         Some(120),
         Some(24),
+        None,
     )?;
 
     // Build SSH command with `exec` so bash replaces itself with SSH.

@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -6,6 +7,7 @@ use std::thread;
 
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use tauri::{AppHandle, Emitter};
+use tokio::sync::broadcast;
 
 use crate::state::PtyId;
 
@@ -64,6 +66,7 @@ impl PtyManager {
         app_handle: &AppHandle,
         cols: Option<u16>,
         rows: Option<u16>,
+        event_bus_tx: Option<broadcast::Sender<Bytes>>,
     ) -> Result<(), String> {
         let pty_system = native_pty_system();
 
@@ -130,10 +133,18 @@ impl PtyManager {
                             paused_clone.store(false, Ordering::Relaxed);
                         }
 
+                        let data = &buf[..n];
+
+                        // Push to EventBus for WebSocket streaming
+                        if let Some(ref tx) = event_bus_tx {
+                            let _ = tx.send(Bytes::copy_from_slice(data));
+                        }
+
+                        // Emit Tauri event for legacy frontend consumers
                         let event = PtyOutputEvent {
                             agent_id: agent_id_owned.clone(),
                             pty_id: pty_id_owned.clone(),
-                            data: buf[..n].to_vec(),
+                            data: data.to_vec(),
                         };
                         if handle.emit("agent:output", event).is_err() {
                             break;

@@ -16,7 +16,7 @@ pub fn pty_create(
     let working_dir = cwd.unwrap_or_else(|| {
         std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string())
     });
-    pty_manager.spawn(&pty_id, &pty_id, &working_dir, &app_handle, cols, rows)?;
+    pty_manager.spawn(&pty_id, &pty_id, &working_dir, &app_handle, cols, rows, None)?;
     Ok(pty_id)
 }
 

@@ -348,6 +348,8 @@ async fn start_agent(
     } else {
         reused_pty = false;
         let new_id = uuid::Uuid::new_v4().to_string();
+        // Create EventBus PTY channel for WebSocket streaming
+        let bus_tx = state.event_bus.create_pty_channel(&id);
         state
             .pty_manager
             .spawn(
@@ -357,6 +359,7 @@ async fn start_agent(
                 &state.app_handle,
                 None,
                 None,
+                Some(bus_tx),
             )
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         // Register so the UI's pty_lookup(agentId) finds this PTY
@@ -941,6 +944,8 @@ async fn start_agent_inner(
     } else {
         reused_pty = false;
         let new_id = uuid::Uuid::new_v4().to_string();
+        // Create EventBus PTY channel for WebSocket streaming
+        let bus_tx = state.event_bus.create_pty_channel(&id.to_string());
         state
             .pty_manager
             .spawn(
@@ -950,6 +955,7 @@ async fn start_agent_inner(
                 &state.app_handle,
                 None,
                 None,
+                Some(bus_tx),
             )
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         state.pty_manager.register(id, &new_id);

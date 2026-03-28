@@ -294,7 +294,9 @@ pub async fn agent_start(
             None, // branch_name not in new model — could be added later
             &agent_snapshot.id,
         );
-        pty_manager.spawn(&new_id, &agent_snapshot.id, &resolved_cwd, &app_handle, None, None)?;
+        // Create EventBus PTY channel for WebSocket streaming
+        let bus_tx = state.event_bus.create_pty_channel(&agent_snapshot.id);
+        pty_manager.spawn(&new_id, &agent_snapshot.id, &resolved_cwd, &app_handle, None, None, Some(bus_tx))?;
 
         // Register the shell PID with the cwd tracker
         if let Some(pid) = pty_manager.get_child_pid(&new_id) {
@@ -708,8 +710,9 @@ pub async fn agent_reanimate(
             .to_string()
     };
 
-    // Spawn PTY
-    pty_manager.spawn(&pty_id, &id, &cwd, &app_handle, None, None)?;
+    // Spawn PTY with EventBus channel for WebSocket streaming
+    let bus_tx = state.event_bus.create_pty_channel(&id);
+    pty_manager.spawn(&pty_id, &id, &cwd, &app_handle, None, None, Some(bus_tx))?;
 
     // Register the shell PID with the cwd tracker
     if let Some(pid) = pty_manager.get_child_pid(&pty_id) {
