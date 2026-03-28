@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 type Provider = 'claude' | 'codex' | 'gemini';
 
@@ -85,7 +86,47 @@ export function McpSection() {
     setDraftArgs([]);
     setDraftEnv({});
     setAddError(null);
+    setAddSaving(false);
     setShowAddModal(true);
+  };
+
+  const handleAdd = async () => {
+    const trimmedName = draftName.trim();
+    if (!trimmedName) {
+      setAddError('Name is required.');
+      return;
+    }
+    if (servers.some(s => s.name === trimmedName)) {
+      setAddError('A server with this name already exists.');
+      return;
+    }
+    if (!draftCommand.trim()) {
+      setAddError('Command is required.');
+      return;
+    }
+    setAddSaving(true);
+    setAddError(null);
+    try {
+      const result = await window.electronAPI?.mcp?.update({
+        provider,
+        name: trimmedName,
+        command: draftCommand.trim(),
+        args: draftArgs.filter(a => a.trim() !== ''),
+        env: Object.fromEntries(
+          Object.entries(draftEnv).filter(([k]) => k.trim() !== '')
+        ),
+      });
+      if (result?.success) {
+        setShowAddModal(false);
+        await loadServers(provider);
+      } else {
+        setAddError(result?.error || 'Failed to add server.');
+      }
+    } catch (err) {
+      setAddError(String(err));
+    } finally {
+      setAddSaving(false);
+    }
   };
 
   const loadServers = useCallback(async (p: Provider) => {
@@ -506,6 +547,154 @@ export function McpSection() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-lg">
+          <DialogTitle>Add MCP Server</DialogTitle>
+
+          <div className="space-y-4 mt-2">
+            {/* Name */}
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Name</Label>
+              <Input
+                type="text"
+                value={draftName}
+                onChange={e => setDraftName(e.target.value)}
+                placeholder="my-mcp-server"
+                className="font-mono"
+                autoFocus
+              />
+            </div>
+
+            {/* Command */}
+            <div>
+              <Label className="text-xs text-muted-foreground mb-1 block">Command</Label>
+              <Input
+                type="text"
+                value={draftCommand}
+                onChange={e => setDraftCommand(e.target.value)}
+                placeholder="npx"
+                className="font-mono"
+              />
+            </div>
+
+            {/* Args */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-xs text-muted-foreground">Arguments</Label>
+                <button
+                  onClick={() => setDraftArgs(prev => [...prev, ''])}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </button>
+              </div>
+              {draftArgs.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No arguments</p>
+              )}
+              <div className="space-y-1">
+                {draftArgs.map((arg, idx) => (
+                  <div key={idx} className="flex gap-1">
+                    <Input
+                      type="text"
+                      value={arg}
+                      onChange={e => {
+                        const next = [...draftArgs];
+                        next[idx] = e.target.value;
+                        setDraftArgs(next);
+                      }}
+                      className="flex-1 font-mono h-8"
+                      placeholder={`arg ${idx}`}
+                    />
+                    <button
+                      onClick={() => setDraftArgs(prev => prev.filter((_, i) => i !== idx))}
+                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Env vars */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-xs text-muted-foreground">Environment Variables</Label>
+                <button
+                  onClick={() => setDraftEnv(prev => ({ ...prev, '': '' }))}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </button>
+              </div>
+              {Object.keys(draftEnv).length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No environment variables</p>
+              )}
+              <div className="space-y-1">
+                {Object.entries(draftEnv).map(([key, value]) => (
+                  <div key={key} className="flex gap-1">
+                    <Input
+                      type="text"
+                      value={key}
+                      onChange={e => {
+                        const newKey = e.target.value;
+                        setDraftEnv(prev => {
+                          const entries = Object.entries(prev);
+                          const newEnv: Record<string, string> = {};
+                          for (const [k, v] of entries) {
+                            newEnv[k === key ? newKey : k] = v;
+                          }
+                          return newEnv;
+                        });
+                      }}
+                      className="w-[40%] font-mono h-8"
+                      placeholder="KEY"
+                    />
+                    <Input
+                      type="text"
+                      value={value}
+                      onChange={e => setDraftEnv(prev => ({ ...prev, [key]: e.target.value }))}
+                      className="flex-1 font-mono h-8"
+                      placeholder="value"
+                    />
+                    <button
+                      onClick={() => setDraftEnv(prev => {
+                        const next = { ...prev };
+                        delete next[key];
+                        return next;
+                      })}
+                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Error */}
+            {addError && (
+              <div className="p-3 text-sm flex items-center gap-2 bg-red-700/10 text-destructive border border-red-700/20">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {addError}
+              </div>
+            )}
+
+            {/* Actions */}
+            <Separator />
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleAdd} disabled={addSaving}>
+                {addSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                Add Server
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
