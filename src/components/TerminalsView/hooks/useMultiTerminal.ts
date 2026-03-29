@@ -35,7 +35,9 @@ const MIN_FONT_SIZE = 8;
 const MAX_FONT_SIZE = 24;
 const DEFAULT_FONT_SIZE = 11;
 
-// Safely fit a terminal and sync PTY dimensions
+// Safely fit a terminal and sync PTY dimensions.
+// The PTY is stored under its own UUID, not the agent ID. Use pty_lookup
+// to resolve the real pty_id before calling pty_resize.
 function safeFit(agentId: string, entry: TerminalEntry) {
   if (entry.disposed) return;
   try {
@@ -46,10 +48,11 @@ function safeFit(agentId: string, entry: TerminalEntry) {
       entry.lastCols = cols;
       entry.lastRows = rows;
       if (isTauri()) {
-        invoke('agent_send_input', { id: agentId, input: '' }).catch(() => {});
-        // Use pty_resize via the agent's ptyId if available, otherwise no-op
-        // The agent_send_input above is a no-op ping; resize goes through pty_resize
-        invoke('pty_resize', { ptyId: agentId, cols, rows }).catch(() => {});
+        invoke<string | null>('pty_lookup', { key: agentId }).then(ptyId => {
+          if (ptyId) {
+            invoke('pty_resize', { ptyId, cols, rows }).catch(() => {});
+          }
+        }).catch(() => {});
       }
     }
   } catch {}
@@ -176,31 +179,47 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
 
       // Step 2: Replay historical output from backend.
       // Fetch directly via invoke to avoid depending on React state (agents array).
+      // Use term.write callback to ensure all output is fully parsed before
+      // re-fitting — term.write() is async and interleaving a resize mid-parse
+      // can leave the cursor at the wrong position.
       if (isTauri()) {
         try {
           const agent = await invoke<Agent | null>('agent_get', { id: agentId });
+
+          // Collect all data to write, then flush with a single callback
+          const chunks: string[] = [];
+
           if (agent?.output?.length) {
-            const outputStr = agent.output.join('');
-            term.write(outputStr);
+            chunks.push(agent.output.join(''));
           }
 
-          // Step 3: For running/waiting agents, the PTY resize from safeFit
-          // will trigger Claude Code to redraw at correct dimensions.
-          // For inactive agents, clear garbled display and show status.
-          // For dormant/reanimated agents, keep the replayed output visible.
           if (agent?.processState === 'dormant') {
-            // Dormant: output was already replayed in Step 2; just append status
-            term.write(`\r\n\x1b[90m— Session dormant —\x1b[0m\r\n`);
+            chunks.push(`\r\n\x1b[90m— Session dormant —\x1b[0m\r\n`);
           } else if (agent?.processState === 'inactive' || agent?.processState === 'completed' || agent?.processState === 'error') {
-            term.write('\x1b[2J\x1b[H');
-            term.write(`\x1b[90m— Session ${agent.processState} —\x1b[0m\r\n`);
+            chunks.push('\x1b[2J\x1b[H');
+            chunks.push(`\x1b[90m— Session ${agent.processState} —\x1b[0m\r\n`);
+          }
+
+          if (chunks.length) {
+            const allData = chunks.join('');
+            // Write everything, then fit/resize AFTER xterm has finished parsing
+            await new Promise<void>(resolve => term.write(allData, resolve));
+            term.scrollToBottom();
           }
         } catch {}
       }
 
-      // Step 4: Fit again after content is written (may affect scrollbar)
-      setTimeout(() => safeFit(agentId, entry), 50);
-      setTimeout(() => safeFit(agentId, entry), 200);
+      // Step 3: Force PTY resize after replay to trigger SIGWINCH — the shell
+      // redraws its prompt at the correct dimensions, fixing cursor position.
+      // Reset lastCols/lastRows so safeFit always sends pty_resize even if
+      // dimensions haven't changed since Step 1.
+      entry.lastCols = 0;
+      entry.lastRows = 0;
+      safeFit(agentId, entry);
+      // Second fit after a short delay for layout settling
+      setTimeout(() => {
+        if (!entry.disposed) safeFit(agentId, entry);
+      }, 150);
 
       attachKeyHandler(term, (data) => {
         if (isTauri()) {
@@ -267,6 +286,12 @@ export function useMultiTerminal({ agents, initialFontSize, onFontSizeChange, th
       resizeObserver.observe(container);
       existing.resizeObserver = resizeObserver;
       attachWebGL(existing.terminal);
+      // Force full re-render after reparenting — canvas can be stale when the
+      // DOM element is detached and reattached, especially if dimensions match
+      // (FitAddon skips resize when cols/rows haven't changed).
+      existing.terminal.refresh(0, existing.terminal.rows - 1);
+      existing.lastCols = 0;
+      existing.lastRows = 0;
       safeFit(agentId, existing);
       return;
     }

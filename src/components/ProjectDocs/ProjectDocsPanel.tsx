@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { FileText, Bot, ArrowLeft, Loader2, FolderOpen, Search } from 'lucide-react';
+import { FileText, Bot, ArrowLeft, Loader2, FolderOpen, Search, Copy, Check } from 'lucide-react';
 import { DocFileTree } from './DocFileTree';
 import type { DocEntry } from './DocFileTree';
 import { SimpleMarkdown } from '@/components/VaultView/components/MarkdownRenderer';
 import { DocSearchModal } from './DocSearchModal';
+import { DocFindBar } from './DocFindBar';
 
 interface ProjectDocsPanelProps {
   projectPath: string;
@@ -23,14 +24,19 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
   const isResizing = useRef(false);
   const [targetLine, setTargetLine] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Ctrl+F / Cmd+F to open search modal
+  // Ctrl+F → in-document find, Ctrl+Shift+F → grep across documents
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
         e.preventDefault();
-        setSearchOpen(true);
+        if (e.shiftKey) {
+          setSearchOpen(true);
+        } else {
+          setFindOpen(true);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -140,6 +146,15 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
     ? docFiles.find((f) => f.path === selectedDoc)?.relative || selectedDoc.split('/').pop()
     : null;
 
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -162,12 +177,16 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
               </span>
             )}
           </div>
-          <p className="text-[10px] text-muted-foreground truncate mt-0.5 font-mono">{projectPath}</p>
+          <div className="flex items-center gap-1 mt-0.5">
+            <p className="text-[10px] text-muted-foreground truncate font-mono">{projectPath}</p>
+            <CopyButton value={projectPath} title="Copy path" />
+          </div>
         </div>
+        {selectedDoc && <CopyDocButton value={docContent} />}
         <button
           onClick={() => setSearchOpen(true)}
           className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-          title="Search in documents (Ctrl+F)"
+          title="Search across documents (Ctrl+Shift+F)"
         >
           <Search className="w-4 h-4" />
         </button>
@@ -205,6 +224,12 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
         />
 
         {/* Markdown content */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <DocFindBar
+            open={findOpen}
+            onClose={() => setFindOpen(false)}
+            containerRef={contentRef}
+          />
         <div className="flex-1 overflow-y-auto" ref={contentRef}>
           {loading ? (
             <div className="flex items-center justify-center h-full">
@@ -213,7 +238,7 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
           ) : selectedDoc ? (
             <div className="p-6">
               {selectedFileName && (
-                <p className="text-[10px] text-muted-foreground font-mono mb-4 pb-2 border-b border-border">{selectedFileName}</p>
+                <p className="text-[10px] text-muted-foreground font-mono mb-4 pb-2 border-b border-border truncate">{selectedFileName}</p>
               )}
               <div className="prose prose-sm dark:prose-invert max-w-none
                 prose-headings:font-semibold prose-headings:tracking-tight
@@ -243,6 +268,7 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* Search modal */}
@@ -253,5 +279,50 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
         onSelect={handleSearchSelect}
       />
     </div>
+  );
+}
+
+function CopyButton({ value, title }: { value: string; title: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  }, [value]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors shrink-0"
+      title={title}
+    >
+      {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+    </button>
+  );
+}
+
+function CopyDocButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  }, [value]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted border border-border rounded transition-colors shrink-0"
+      title="Copy document"
+    >
+      {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
+      <span>{copied ? 'Copied' : 'Copy document'}</span>
+    </button>
   );
 }
