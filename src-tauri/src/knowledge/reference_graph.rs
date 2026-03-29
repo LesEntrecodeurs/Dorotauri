@@ -31,7 +31,12 @@ pub fn clear_file_refs(conn: &Connection, file: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Compute PageRank on the reference graph and update `symbols.rank`.
+/// Compute a simplified PageRank-like score for all symbols.
+///
+/// This is NOT true iterative PageRank — it's a single-pass in-degree
+/// centrality metric with damping factor. Symbols referenced more often
+/// get higher scores. Adequate for v1 repo map ranking; a proper iterative
+/// implementation can replace this later without changing the interface.
 ///
 /// Algorithm:
 ///   rank = damping * (incoming / total_refs) + (1 - damping) / N

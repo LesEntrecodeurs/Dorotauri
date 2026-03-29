@@ -41,11 +41,20 @@ pub fn capture_session(
     let commits_json = serde_json::to_string(commits)
         .map_err(|e| format!("session_capture: failed to serialize commits: {e}"))?;
 
-    // --- 1. Upsert the session row ---
+    // --- 1. Upsert the session row (preserves existing `pinned` value) ---
     conn.execute(
-        "INSERT OR REPLACE INTO sessions
+        "INSERT INTO sessions
             (id, agent_id, prompt, status, files_modified, commits, transcript, started_at, ended_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+         ON CONFLICT(id) DO UPDATE SET
+            agent_id = excluded.agent_id,
+            prompt = excluded.prompt,
+            status = excluded.status,
+            files_modified = excluded.files_modified,
+            commits = excluded.commits,
+            transcript = excluded.transcript,
+            started_at = excluded.started_at,
+            ended_at = excluded.ended_at",
         params![
             session_id,
             agent_id,

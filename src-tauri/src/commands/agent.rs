@@ -384,10 +384,17 @@ pub async fn agent_start(
     // Emit status event
     app_handle.emit("agent:status", &updated_agent).ok();
 
+    // Read repo map budget from settings
+    let repo_map_budget = {
+        let settings = state.settings.lock().unwrap();
+        settings.repo_map_budget
+    } as usize;
+
     // Trigger knowledge layer indexing for this project
     {
         let knowledge = Arc::clone(&knowledge);
         let cwd = updated_agent.cwd.clone();
+        let budget = repo_map_budget;
         tauri::async_runtime::spawn(async move {
             let conn = match knowledge.get_conn(&cwd).await {
                 Ok(c) => c,
@@ -399,7 +406,7 @@ pub async fn agent_start(
             match crate::knowledge::indexer::index_project(&conn_guard, std::path::Path::new(&cwd), engine_ref) {
                 Ok(count) => {
                     eprintln!("[knowledge] Indexed {count} symbols for {cwd}");
-                    if let Err(e) = crate::knowledge::repo_map::write_to_file(&conn_guard, &cwd, 2048) {
+                    if let Err(e) = crate::knowledge::repo_map::write_to_file(&conn_guard, &cwd, budget) {
                         eprintln!("[knowledge] Repo map error: {e}");
                     }
                 }
@@ -411,6 +418,48 @@ pub async fn agent_start(
                     Ok(count) => eprintln!("[knowledge] Indexed {count} Claude Code memory files"),
                     Err(e) => eprintln!("[knowledge] Memory index error: {e}"),
                 }
+            }
+        });
+    }
+
+    // Start file watcher for incremental re-indexing
+    {
+        let knowledge = knowledge.inner().clone();
+        let cwd = updated_agent.cwd.clone();
+        let budget = repo_map_budget;
+        tauri::async_runtime::spawn(async move {
+            let project_path = std::path::Path::new(&cwd);
+            let (_watcher, mut rx) =
+                match crate::knowledge::file_watcher::watch_project(project_path) {
+                    Ok(w) => w,
+                    Err(e) => {
+                        eprintln!("[knowledge] File watcher error: {e}");
+                        return;
+                    }
+                };
+            // Keep watcher alive and process batches
+            while let Some(changed_files) = rx.recv().await {
+                let conn = match knowledge.get_conn(&cwd).await {
+                    Ok(c) => c,
+                    Err(_) => continue,
+                };
+                let conn_guard = conn.lock().unwrap();
+                let embedding = knowledge.embedding.try_lock().ok();
+                let engine_ref = embedding.as_deref();
+                for file in &changed_files {
+                    if let Err(e) = crate::knowledge::indexer::index_file(
+                        &conn_guard,
+                        project_path,
+                        file,
+                        engine_ref,
+                    ) {
+                        eprintln!("[knowledge] Re-index error for {}: {e}", file.display());
+                    }
+                }
+                // Recalculate PageRank after batch
+                crate::knowledge::reference_graph::build_and_rank(&conn_guard).ok();
+                // Regenerate repo map
+                crate::knowledge::repo_map::write_to_file(&conn_guard, &cwd, budget).ok();
             }
         });
     }

@@ -363,6 +363,25 @@ fn extract_python_node(
                     exported,
                 });
             }
+            // Also extract methods from the class body
+            if let Some(body) = node.child_by_field_name("body") {
+                let mut body_cursor = body.walk();
+                for body_child in body.children(&mut body_cursor) {
+                    if body_child.kind() == "function_definition" {
+                        if let Some(name_node) = body_child.child_by_field_name("name") {
+                            let name = node_text(name_node, source).to_string();
+                            symbols.push(Symbol {
+                                name,
+                                kind: SymbolKind::Method,
+                                signature: Some(extract_line_text(body_child, source)),
+                                line: body_child.start_position().row + 1,
+                                end_line: Some(body_child.end_position().row + 1),
+                                exported: true,
+                            });
+                        }
+                    }
+                }
+            }
         }
         "import_from_statement" => {
             if let Some(imp) = extract_python_import(node, source) {
@@ -756,6 +775,21 @@ mod tests {
         assert!(result.symbols.iter().any(|s| s.name == "hello"));
         assert!(result.symbols.iter().any(|s| s.name == "MyClass"));
         assert_eq!(result.imports.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_python_class_methods() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.py");
+        std::fs::write(
+            &file,
+            "class MyClass:\n    def method_one(self):\n        pass\n    def method_two(self, arg):\n        pass\n",
+        )
+        .unwrap();
+        let result = parse_file(&file).unwrap();
+        assert!(result.symbols.iter().any(|s| s.name == "MyClass"));
+        assert!(result.symbols.iter().any(|s| s.name == "method_one"));
+        assert!(result.symbols.iter().any(|s| s.name == "method_two"));
     }
 
     #[test]

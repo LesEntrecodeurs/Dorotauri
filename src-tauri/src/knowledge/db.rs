@@ -128,7 +128,46 @@ pub fn open(project_path: &str) -> Result<Connection, String> {
             .map_err(|e| format!("Failed to set user_version: {e}"))?;
     }
 
+    // Best-effort: try to load sqlite-vec for vector search
+    try_load_sqlite_vec(&conn);
+
     Ok(conn)
+}
+
+/// Try to load the sqlite-vec extension and create the knowledge_vec table.
+/// This is best-effort — if the extension is not available, vector search
+/// is silently disabled and only FTS5 search works.
+pub fn try_load_sqlite_vec(conn: &Connection) -> bool {
+    let ext_dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join(".dorotoring")
+        .join("extensions");
+
+    let ext_name = if cfg!(target_os = "macos") {
+        "vec0.dylib"
+    } else {
+        "vec0.so"
+    };
+    let ext_path = ext_dir.join(ext_name);
+
+    if !ext_path.exists() {
+        return false;
+    }
+
+    unsafe {
+        if conn.load_extension(&ext_path, None::<&str>).is_err() {
+            return false;
+        }
+    }
+
+    // Create the vec table if it doesn't exist
+    conn.execute_batch(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_vec USING vec0(
+            id TEXT PRIMARY KEY,
+            embedding float[384]
+        )",
+    )
+    .is_ok()
 }
 
 /// Deletes sessions older than `retention_days` days (excluding pinned sessions),
@@ -136,19 +175,12 @@ pub fn open(project_path: &str) -> Result<Connection, String> {
 ///
 /// Returns the number of sessions deleted.
 pub fn purge_old_sessions(conn: &Connection, retention_days: u32) -> Result<usize, String> {
-    // Collect IDs of sessions to delete (not pinned, older than retention window).
-    let cutoff = format!(
-        "datetime('now', '-{retention_days} days')"
-    );
+    let cutoff_modifier = format!("-{retention_days} days");
 
     let deleted: usize = conn
         .execute(
-            &format!(
-                "DELETE FROM sessions
-                 WHERE pinned = FALSE
-                   AND started_at < {cutoff}"
-            ),
-            [],
+            "DELETE FROM sessions WHERE pinned = FALSE AND started_at < datetime('now', ?1)",
+            rusqlite::params![cutoff_modifier],
         )
         .map_err(|e| format!("Failed to purge old sessions: {e}"))?;
 

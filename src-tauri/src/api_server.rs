@@ -763,13 +763,49 @@ async fn hook_status(
                 let engine_ref = embedding.as_deref();
                 let session_id = uuid::Uuid::new_v4().to_string();
                 let now = chrono::Utc::now().to_rfc3339();
+
+                // Try to extract recent commits from git
+                let mut commits = Vec::new();
+                if let Ok(output) = std::process::Command::new("git")
+                    .arg("log")
+                    .arg("--oneline")
+                    .arg("--since=1 hour ago")
+                    .arg("--no-merges")
+                    .current_dir(&agent_cwd)
+                    .output()
+                {
+                    if output.status.success() {
+                        let log = String::from_utf8_lossy(&output.stdout);
+                        commits = log.lines().map(|l| l.to_string()).collect();
+                    }
+                }
+
+                // Try to get modified files from git status
+                let mut files = Vec::new();
+                if let Ok(output) = std::process::Command::new("git")
+                    .arg("diff")
+                    .arg("--name-only")
+                    .arg("HEAD~1")
+                    .current_dir(&agent_cwd)
+                    .output()
+                {
+                    if output.status.success() {
+                        let diff = String::from_utf8_lossy(&output.stdout);
+                        files = diff
+                            .lines()
+                            .filter(|l| !l.is_empty())
+                            .map(|l| l.to_string())
+                            .collect();
+                    }
+                }
+
                 crate::knowledge::session_capture::capture_session(
                     &conn_guard,
                     &session_id,
                     &agent_id,
                     agent_name.as_deref(),
                     &status_for_capture,
-                    &[], &[], None,
+                    &files, &commits, None,
                     &agent_created,
                     &now,
                     engine_ref,
@@ -1478,11 +1514,15 @@ async fn pin_session(
     Ok(Json(serde_json::json!({ "pinned": true })))
 }
 
-/// POST /api/events — create an event (no auth — called by local processes).
+/// POST /api/events — create an event.
 async fn create_event(
     AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
     Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    if let Err(status) = check_auth(&headers, &state.api_token) {
+        return (status, Json(serde_json::json!({ "error": "unauthorized" })));
+    }
     let project = match body["project"].as_str() {
         Some(p) => p,
         None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "missing project" }))),
@@ -1546,6 +1586,9 @@ async fn list_events(
         .and_then(|l| l.parse().ok())
         .unwrap_or(50);
 
+    let agent_filter = params.get("agent").cloned();
+    let tab_filter = params.get("tab").cloned();
+
     let conn = state
         .knowledge
         .get_conn(&project)
@@ -1554,18 +1597,39 @@ async fn list_events(
 
     let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // Build dynamic SQL with optional agent/tab filters
+    let mut sql = "SELECT seq, from_agent, to_agent, event_type, payload, tab_id, created_at FROM events WHERE seq > ?1".to_string();
+    let mut bind_idx = 2u32;
+
+    if agent_filter.is_some() {
+        sql.push_str(&format!(" AND from_agent = ?{bind_idx}"));
+        bind_idx += 1;
+    }
+    if tab_filter.is_some() {
+        sql.push_str(&format!(" AND tab_id = ?{bind_idx}"));
+        bind_idx += 1;
+    }
+    sql.push_str(&format!(" ORDER BY seq ASC LIMIT ?{bind_idx}"));
+
+    // Build dynamic param list
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+    param_values.push(Box::new(since));
+    if let Some(ref agent) = agent_filter {
+        param_values.push(Box::new(agent.clone()));
+    }
+    if let Some(ref tab) = tab_filter {
+        param_values.push(Box::new(tab.clone()));
+    }
+    param_values.push(Box::new(limit));
+
+    let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+
     let mut stmt = conn_guard
-        .prepare(
-            "SELECT seq, from_agent, to_agent, event_type, payload, tab_id, created_at
-             FROM events
-             WHERE seq > ?1
-             ORDER BY seq ASC
-             LIMIT ?2",
-        )
+        .prepare(&sql)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let events: Vec<serde_json::Value> = stmt
-        .query_map(rusqlite::params![since, limit], |row| {
+        .query_map(params_refs.as_slice(), |row| {
             Ok(serde_json::json!({
                 "seq": row.get::<_, i64>(0)?,
                 "from_agent": row.get::<_, String>(1)?,
