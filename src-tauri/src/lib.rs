@@ -8,6 +8,7 @@ pub mod business_state;
 mod commands;
 mod cwd_tracker;
 mod db;
+pub mod embedding;
 pub mod migration;
 mod notifications;
 mod pty;
