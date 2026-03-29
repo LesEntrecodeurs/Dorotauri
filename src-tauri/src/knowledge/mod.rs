@@ -1,6 +1,6 @@
 pub mod db;
+pub mod tree_sitter;
 // These will be created in later tasks - just declare them:
-// pub mod tree_sitter;
 // pub mod reference_graph;
 // pub mod repo_map;
 // pub mod indexer;
