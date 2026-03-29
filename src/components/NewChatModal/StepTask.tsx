@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   MessageSquare,
   Check,
@@ -47,6 +47,8 @@ const StepTask = React.memo(function StepTask({
   selectedObsidianVaults,
 }: StepTaskProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const expandAnim = useAnimatePresence(showAdvanced);
+  const worktreeAnim = useAnimatePresence(useWorktree);
 
   return (
     <div className="space-y-5">
@@ -98,14 +100,9 @@ const StepTask = React.memo(function StepTask({
           )}
         </button>
 
-        <AnimatePresence>
-          {showAdvanced && (
-            <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: 'auto' }}
-              exit={{ height: 0 }}
-              className="overflow-hidden"
-            >
+        {expandAnim.shouldRender && (
+          <div data-state={expandAnim.animationState} className="animate-expand">
+            <div>
               <div className="p-4 space-y-4 border-t border-border">
                 {/* Git Worktree Option */}
                 <div className="p-3 rounded-md border border-border bg-muted/30">
@@ -131,14 +128,9 @@ const StepTask = React.memo(function StepTask({
                         Create an isolated branch for this agent
                       </p>
 
-                      <AnimatePresence>
-                        {useWorktree && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden"
-                          >
+                      {worktreeAnim.shouldRender && (
+                        <div data-state={worktreeAnim.animationState} className="animate-expand">
+                          <div>
                             <div className="mt-3 pt-3 border-t border-border">
                               <label className="block text-xs font-medium mb-2 flex items-center gap-2">
                                 <GitBranch className="w-3.5 h-3.5 text-primary" />
@@ -152,9 +144,9 @@ const StepTask = React.memo(function StepTask({
                                 className="font-mono"
                               />
                             </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -187,9 +179,9 @@ const StepTask = React.memo(function StepTask({
                 </div>
 
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Summary Card */}

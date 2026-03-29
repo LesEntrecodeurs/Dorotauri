@@ -1,7 +1,6 @@
 
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { X, FolderOpen, Plus, Minus, Sparkles, Wand2, ListTodo, Loader2, Paperclip, FileImage, FileText, File, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -267,20 +266,14 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
   return (
     <>
       {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+      <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/60 z-50"
+        className="animate-mount-fade-in fixed inset-0 bg-black/60 z-50"
       />
 
       {/* Modal */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg"
+      <div
+        className="animate-mount-fade-up fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg"
       >
         <div className="bg-card border border-border rounded-md shadow-xl">
           {/* Header with Tabs */}
@@ -758,7 +751,7 @@ export function NewTaskModal({ onClose, onCreate }: NewTaskModalProps) {
             </form>
           )}
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }

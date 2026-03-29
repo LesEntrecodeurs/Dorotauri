@@ -1,7 +1,7 @@
 
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { Loader2, PanelRight } from 'lucide-react';
 import type { Agent, AgentWsEvent } from '@/types/electron';
 import 'xterm/css/xterm.css';
@@ -173,26 +173,23 @@ export default function AgentTerminalDialog({
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  if (!open || !agent) return null;
+  const { shouldRender, animationState } = useAnimatePresence(open);
+
+  if (!shouldRender || !agent) return null;
 
   const dialogClass = isFullscreen ? 'fixed inset-4' : 'w-full max-w-[80vw] h-[85vh]';
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
-        onClick={onClose}
+    <div
+      data-state={animationState}
+      className="animate-fade fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        data-state={animationState}
+        onClick={(e) => e.stopPropagation()}
+        className={`animate-modal bg-secondary border border-border rounded-none overflow-hidden shadow-2xl ${dialogClass} flex flex-col`}
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          onClick={(e) => e.stopPropagation()}
-          className={`bg-secondary border border-border rounded-none overflow-hidden shadow-2xl ${dialogClass} flex flex-col`}
-        >
           <AgentDialogHeader
             agent={agent}
             character={character}
@@ -279,8 +276,7 @@ export default function AgentTerminalDialog({
             onStart={handleStart}
             onStop={handleStop}
           />
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 
 
-import { motion } from 'framer-motion';
 import { X, CheckCircle2, Clock, FolderGit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { KanbanTask } from '@/types/kanban';
@@ -17,20 +16,14 @@ export function KanbanDoneSummary({ task, onClose, onDelete }: KanbanDoneSummary
   return (
     <>
       {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+      <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+        className="animate-mount-fade-in fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
       />
 
       {/* Modal */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl"
+      <div
+        className="animate-mount-fade-up fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl"
       >
         <div className="bg-card border border-border rounded-md shadow-2xl overflow-hidden">
           {/* Header */}
@@ -120,7 +113,7 @@ export function KanbanDoneSummary({ task, onClose, onDelete }: KanbanDoneSummary
             </Button>
           </div>
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { X, ChevronRight, Play, Check } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -284,24 +284,21 @@ export default function NewChatModal({
   const canContinue = true;
   const canStart = !useWorktree || !!branchName.trim();
 
-  if (!open) return null;
+  const { shouldRender, animationState } = useAnimatePresence(open);
+
+  if (!shouldRender) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        onClick={onClose}
+    <div
+      data-state={animationState}
+      className="animate-fade fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        data-state={animationState}
+        onClick={(e) => e.stopPropagation()}
+        className="animate-modal w-full max-w-2xl mx-4 bg-card border border-border shadow-2xl overflow-hidden h-[85vh] lg:h-[90vh] flex flex-col"
       >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-2xl mx-4 bg-card border border-border shadow-2xl overflow-hidden h-[85vh] lg:h-[90vh] flex flex-col"
-        >
           {/* Header: Step Indicator + Close */}
           <div className="px-4 lg:px-6 py-3 lg:py-4 border-b border-border flex items-center justify-between bg-secondary">
             <div className="flex-1">
@@ -417,18 +414,17 @@ export default function NewChatModal({
               )}
             </div>
           </div>
-        </motion.div>
+      </div>
 
-        {/* Skill Installation Terminal Modal */}
-        <SkillInstallTerminal
-          show={skillInstall.showInstallTerminal}
-          installingSkill={skillInstall.installingSkill}
-          installComplete={skillInstall.installComplete}
-          installExitCode={skillInstall.installExitCode}
-          terminalRef={skillInstall.terminalRef}
-          onClose={skillInstall.closeInstallTerminal}
-        />
-      </motion.div>
-    </AnimatePresence>
+      {/* Skill Installation Terminal Modal */}
+      <SkillInstallTerminal
+        show={skillInstall.showInstallTerminal}
+        installingSkill={skillInstall.installingSkill}
+        installComplete={skillInstall.installComplete}
+        installExitCode={skillInstall.installExitCode}
+        terminalRef={skillInstall.terminalRef}
+        onClose={skillInstall.closeInstallTerminal}
+      />
+    </div>
   );
 }
