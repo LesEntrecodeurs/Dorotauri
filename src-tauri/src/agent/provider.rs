@@ -8,6 +8,7 @@ pub struct AgentStartConfig {
     pub skip_permissions: bool,
     pub mcp_config: Option<PathBuf>,
     pub system_prompt_file: Option<PathBuf>,
+    pub repo_map_file: Option<PathBuf>,
     pub model: Option<String>,
     pub secondary_paths: Vec<String>,
     pub continue_session: bool,
@@ -39,6 +40,10 @@ impl AgentProviderTrait for ClaudeProvider {
             cmd.push(mcp.to_string_lossy().to_string());
         }
         if let Some(f) = &config.system_prompt_file {
+            cmd.push("--append-system-prompt-file".into());
+            cmd.push(f.to_string_lossy().to_string());
+        }
+        if let Some(f) = &config.repo_map_file {
             cmd.push("--append-system-prompt-file".into());
             cmd.push(f.to_string_lossy().to_string());
         }
@@ -196,6 +201,7 @@ mod tests {
             skip_permissions: false,
             mcp_config: None,
             system_prompt_file: None,
+            repo_map_file: None,
             model: None,
             secondary_paths: Vec::new(),
             continue_session: false,

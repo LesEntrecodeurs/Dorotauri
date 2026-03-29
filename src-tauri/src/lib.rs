@@ -38,6 +38,18 @@ pub fn run() {
     let sftp_manager = Arc::new(sftp::SftpManager::new());
     let cwd_tracker = Arc::new(cwd_tracker::CwdTracker::new());
 
+    // Initialize Knowledge Layer
+    let data_dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join(".dorotoring");
+    let embedding_engine = Arc::new(tokio::sync::Mutex::new(
+        embedding::EmbeddingEngine::new(&data_dir),
+    ));
+    let knowledge_engine = Arc::new(knowledge::KnowledgeEngine::new(
+        data_dir,
+        Arc::clone(&embedding_engine),
+    ));
+
     // Clone the AgentManager Arc so the polling task can update cwd
     let cwd_agent_manager = Arc::clone(&app_state.agent_manager);
 
@@ -46,6 +58,7 @@ pub fn run() {
     let api_pty_manager = Arc::clone(&pty_manager);
     let api_agent_manager = Arc::clone(&app_state.agent_manager);
     let api_event_bus = Arc::clone(&app_state.event_bus);
+    let api_knowledge = Arc::clone(&knowledge_engine);
 
     tauri::Builder::default()
         .manage(app_state)
@@ -70,6 +83,15 @@ pub fn run() {
                 },
             );
 
+            // Initialize embedding engine (background — may download model on first run)
+            let embed_init = Arc::clone(&embedding_engine);
+            tauri::async_runtime::spawn(async move {
+                let mut engine = embed_init.lock().await;
+                if let Err(e) = engine.init().await {
+                    eprintln!("[embedding] Init failed (will retry later): {e}");
+                }
+            });
+
             // Start API server for MCP orchestrator
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(api_server::start(
@@ -78,6 +100,7 @@ pub fn run() {
                 api_pty_manager,
                 handle,
                 api_app_state,
+                api_knowledge,
             ));
 
             // Start the cwd polling thread

@@ -1010,12 +1010,20 @@ fn build_start_config(
         .filter(|p| p.exists());
     let system_prompt_file = crate::ensure_agent_instructions();
 
+    let repo_map_file = {
+        let hash = crate::knowledge::db::project_hash(&agent.cwd);
+        dirs::home_dir()
+            .map(|h| h.join(".dorotoring").join("projects").join(&hash).join("repo-map.md"))
+            .filter(|p| p.exists())
+    };
+
     AgentStartConfig {
         prompt: prompt.unwrap_or("").to_string(),
         cwd: PathBuf::from(&agent.cwd),
         skip_permissions,
         mcp_config,
         system_prompt_file,
+        repo_map_file,
         model: None,
         secondary_paths: agent.secondary_paths.clone(),
         continue_session: false,
