@@ -6,7 +6,7 @@ pub mod repo_map;
 pub mod file_watcher;
 pub mod session_capture;
 pub mod claude_memory;
-// pub mod search;
+pub mod search;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
