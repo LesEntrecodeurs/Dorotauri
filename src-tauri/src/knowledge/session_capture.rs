@@ -118,7 +118,7 @@ pub fn capture_session(
 
                 // knowledge_vec may not exist — ignore errors silently.
                 let _ = conn.execute(
-                    "INSERT INTO knowledge_vec (symbol_id, embedding) VALUES (?1, ?2)",
+                    "INSERT INTO knowledge_vec (id, embedding) VALUES (?1, ?2)",
                     params![session_id, blob],
                 );
             }

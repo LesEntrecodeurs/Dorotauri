@@ -750,7 +750,7 @@ async fn hook_status(
             let knowledge = state.knowledge.clone();
             let agent_cwd = agent.cwd.clone();
             let agent_id = agent.id.clone();
-            let agent_name = agent.name.clone();
+            let agent_task_prompt = agent.task_prompt.clone();
             let agent_created = agent.created_at.clone();
             let status_for_capture = status_str.clone();
             tokio::spawn(async move {
@@ -803,7 +803,7 @@ async fn hook_status(
                     &conn_guard,
                     &session_id,
                     &agent_id,
-                    agent_name.as_deref(),
+                    agent_task_prompt.as_deref(),
                     &status_for_capture,
                     &files, &commits, None,
                     &agent_created,
@@ -1191,6 +1191,19 @@ async fn code_outline(
 
     let file = params.get("file").ok_or(StatusCode::BAD_REQUEST)?.clone();
     let path = std::path::Path::new(&file);
+
+    // Security: only allow absolute paths to real files with supported extensions.
+    // This prevents path traversal to arbitrary files.
+    let allowed_extensions = ["ts", "js", "tsx", "jsx", "py", "rs", "go"];
+    let has_allowed_ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| allowed_extensions.contains(&e))
+        .unwrap_or(false);
+
+    if !path.is_absolute() || !path.is_file() || !has_allowed_ext {
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     let parse_result = crate::knowledge::tree_sitter::parse_file(path)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

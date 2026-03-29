@@ -145,7 +145,7 @@ pub fn index_file(
                         .collect();
 
                     let _ = tx.execute(
-                        "INSERT INTO knowledge_vec (symbol_id, embedding) VALUES (?1, ?2)",
+                        "INSERT INTO knowledge_vec (id, embedding) VALUES (?1, ?2)",
                         params![sym_id, blob],
                     );
                 }

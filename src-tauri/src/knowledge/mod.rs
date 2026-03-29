@@ -298,6 +298,10 @@ pub struct KnowledgeEngine {
     connections: Mutex<HashMap<String, Arc<std::sync::Mutex<Connection>>>>,
     pub embedding: Arc<Mutex<EmbeddingEngine>>,
     pub data_dir: PathBuf,
+    /// Set of project paths that currently have an active file watcher.
+    watching: Mutex<std::collections::HashSet<String>>,
+    /// Set of project paths currently being indexed.
+    indexing: Mutex<std::collections::HashSet<String>>,
 }
 
 impl KnowledgeEngine {
@@ -310,6 +314,8 @@ impl KnowledgeEngine {
             connections: Mutex::new(HashMap::new()),
             embedding,
             data_dir,
+            watching: Mutex::new(std::collections::HashSet::new()),
+            indexing: Mutex::new(std::collections::HashSet::new()),
         }
     }
 
@@ -330,5 +336,24 @@ impl KnowledgeEngine {
         let arc = Arc::new(std::sync::Mutex::new(conn));
         map.insert(project_path.to_string(), Arc::clone(&arc));
         Ok(arc)
+    }
+
+    /// Returns true if a watcher was registered (caller should spawn one).
+    /// Returns false if a watcher is already active for this path (caller should skip).
+    pub async fn register_watcher(&self, project_path: &str) -> bool {
+        let mut set = self.watching.lock().await;
+        set.insert(project_path.to_string())
+    }
+
+    /// Returns true if indexing was registered (caller should proceed).
+    /// Returns false if indexing is already in progress for this path (caller should skip).
+    pub async fn register_indexing(&self, project_path: &str) -> bool {
+        let mut set = self.indexing.lock().await;
+        set.insert(project_path.to_string())
+    }
+
+    pub async fn finish_indexing(&self, project_path: &str) {
+        let mut set = self.indexing.lock().await;
+        set.remove(project_path);
     }
 }

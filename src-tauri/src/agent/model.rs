@@ -115,6 +115,10 @@ pub struct Agent {
     /// Kept in sync with the `__skip_permissions` skills marker.
     #[serde(default)]
     pub skip_permissions: bool,
+
+    /// The initial task prompt given to the agent when started.
+    #[serde(default)]
+    pub task_prompt: Option<String>,
 }
 
 impl Agent {
@@ -137,6 +141,7 @@ impl Agent {
             last_activity: now.clone(),
             created_at: now,
             skip_permissions: false,
+            task_prompt: None,
         }
     }
 }

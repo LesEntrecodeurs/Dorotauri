@@ -25,6 +25,21 @@ struct Candidate {
     vec_score: Option<f64>,
 }
 
+/// Sanitize a query string for FTS5 MATCH by wrapping each whitespace-delimited
+/// token in double quotes, escaping any embedded double quotes.
+/// Empty/blank input returns `None` to signal "skip FTS".
+fn sanitize_fts_query(query: &str) -> Option<String> {
+    let tokens: Vec<String> = query
+        .split_whitespace()
+        .map(|token| format!("\"{}\"", token.replace('"', "\"\"")))
+        .collect();
+    if tokens.is_empty() {
+        None
+    } else {
+        Some(tokens.join(" "))
+    }
+}
+
 /// Run a hybrid FTS5 + embedding search over the knowledge base.
 ///
 /// # Parameters
@@ -52,7 +67,12 @@ pub fn search(
     // -----------------------------------------------------------------------
     // 1. FTS5 search
     // -----------------------------------------------------------------------
-    {
+    let fts_query = match sanitize_fts_query(query) {
+        Some(q) => q,
+        None => String::new(), // will be skipped below
+    };
+
+    if !fts_query.is_empty() {
         let base_sql = if source_type_filter.is_some() {
             "SELECT content, source_type, source_id, file, rank \
              FROM knowledge_fts \
@@ -76,7 +96,7 @@ pub fn search(
                 .map_err(|e| format!("FTS prepare failed: {e}"))?;
             let rows = stmt
                 .query_map(
-                    params![query, filter, (max_results * 10) as i64],
+                    params![fts_query, filter, (max_results * 10) as i64],
                     |row| {
                         Ok((
                             row.get::<_, String>(0)?,
@@ -96,7 +116,7 @@ pub fn search(
                 .prepare(base_sql)
                 .map_err(|e| format!("FTS prepare failed: {e}"))?;
             let rows = stmt
-                .query_map(params![query, (max_results * 10) as i64], |row| {
+                .query_map(params![fts_query, (max_results * 10) as i64], |row| {
                     Ok((
                         row.get::<_, String>(0)?,
                         row.get::<_, String>(1)?,
@@ -409,8 +429,9 @@ mod tests {
     #[test]
     fn test_empty_query_returns_ok() {
         let conn = setup_db();
-        // FTS5 MATCH with empty string may error; we just ensure no panic.
-        let _ = search(&conn, "", None, 10, None, 0.0);
+        let result = search(&conn, "", None, 10, None, 0.0);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty(), "empty query should return empty results");
     }
 
     #[test]

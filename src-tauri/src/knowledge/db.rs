@@ -175,6 +175,10 @@ pub fn try_load_sqlite_vec(conn: &Connection) -> bool {
 ///
 /// Returns the number of sessions deleted.
 pub fn purge_old_sessions(conn: &Connection, retention_days: u32) -> Result<usize, String> {
+    // Guard: retention_days=0 would delete everything; treat as "keep all".
+    if retention_days == 0 {
+        return Ok(0);
+    }
     let cutoff_modifier = format!("-{retention_days} days");
 
     let deleted: usize = conn
@@ -305,6 +309,22 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_purge_zero_retention_keeps_all() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let conn = open(&project).unwrap();
+
+        conn.execute(
+            "INSERT INTO sessions (id, agent_id, status, started_at, pinned) VALUES ('s1', 'a1', 'completed', '2020-01-01T00:00:00Z', FALSE)",
+            [],
+        ).unwrap();
+
+        // retention_days=0 should NOT delete anything
+        let deleted = purge_old_sessions(&conn, 0).unwrap();
+        assert_eq!(deleted, 0, "retention_days=0 should not delete sessions");
     }
 
     #[test]
