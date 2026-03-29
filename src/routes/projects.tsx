@@ -1,39 +1,20 @@
 
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
-import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   FolderKanban,
-  MessageSquare,
   X,
   Loader2,
-  ExternalLink,
-  Terminal,
   FolderOpen,
   Folder,
-  Star,
-  Layers,
-  Bot,
-  Play,
-  RotateCcw,
   Plus,
-  Trash2,
   FolderPlus,
-  ChevronDown,
-  GitBranch,
-  RefreshCw,
   Search,
-  EyeOff,
-  Eye,
-  Pin,
-  PinOff,
 } from 'lucide-react';
-import { useClaude, useSessionMessages } from '@/hooks/useClaude';
-import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
+import { useClaude } from '@/hooks/useClaude';
+import { useElectronAgents, useElectronFS } from '@/hooks/useElectron';
 import type { ClaudeProject } from '@/lib/claude-code';
-import type { Agent, AgentCharacter, AgentProvider } from '@/types/electron';
-import NewChatModal from '@/components/NewChatModal';
 import { ProjectDocsPanel } from '@/components/ProjectDocs/ProjectDocsPanel';
 
 // Generate consistent colors for projects based on name
@@ -52,7 +33,6 @@ const getProjectColor = (name: string) => {
   return colors[hash % colors.length];
 };
 
-// Storage key (custom projects still use localStorage, favorites/hidden use app settings)
 const CUSTOM_PROJECTS_KEY = 'dorotoring-custom-projects';
 
 interface CustomProject {
@@ -61,94 +41,15 @@ interface CustomProject {
   addedAt: string;
 }
 
-// Character emoji mapping for displaying agents
-const CHARACTER_EMOJIS: Record<string, string> = {
-  robot: '🤖',
-  ninja: '🥷',
-  wizard: '🧙',
-  astronaut: '👨‍🚀',
-  knight: '⚔️',
-  pirate: '🏴‍☠️',
-  alien: '👽',
-  viking: '🛡️',
-};
-
-// Agent status colors
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  running: { bg: 'bg-green-500/20', text: 'text-green-400' },
-  waiting: { bg: 'bg-amber-500/20', text: 'text-amber-400' },
-  inactive: { bg: 'bg-white/10', text: 'text-white/60' },
-  completed: { bg: 'bg-blue-500/20', text: 'text-blue-400' },
-  error: { bg: 'bg-red-500/20', text: 'text-red-400' },
-  dormant: { bg: 'bg-zinc-500/20', text: 'text-zinc-400' },
-};
-
-// Strip ANSI codes from git output
-const stripAnsi = (str: string): string => {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, '');
-};
 
 export default function ProjectsPage() {
   const { data, loading, error } = useClaude();
-  const { agents, createAgent, startAgent, isElectron: hasElectron } = useElectronAgents();
-  const { projects: electronProjects, openFolderDialog } = useElectronFS();
-  const { installedSkills, refresh: refreshSkills } = useElectronSkills();
+  const { agents, isElectron: hasElectron } = useElectronAgents();
+  const { openFolderDialog } = useElectronFS();
   const [selectedProject, setSelectedProject] = useState<ClaudeProject | null>(null);
-  const [selectedSession, setSelectedSession] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'favorites' | 'active' | 'hidden'>('active');
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [hiddenProjects, setHiddenProjects] = useState<string[]>([]);
   const [customProjects, setCustomProjects] = useState<CustomProject[]>([]);
-  const [gitBranch, setGitBranch] = useState<string | null>(null);
-  const [gitLoading, setGitLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [defaultProjectPath, setDefaultProjectPath] = useState<string>('');
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // Agent dialog state
-  const [showAgentDialog, setShowAgentDialog] = useState(false);
-  // Default project confirmation dialog
-  const [pendingDefaultPath, setPendingDefaultPath] = useState<string | null>(null);
-
-  const pendingDefaultAnim = useAnimatePresence(!!pendingDefaultPath);
-
-  // Load git branch for selected project
-  const loadGitBranch = useCallback(async (projectPath: string) => {
-    if (!projectPath || typeof window === 'undefined' || !window.electronAPI?.shell?.exec) {
-      setGitBranch(null);
-      return;
-    }
-
-    setGitLoading(true);
-    try {
-      const result = await window.electronAPI.shell.exec({
-        command: 'git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null',
-        cwd: projectPath,
-      });
-
-      if (result.success && result.output) {
-        const branch = stripAnsi(result.output).replace(/\r/g, '').trim();
-        setGitBranch(branch || null);
-      } else {
-        setGitBranch(null);
-      }
-    } catch (err) {
-      console.error('Failed to get git branch:', err);
-      setGitBranch(null);
-    } finally {
-      setGitLoading(false);
-    }
-  }, []);
-
-  // Load git branch when project is selected
-  useEffect(() => {
-    if (selectedProject) {
-      loadGitBranch(selectedProject.path);
-    } else {
-      setGitBranch(null);
-    }
-  }, [selectedProject, loadGitBranch]);
 
   // Load custom projects from localStorage
   useEffect(() => {
@@ -190,122 +91,11 @@ export default function ProjectsPage() {
     }
   };
 
-  // Remove a custom project
-  const handleRemoveProject = (projectPath: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    saveCustomProjects(customProjects.filter(p => p.path !== projectPath));
-    if (selectedProject?.path === projectPath) {
-      setSelectedProject(null);
-    }
-  };
-
-  // Check if a project is custom
-  const isCustomProject = (projectPath: string) => {
-    return customProjects.some(p => p.path === projectPath);
-  };
-
-  // Load favorites & hidden from app settings (file-based, persists across restarts)
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.electronAPI?.appSettings?.get) return;
-    window.electronAPI.appSettings.get().then((settings: Record<string, unknown>) => {
-      if (Array.isArray(settings?.favoriteProjects)) setFavorites(settings.favoriteProjects as string[]);
-      if (Array.isArray(settings?.hiddenProjects)) setHiddenProjects(settings.hiddenProjects as string[]);
-      if (typeof settings?.defaultProjectPath === 'string') setDefaultProjectPath(settings.defaultProjectPath);
-    }).catch(() => {});
-    // Also migrate from localStorage if present
-    try {
-      const stored = localStorage.getItem('dorotoring-favorite-projects');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setFavorites(prev => {
-            const merged = Array.from(new Set([...prev, ...parsed]));
-            window.electronAPI?.appSettings?.save({ favoriteProjects: merged });
-            return merged;
-          });
-          localStorage.removeItem('dorotoring-favorite-projects');
-        }
-      }
-    } catch {}
-  }, []);
-
-  // Save favorites to app settings
-  const saveFavorites = (newFavorites: string[]) => {
-    setFavorites(newFavorites);
-    window.electronAPI?.appSettings?.save({ favoriteProjects: newFavorites });
-  };
-
-  // Save hidden to app settings
-  const saveHidden = (newHidden: string[]) => {
-    setHiddenProjects(newHidden);
-    window.electronAPI?.appSettings?.save({ hiddenProjects: newHidden });
-  };
-
-  // Toggle favorite (stored by path for cross-component compatibility)
-  const toggleFavorite = (projectPath: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (favorites.includes(projectPath)) {
-      saveFavorites(favorites.filter(p => p !== projectPath));
-    } else {
-      saveFavorites([...favorites, projectPath]);
-    }
-  };
-
-  // Toggle hidden (stored by path for cross-component compatibility)
-  const toggleHidden = (projectPath: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (hiddenProjects.includes(projectPath)) {
-      saveHidden(hiddenProjects.filter(p => p !== projectPath));
-    } else {
-      saveHidden([...hiddenProjects, projectPath]);
-      // Also remove from favorites if hiding
-      if (favorites.includes(projectPath)) {
-        saveFavorites(favorites.filter(p => p !== projectPath));
-      }
-    }
-  };
-
-  const isFavorite = (projectPath: string) => favorites.includes(projectPath);
-  const isHidden = (projectPath: string) => hiddenProjects.includes(projectPath);
-
-  // Set default project (with confirmation if replacing)
-  const handleSetDefault = (projectPath: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    // Unpin if already default
-    if (defaultProjectPath === projectPath) {
-      setDefaultProjectPath('');
-      window.electronAPI?.appSettings?.save({ defaultProjectPath: '' });
-      return;
-    }
-    // If another default exists, ask for confirmation
-    if (defaultProjectPath) {
-      setPendingDefaultPath(projectPath);
-      return;
-    }
-    // No existing default, just set it
-    setDefaultProjectPath(projectPath);
-    window.electronAPI?.appSettings?.save({ defaultProjectPath: projectPath });
-  };
-
-  const confirmSetDefault = () => {
-    if (pendingDefaultPath) {
-      setDefaultProjectPath(pendingDefaultPath);
-      window.electronAPI?.appSettings?.save({ defaultProjectPath: pendingDefaultPath });
-      setPendingDefaultPath(null);
-    }
-  };
-
-  const isDefaultProject = (projectPath: string) => defaultProjectPath === projectPath;
-
-  // Normalize path for comparison
-  const normalizePath = (path: string) => {
-    return path.replace(/\/+$/, '').toLowerCase();
-  };
-
   // Flexible path matching
   const pathsMatch = (path1: string, path2: string) => {
-    const norm1 = normalizePath(path1);
-    const norm2 = normalizePath(path2);
+    const normalize = (p: string) => p.replace(/\/+$/, '').toLowerCase();
+    const norm1 = normalize(path1);
+    const norm2 = normalize(path2);
     if (norm1 === norm2) return true;
     if (norm1.endsWith(norm2) || norm2.endsWith(norm1)) return true;
     const name1 = norm1.split('/').pop();
@@ -320,62 +110,6 @@ export default function ProjectsPage() {
     return false;
   };
 
-  // Get agents for the selected project
-  const projectAgents = selectedProject
-    ? agents.filter(a => pathsMatch(a.cwd, selectedProject.path))
-    : [];
-
-  // Handle creating a new agent
-  const handleCreateAgent = async (
-    skills: string[],
-    prompt: string,
-    model?: string,
-    worktree?: { enabled: boolean; branchName: string },
-    character?: AgentCharacter,
-    name?: string,
-    skipPermissions?: boolean,
-    provider?: AgentProvider,
-    localModel?: string,
-    obsidianVaultPaths?: string[],
-  ) => {
-    try {
-      const agent = await createAgent({
-        skills,
-        worktree,
-        character,
-        name,
-        skipPermissions,
-        provider,
-        localModel,
-        obsidianVaultPaths,
-      });
-
-      if (prompt) {
-        setTimeout(async () => {
-          await startAgent(agent.id, prompt, { model });
-        }, 600);
-      }
-
-      setShowAgentDialog(false);
-    } catch (err) {
-      console.error('Failed to create agent:', err);
-    }
-  };
-
-  // Handle restarting an agent
-  const handleRestartAgent = async (agent: Agent, resume: boolean = false) => {
-    const prompt = resume ? '/resume' : 'Continue working on the previous task';
-    try {
-      await startAgent(agent.id, prompt, { resume });
-    } catch (err) {
-      console.error('Failed to restart agent:', err);
-    }
-  };
-
-  const { messages, loading: messagesLoading } = useSessionMessages(
-    selectedProject?.id || null,
-    selectedSession
-  );
 
   // Merge Claude Code projects with custom projects
   const claudeProjects = data?.projects || [];
@@ -409,36 +143,15 @@ export default function ProjectsPage() {
     }
   }, [searchParams, allProjects]);
 
-  // Filter projects based on active tab and search query
+  // Filter projects based on search query
   const projects = useMemo(() => {
-    let filtered: typeof allProjects;
-    switch (activeTab) {
-      case 'favorites':
-        filtered = allProjects.filter(p => favorites.includes(p.path) && !hiddenProjects.includes(p.path));
-        break;
-      case 'hidden':
-        filtered = allProjects.filter(p => hiddenProjects.includes(p.path));
-        break;
-      case 'active':
-      default:
-        filtered = allProjects.filter(p => !hiddenProjects.includes(p.path));
-        break;
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        p.path.toLowerCase().includes(query)
-      );
-    }
-
-    return filtered;
-  }, [allProjects, activeTab, favorites, hiddenProjects, searchQuery]);
-
-  const favoritesCount = allProjects.filter(p => favorites.includes(p.path) && !hiddenProjects.includes(p.path)).length;
-  const activeCount = allProjects.filter(p => !hiddenProjects.includes(p.path)).length;
-  const hiddenCount = allProjects.filter(p => hiddenProjects.includes(p.path)).length;
+    if (!searchQuery.trim()) return allProjects;
+    const query = searchQuery.toLowerCase();
+    return allProjects.filter(p =>
+      p.name.toLowerCase().includes(query) ||
+      p.path.toLowerCase().includes(query)
+    );
+  }, [allProjects, searchQuery]);
 
   const formatDate = (date: Date) => {
     const d = new Date(date);
@@ -450,24 +163,6 @@ export default function ProjectsPage() {
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays}d ago`;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const getMessagePreview = (content: string | unknown[]): string => {
-    if (typeof content === 'string') {
-      return content.slice(0, 100) + (content.length > 100 ? '...' : '');
-    }
-    if (Array.isArray(content)) {
-      for (const item of content) {
-        if (typeof item === 'object' && item !== null) {
-          const obj = item as Record<string, unknown>;
-          if (obj.type === 'text' && typeof obj.text === 'string') {
-            const text = obj.text;
-            return text.slice(0, 100) + (text.length > 100 ? '...' : '');
-          }
-        }
-      }
-    }
-    return 'Message content';
   };
 
   // Get short path for display
@@ -535,105 +230,22 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {/* Tabs and Search */}
-      <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('favorites')}
-              className={`
-                flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all
-                ${activeTab === 'favorites'
-                  ? 'bg-foreground text-background'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground border border-border'
-                }
-              `}
-            >
-              <Star className="w-4 h-4" />
-              Favorites
-              <span className={`px-1.5 py-0.5 text-xs ${activeTab === 'favorites' ? 'bg-black/10' : 'bg-white/10'
-                }`}>
-                {favoritesCount}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('active')}
-              className={`
-                flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all
-                ${activeTab === 'active'
-                  ? 'bg-foreground text-background'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground border border-border'
-                }
-              `}
-            >
-              <Layers className="w-4 h-4" />
-              Active
-              <span className={`px-1.5 py-0.5 text-xs ${activeTab === 'active' ? 'bg-black/10' : 'bg-white/10'
-                }`}>
-                {activeCount}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('hidden')}
-              className={`
-                flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all
-                ${activeTab === 'hidden'
-                  ? 'bg-foreground text-background'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground border border-border'
-                }
-              `}
-            >
-              <EyeOff className="w-4 h-4" />
-              Hidden
-              {hiddenCount > 0 && (
-                <span className={`px-1.5 py-0.5 text-xs ${activeTab === 'hidden' ? 'bg-black/10' : 'bg-white/10'
-                  }`}>
-                  {hiddenCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search projects..."
-              className="w-64 pl-9 pr-3 py-2 bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:border-white/50 focus:outline-none transition-colors"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-white transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        </div>
-
-      {/* Default Project Banner */}
-      <div className="border border-border bg-card p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Pin className="w-4 h-4 text-yellow-400 shrink-0" />
-          <div>
-            <p className="text-sm font-medium">Default Project</p>
-            <p className="text-xs text-muted-foreground">
-              {defaultProjectPath
-                ? <>Auto-selected when creating agents or tasks &mdash; <span className="text-foreground font-mono">{defaultProjectPath.split('/').pop()}</span></>
-                : 'Pin a project to auto-select it when creating agents or kanban tasks'}
-            </p>
-          </div>
-        </div>
-        {defaultProjectPath && (
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search projects..."
+          className="w-full pl-9 pr-3 py-2 bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:border-white/50 focus:outline-none transition-colors"
+        />
+        {searchQuery && (
           <button
-            onClick={() => { setDefaultProjectPath(''); window.electronAPI?.appSettings?.save({ defaultProjectPath: '' }); }}
-            className="px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors flex items-center gap-1.5"
+            onClick={() => setSearchQuery('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-white transition-colors"
           >
-            <PinOff className="w-3 h-3" />
-            Unpin
+            <X className="w-3 h-3" />
           </button>
         )}
       </div>
@@ -682,10 +294,10 @@ export default function ProjectsPage() {
                     {/* Agent badge */}
                     {linkedAgents.length > 0 && (
                       <div
-                        className="absolute -top-1.5 -right-1.5 w-4 h-4 text-[9px] font-bold flex items-center justify-center text-white"
+                        className="absolute -top-2 -right-8 px-1.5 py-0.5 text-[9px] font-medium flex items-center justify-center text-white whitespace-nowrap"
                         style={{ backgroundColor: color.main }}
                       >
-                        {linkedAgents.length}
+                        {linkedAgents.length} agent{linkedAgents.length > 1 ? 's' : ''}
                       </div>
                     )}
                   </div>
@@ -706,65 +318,6 @@ export default function ProjectsPage() {
                   </div>
                 </div>
 
-                {/* Pin + Favorite buttons */}
-                <div className="absolute top-2 right-2 flex items-center gap-0.5">
-                  <button
-                    onClick={(e) => handleSetDefault(project.path, e)}
-                    className={`
-                      p-1.5 transition-all
-                      ${isDefaultProject(project.path)
-                        ? 'opacity-100 text-yellow-400'
-                        : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-yellow-400'
-                      }
-                    `}
-                    title={isDefaultProject(project.path) ? 'Unpin default' : 'Set as default project'}
-                  >
-                    <Pin className={`w-3.5 h-3.5 ${isDefaultProject(project.path) ? 'fill-current' : ''}`} />
-                  </button>
-                  <button
-                    onClick={(e) => toggleFavorite(project.path, e)}
-                    className={`
-                      p-1.5 transition-all
-                      ${isFavorite(project.path)
-                        ? 'opacity-100 text-yellow-400'
-                        : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-yellow-400'
-                      }
-                    `}
-                  >
-                    <Star className={`w-4 h-4 ${isFavorite(project.path) ? 'fill-current' : ''}`} />
-                  </button>
-                </div>
-
-                {/* Hide / Unhide */}
-                <button
-                  onClick={(e) => toggleHidden(project.path, e)}
-                  className={`
-                    absolute top-2 left-2 p-1.5 transition-all
-                    ${isHidden(project.path)
-                      ? 'opacity-100 text-muted-foreground hover:text-foreground'
-                      : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground'
-                    }
-                  `}
-                  title={isHidden(project.path) ? 'Unhide project' : 'Hide project'}
-                >
-                  {isHidden(project.path) ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
-
-                {/* Badges */}
-                {(isDefaultProject(project.path) || isCustomProject(project.path)) && (
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    {isDefaultProject(project.path) && (
-                      <span className="text-[9px] px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400">
-                        Default
-                      </span>
-                    )}
-                    {isCustomProject(project.path) && (
-                      <span className="text-[9px] px-1.5 py-0.5 bg-purple-500/20 text-purple-400">
-                        Custom
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -790,66 +343,14 @@ export default function ProjectsPage() {
       {projects.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20">
           <FolderKanban className="w-16 h-16 text-muted-foreground/30 mb-4" />
-          <h3 className="font-medium text-lg mb-2">
-            {activeTab === 'favorites' ? 'No favorite projects' : activeTab === 'hidden' ? 'No hidden projects' : 'No projects found'}
-          </h3>
+          <h3 className="font-medium text-lg mb-2">No projects found</h3>
           <p className="text-muted-foreground text-sm">
-            {activeTab === 'favorites'
-              ? 'Click the star icon on a project to add it to favorites'
-              : activeTab === 'hidden'
-                ? 'Hidden projects will appear here'
-                : 'Start using Claude Code to see projects here'}
+            Start using Claude Code to see projects here
           </p>
         </div>
       )}
 
 
-      {/* Replace Default Project Confirmation Dialog */}
-      {pendingDefaultAnim.shouldRender && pendingDefaultPath && (
-        <div
-          data-state={pendingDefaultAnim.animationState}
-          className="animate-fade fixed inset-0 bg-black/60 z-[60] flex items-center justify-center"
-          onClick={() => setPendingDefaultPath(null)}
-        >
-          <div
-            data-state={pendingDefaultAnim.animationState}
-            className="animate-modal bg-card border border-border p-6 space-y-4 w-full max-w-sm mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3">
-              <Pin className="w-5 h-5 text-yellow-400" />
-              <h3 className="font-medium">Replace Default Project?</h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              <span className="text-foreground font-mono">{defaultProjectPath.split('/').pop()}</span> is currently the default project. Replace it with{' '}
-              <span className="text-foreground font-mono">{pendingDefaultPath.split('/').pop()}</span>?
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setPendingDefaultPath(null)}
-                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmSetDefault}
-                className="px-4 py-2 bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors"
-              >
-                Replace
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Launch Agent Modal */}
-      <NewChatModal
-        open={showAgentDialog}
-        onClose={() => setShowAgentDialog(false)}
-        onSubmit={handleCreateAgent}
-        installedSkills={installedSkills}
-        onRefreshSkills={refreshSkills}
-      />
       </div>{/* end space-y wrapper */}
     </div>
   );
