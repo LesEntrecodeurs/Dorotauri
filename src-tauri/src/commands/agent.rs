@@ -450,6 +450,7 @@ pub async fn agent_start(
                     Ok(w) => w,
                     Err(e) => {
                         eprintln!("[knowledge] File watcher error: {e}");
+                        knowledge.finish_watching(&cwd).await;
                         return;
                     }
                 };
@@ -477,6 +478,8 @@ pub async fn agent_start(
                 // Regenerate repo map
                 crate::knowledge::repo_map::write_to_file(&conn_guard, &cwd, budget).ok();
             }
+            // Watcher channel closed — deregister so future agent_start can re-register
+            knowledge.finish_watching(&cwd).await;
         });
     }
 

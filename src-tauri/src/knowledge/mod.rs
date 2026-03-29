@@ -356,4 +356,11 @@ impl KnowledgeEngine {
         let mut set = self.indexing.lock().await;
         set.remove(project_path);
     }
+
+    /// Deregisters a file watcher for `project_path` so a new one can be spawned.
+    /// Call this when the watcher task exits (channel closed or error).
+    pub async fn finish_watching(&self, project_path: &str) {
+        let mut set = self.watching.lock().await;
+        set.remove(project_path);
+    }
 }

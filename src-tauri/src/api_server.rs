@@ -744,8 +744,9 @@ async fn hook_status(
         state.app_handle.emit("agent:status", agent).ok();
     }
 
-    // Capture session for knowledge layer on terminal states
-    if matches!(new_state, AgentState::Completed | AgentState::Error) {
+    // Capture session for knowledge layer on terminal states (if enabled)
+    let knowledge_enabled = state.app_state.settings.lock().unwrap().knowledge_enabled;
+    if knowledge_enabled && matches!(new_state, AgentState::Completed | AgentState::Error) {
         if let Ok(ref agent) = result {
             let knowledge = state.knowledge.clone();
             let agent_cwd = agent.cwd.clone();
@@ -1052,11 +1053,17 @@ async fn start_agent_inner(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let prompt_for_capture = body.prompt.clone();
     let updated_agent = state
         .agent_manager
         .update(&id.to_string(), |a| {
             a.pty_id = Some(pty_id);
             a.error = None;
+            if let Some(ref p) = prompt_for_capture {
+                if !p.is_empty() {
+                    a.task_prompt = Some(p.clone());
+                }
+            }
         })
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
