@@ -1,0 +1,164 @@
+use std::path::PathBuf;
+
+use rusqlite::Connection;
+use sha2::{Digest, Sha256};
+
+/// Returns the first 12 hex characters of the SHA-256 hash of `project_path`.
+pub fn project_hash(project_path: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(project_path.as_bytes());
+    let result = hasher.finalize();
+    hex::encode(&result[..6]) // 6 bytes → 12 hex chars
+}
+
+/// Returns the path to the knowledge DB for the given project.
+/// `~/.dorotoring/projects/{hash}/knowledge.db`
+pub fn db_path_for_project(project_path: &str) -> PathBuf {
+    let hash = project_hash(project_path);
+    dirs::home_dir()
+        .expect("Could not determine home directory")
+        .join(".dorotoring")
+        .join("projects")
+        .join(hash)
+        .join("knowledge.db")
+}
+
+/// Schema version managed via PRAGMA user_version.
+const SCHEMA_VERSION: u32 = 1;
+
+const MIGRATION_V1: &str = "
+-- Code Knowledge
+CREATE TABLE IF NOT EXISTS symbols (
+    id INTEGER PRIMARY KEY,
+    file TEXT NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    signature TEXT,
+    line INTEGER NOT NULL,
+    end_line INTEGER,
+    exported BOOLEAN DEFAULT FALSE,
+    rank REAL DEFAULT 0.0
+);
+
+CREATE TABLE IF NOT EXISTS refs (
+    id INTEGER PRIMARY KEY,
+    from_file TEXT NOT NULL,
+    from_symbol TEXT,
+    to_symbol TEXT NOT NULL,
+    to_file TEXT,
+    line INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_symbols_file ON symbols(file);
+CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
+CREATE INDEX IF NOT EXISTS idx_refs_to ON refs(to_symbol);
+
+-- Agent Knowledge
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    prompt TEXT,
+    status TEXT NOT NULL,
+    files_modified TEXT,
+    commits TEXT,
+    transcript TEXT,
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    pinned BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_agent TEXT NOT NULL,
+    to_agent TEXT,
+    event_type TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    tab_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_agent ON events(from_agent, created_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at);
+
+-- Unified FTS5 index
+CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
+    content,
+    source_type,
+    source_id,
+    file
+);
+";
+
+/// Opens (or creates) the SQLite knowledge DB for the given project path.
+///
+/// Sets WAL mode, foreign keys, and busy_timeout pragmas, then runs schema
+/// migrations as needed.
+pub fn open(project_path: &str) -> Result<Connection, String> {
+    let db_path = db_path_for_project(project_path);
+
+    // Ensure the parent directory exists.
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create knowledge DB directory: {e}"))?;
+    }
+
+    let conn = Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open knowledge DB at {}: {e}", db_path.display()))?;
+
+    // Set connection pragmas.
+    conn.execute_batch(
+        "
+        PRAGMA journal_mode = WAL;
+        PRAGMA foreign_keys = ON;
+        PRAGMA busy_timeout = 5000;
+        ",
+    )
+    .map_err(|e| format!("Failed to set pragmas: {e}"))?;
+
+    // Run migrations based on user_version.
+    let version: u32 = conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|e| format!("Failed to read user_version: {e}"))?;
+
+    if version < SCHEMA_VERSION {
+        conn.execute_batch(MIGRATION_V1)
+            .map_err(|e| format!("Migration v1 failed: {e}"))?;
+
+        conn.execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION}"))
+            .map_err(|e| format!("Failed to set user_version: {e}"))?;
+    }
+
+    Ok(conn)
+}
+
+/// Deletes sessions older than `retention_days` days (excluding pinned sessions),
+/// and removes orphaned FTS entries for those sessions.
+///
+/// Returns the number of sessions deleted.
+pub fn purge_old_sessions(conn: &Connection, retention_days: u32) -> Result<usize, String> {
+    // Collect IDs of sessions to delete (not pinned, older than retention window).
+    let cutoff = format!(
+        "datetime('now', '-{retention_days} days')"
+    );
+
+    let deleted: usize = conn
+        .execute(
+            &format!(
+                "DELETE FROM sessions
+                 WHERE pinned = FALSE
+                   AND started_at < {cutoff}"
+            ),
+            [],
+        )
+        .map_err(|e| format!("Failed to purge old sessions: {e}"))?;
+
+    // Clean FTS entries for sessions that no longer exist.
+    conn.execute_batch(
+        "DELETE FROM knowledge_fts
+         WHERE source_type = 'session'
+           AND source_id NOT IN (SELECT id FROM sessions)",
+    )
+    .map_err(|e| format!("Failed to clean FTS after session purge: {e}"))?;
+
+    Ok(deleted)
+}

@@ -9,6 +9,7 @@ mod commands;
 mod cwd_tracker;
 mod db;
 pub mod embedding;
+pub mod knowledge;
 pub mod migration;
 mod notifications;
 mod pty;
