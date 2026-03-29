@@ -327,9 +327,9 @@ export default function AppSidebar({
   return (
     <Sidebar collapsible="icon">
       {/* Header: action icons row above logo */}
-      <SidebarHeader className="group-data-[collapsible=icon]/sidebar:p-1">
+      <SidebarHeader className="gap-3 pb-0 group-data-[collapsible=icon]/sidebar:p-1 group-data-[collapsible=icon]/sidebar:pb-0 group-data-[collapsible=icon]/sidebar:gap-2">
         {/* Action icons row */}
-        <div className="flex items-center justify-between px-2 pt-1 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
+        <div className="flex items-center justify-between px-2 pt-1 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center group-data-[collapsible=icon]/sidebar:pt-0">
           {/* Hide / Pin button */}
           <button
             onClick={onToggleHidden}
@@ -348,23 +348,23 @@ export default function AppSidebar({
           </button>
         </div>
         {/* Logo below action icons */}
-        <div className="flex items-center px-2 py-1 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
+        <div className="flex items-center px-2 group-data-[collapsible=icon]/sidebar:px-0 group-data-[collapsible=icon]/sidebar:justify-center">
           <img
             src="/dorotoring-large.svg"
             alt="Dorothy"
-            className="h-[26px] w-auto dark:invert group-data-[collapsible=icon]/sidebar:hidden"
+            className="h-[26px] w-auto opacity-70 dark:invert dark:opacity-70 group-data-[collapsible=icon]/sidebar:hidden"
           />
           <img
-            src="/dorotoing.svg"
+            src="/dorotoring-icon.svg"
             alt="Dorothy"
-            className="w-5 h-5 dark:invert hidden group-data-[collapsible=icon]/sidebar:block"
+            className="w-5 h-5 opacity-70 dark:invert dark:opacity-70 hidden group-data-[collapsible=icon]/sidebar:block"
           />
         </div>
       </SidebarHeader>
 
       {/* Navigation */}
       <SidebarContent>
-        <SidebarGroup className="group-data-[collapsible=icon]/sidebar:px-1">
+        <SidebarGroup className="pt-3 group-data-[collapsible=icon]/sidebar:px-1 group-data-[collapsible=icon]/sidebar:pt-2">
           <SidebarMenu className="gap-px">
             {NAV_ITEMS.map((item) => {
               const active = isActive(item.href, pathname);
