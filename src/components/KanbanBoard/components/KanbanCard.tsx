@@ -2,7 +2,6 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { motion } from 'framer-motion';
 import {
   Bot,
   MessageSquare,
@@ -72,22 +71,14 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
   };
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{
-        opacity: isBeingDragged ? 0 : 1,
-        y: 0,
-        scale: isBeingDragged ? 0.95 : 1,
-      }}
-      exit={{ opacity: 0, scale: 0.95 }}
       onClick={() => onEdit?.(task)}
       {...attributes}
       {...listeners}
       className={`
-        group relative bg-card rounded-md p-4
+        animate-mount-fade-up group relative bg-card rounded-md p-4
         shadow-sm transition-all duration-200
         border border-border/50
         ${isLocked ? 'cursor-default' : 'cursor-pointer hover:shadow-md hover:border-border'}
@@ -169,11 +160,9 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
       {task.column === 'ongoing' && task.progress > 0 && (
         <div className="mb-3">
           <div className="h-1 bg-secondary rounded-md overflow-hidden">
-            <motion.div
+            <div
               className="h-full bg-green-500"
-              initial={{ width: 0 }}
-              animate={{ width: `${task.progress}%` }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+              style={{ width: `${task.progress}%`, transition: 'width 500ms ease' }}
             />
           </div>
         </div>
@@ -245,6 +234,6 @@ export function KanbanCard({ task, onEdit, onDelete, onStart, onOpenTerminal, is
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

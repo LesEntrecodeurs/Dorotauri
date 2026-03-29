@@ -5,7 +5,6 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { motion, AnimatePresence } from 'framer-motion';
 import { MoreHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -77,7 +76,7 @@ export function KanbanColumn({
           items={tasks.map(t => t.id)}
           strategy={verticalListSortingStrategy}
         >
-          <AnimatePresence mode="popLayout">
+          <>
             {tasks.length > 0 ? (
               tasks.map((task) => (
                 <KanbanCard
@@ -91,24 +90,16 @@ export function KanbanColumn({
                 />
               ))
             ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center justify-center py-12 text-muted-foreground/50 text-sm"
-              >
+              <div className="animate-mount-fade-in flex items-center justify-center py-12 text-muted-foreground/50 text-sm">
                 {config.emptyText}
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </>
         </SortableContext>
 
         {/* Drop indicator */}
         {isOver && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 60 }}
-            className="border-2 border-dashed border-primary/30 rounded-md bg-primary/5"
-          />
+          <div className="border-2 border-dashed border-primary/30 rounded-md bg-primary/5" style={{ height: 60 }} />
         )}
       </div>
     </div>

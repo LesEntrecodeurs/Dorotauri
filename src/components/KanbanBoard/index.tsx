@@ -14,7 +14,6 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Loader2, RefreshCw, Search } from 'lucide-react';
 import { useElectronKanban, useKanbanAgentSync } from '@/hooks/useElectronKanban';
 import { isElectron as checkIsElectron } from '@/hooks/useElectron';
@@ -380,17 +379,17 @@ export default function KanbanBoard() {
       </div>
 
       {/* New task modal */}
-      <AnimatePresence>
+      <>
         {showNewTaskModal && (
           <NewTaskModal
             onClose={() => setShowNewTaskModal(false)}
             onCreate={handleCreateTask}
           />
         )}
-      </AnimatePresence>
+      </>
 
       {/* Edit task modal (for backlog/planned tasks only) */}
-      <AnimatePresence>
+      <>
         {editingTask && editingTask.column !== 'done' && editingTask.column !== 'ongoing' && (
           <KanbanCardDetail
             task={editingTask}
@@ -402,10 +401,10 @@ export default function KanbanBoard() {
             }}
           />
         )}
-      </AnimatePresence>
+      </>
 
       {/* Done task summary modal */}
-      <AnimatePresence>
+      <>
         {editingTask && editingTask.column === 'done' && (
           <KanbanDoneSummary
             task={editingTask}
@@ -416,7 +415,7 @@ export default function KanbanBoard() {
             }}
           />
         )}
-      </AnimatePresence>
+      </>
 
       {/* Agent Terminal Dialog - skip historical output to avoid display issues */}
       {terminalAgentId && terminalAgent && (
