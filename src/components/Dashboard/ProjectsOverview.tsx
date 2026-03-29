@@ -1,6 +1,5 @@
 
 
-import { motion } from 'framer-motion';
 import { FolderKanban, MessageSquare, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router';
@@ -52,12 +51,9 @@ export default function ProjectsOverview({ projects }: ProjectsOverviewProps) {
           const color = getProjectColor(project.name);
 
           return (
-            <motion.div
+            <div
               key={project.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="relative px-5 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
+              className="animate-mount-fade-up relative px-5 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
             >
               {/* Color indicator */}
               <div
@@ -87,7 +83,7 @@ export default function ProjectsOverview({ projects }: ProjectsOverviewProps) {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
 

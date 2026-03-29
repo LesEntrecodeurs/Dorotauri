@@ -1,6 +1,5 @@
 
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, MessageSquare, FolderKanban } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { HistoryEntry, ClaudeProject } from '@/lib/claude-code';
@@ -60,15 +59,12 @@ export default function LiveActivityFeed({ history, projects }: LiveActivityFeed
 
       {/* Activity List */}
       <CardContent className="p-0 divide-y divide-border max-h-80 overflow-y-auto">
-        <AnimatePresence mode="popLayout">
+        <>
           {recentHistory.map((entry, index) => (
-            <motion.div
+            <div
               key={`${entry.timestamp}-${index}`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ delay: index * 0.03 }}
-              className="px-5 py-4 hover:bg-muted/50 transition-colors"
+              className="animate-mount-fade-up animate-stagger px-5 py-4 hover:bg-muted/50 transition-colors"
+              style={{ '--stagger-index': index } as React.CSSProperties}
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 p-1.5 bg-primary/10">
@@ -87,9 +83,9 @@ export default function LiveActivityFeed({ history, projects }: LiveActivityFeed
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </AnimatePresence>
+        </>
 
         {recentHistory.length === 0 && (
           <div className="px-5 py-8 text-center text-muted-foreground">

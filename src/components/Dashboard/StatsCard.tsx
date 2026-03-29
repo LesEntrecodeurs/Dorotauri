@@ -1,6 +1,5 @@
 
 
-import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -47,10 +46,7 @@ export default function StatsCard({ title, value, subtitle, icon: Icon, color, t
   const colors = colorMap[color];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
+    <div className="animate-mount-fade-up">
       <Card className="relative overflow-hidden p-6 transition-all duration-200 hover:border-primary/30">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -72,6 +68,6 @@ export default function StatsCard({ title, value, subtitle, icon: Icon, color, t
           </div>
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }

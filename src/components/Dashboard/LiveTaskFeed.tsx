@@ -1,6 +1,5 @@
 
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,20 +36,17 @@ export default function LiveTaskFeed() {
 
       {/* Task List */}
       <CardContent className="p-0 divide-y divide-border">
-        <AnimatePresence mode="popLayout">
+        <>
           {activeTasks.map((task, index) => {
             const config = statusConfig[task.status];
             const StatusIcon = config.icon;
             const agent = agents.find(a => a.id === task.assignedAgent);
 
             return (
-              <motion.div
+              <div
                 key={task.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ delay: index * 0.05 }}
-                className="px-5 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                className="animate-mount-fade-up animate-stagger px-5 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                style={{ '--stagger-index': index } as React.CSSProperties}
               >
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 ${config.color}`}>
@@ -75,21 +71,19 @@ export default function LiveTaskFeed() {
                           <span>{task.progress}%</span>
                         </div>
                         <div className="h-1.5 bg-muted overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${task.progress}%` }}
-                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                          <div
                             className="h-full bg-primary"
+                            style={{ width: `${task.progress}%`, transition: 'width 500ms ease' }}
                           />
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
-        </AnimatePresence>
+        </>
 
         {activeTasks.length === 0 && (
           <div className="px-5 py-8 text-center text-muted-foreground">

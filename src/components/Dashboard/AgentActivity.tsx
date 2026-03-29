@@ -1,6 +1,5 @@
 
 
-import { motion } from 'framer-motion';
 import { Bot, Pause, Play, Square, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -48,12 +47,9 @@ export default function AgentActivity() {
           const agentTask = tasks.find(t => t.id === agent.businessState);
 
           return (
-            <motion.div
+            <div
               key={agent.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="px-5 py-4 hover:bg-muted/50 transition-colors"
+              className="animate-mount-fade-up px-5 py-4 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-start gap-3">
                 {/* Avatar */}
@@ -88,10 +84,9 @@ export default function AgentActivity() {
                     <div className="mt-2 p-2 bg-muted/50 border border-border">
                       <p className="text-xs text-muted-foreground truncate">{agentTask.title}</p>
                       <div className="mt-1.5 h-1 bg-background overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${agentTask.progress}%` }}
+                        <div
                           className="h-full bg-primary"
+                          style={{ width: `${agentTask.progress}%`, transition: 'width 500ms ease' }}
                         />
                       </div>
                     </div>
@@ -104,7 +99,7 @@ export default function AgentActivity() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </CardContent>

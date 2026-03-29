@@ -1,6 +1,5 @@
 
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Circle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { HistoryEntry } from '@/lib/claude-code';
@@ -53,23 +52,19 @@ export default function TerminalLog({ history }: TerminalLogProps) {
 
       {/* Log content */}
       <CardContent className="p-4 h-64 overflow-y-auto font-mono text-xs leading-relaxed bg-background">
-        <AnimatePresence mode="popLayout">
+        <>
           {recentHistory.map((entry, index) => (
-            <motion.div
+            <div
               key={`${entry.timestamp}-${index}`}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="flex items-start gap-2 py-0.5 hover:bg-muted/30"
+              className="animate-mount-fade-up flex items-start gap-2 py-0.5 hover:bg-muted/30"
             >
               <span className="text-muted-foreground shrink-0">{formatTime(entry.timestamp)}</span>
               <span className="text-primary shrink-0">[{getProjectShortName(entry.project)}]</span>
               <span className="text-primary shrink-0">$</span>
               <span className="text-muted-foreground">{truncateMessage(entry.display)}</span>
-            </motion.div>
+            </div>
           ))}
-        </AnimatePresence>
+        </>
 
         {recentHistory.length === 0 && (
           <div className="flex items-center gap-2 text-muted-foreground">
