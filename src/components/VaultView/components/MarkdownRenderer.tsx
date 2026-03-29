@@ -1,6 +1,31 @@
 
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [text]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="absolute top-1.5 right-1.5 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary/80 opacity-0 group-hover:opacity-100 transition-opacity"
+      title="Copy"
+    >
+      {copied ? (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+      )}
+    </button>
+  );
+}
 
 const SAFE_URL_PROTOCOLS = ['http:', 'https:', 'mailto:'];
 
@@ -31,7 +56,7 @@ function resolveLocalSrc(src: string): string {
 }
 
 // Render inline markdown (bold, italic, code, images, links)
-function renderInline(text: string): React.ReactNode {
+function renderInline(text: string, onLinkClick?: (href: string) => void): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let key = 0;
@@ -85,12 +110,30 @@ function renderInline(text: string): React.ReactNode {
         const closeParen = remaining.indexOf(')', closeBracket + 2);
         if (closeParen !== -1) {
           const linkText = remaining.slice(1, closeBracket);
-          const href = isSafeUrl(remaining.slice(closeBracket + 2, closeParen));
-          parts.push(
-            <a key={key++} href={href} className="text-primary underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
-              {linkText}
-            </a>
-          );
+          const rawHref = remaining.slice(closeBracket + 2, closeParen);
+          const isExternal = /^https?:\/\/|^mailto:/i.test(rawHref);
+
+          if (!isExternal && onLinkClick) {
+            // Internal link — navigate within the vault
+            const capturedHref = rawHref;
+            parts.push(
+              <a
+                key={key++}
+                href="#"
+                className="text-primary underline hover:text-primary/80 cursor-pointer"
+                onClick={(e) => { e.preventDefault(); onLinkClick(capturedHref); }}
+              >
+                {linkText}
+              </a>
+            );
+          } else {
+            const href = isSafeUrl(rawHref);
+            parts.push(
+              <a key={key++} href={href} className="text-primary underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
+                {linkText}
+              </a>
+            );
+          }
           remaining = remaining.slice(closeParen + 1);
           continue;
         }
@@ -115,7 +158,7 @@ function renderInline(text: string): React.ReactNode {
   return <>{parts}</>;
 }
 
-export function SimpleMarkdown({ content, highlightLine }: { content: string; highlightLine?: number }) {
+export function SimpleMarkdown({ content, highlightLine, onLinkClick }: { content: string; highlightLine?: number; onLinkClick?: (href: string) => void }) {
   const lines = content.split('\n');
   const elements: React.ReactElement[] = [];
   let inCodeBlock = false;
@@ -127,10 +170,14 @@ export function SimpleMarkdown({ content, highlightLine }: { content: string; hi
     // Code blocks
     if (line.startsWith('```')) {
       if (inCodeBlock) {
+        const codeText = codeBlockContent.join('\n');
         elements.push(
-          <pre key={i} className="bg-secondary/80 border border-border rounded-md p-3 my-2 overflow-x-auto text-xs">
-            <code>{codeBlockContent.join('\n')}</code>
-          </pre>
+          <div key={i} className="relative group my-2">
+            <CopyButton text={codeText} />
+            <pre className="bg-secondary/80 border border-border rounded-md p-3 overflow-x-auto text-xs">
+              <code>{codeText}</code>
+            </pre>
+          </div>
         );
         codeBlockContent = [];
         inCodeBlock = false;
@@ -153,15 +200,15 @@ export function SimpleMarkdown({ content, highlightLine }: { content: string; hi
 
     // Headers
     if (line.startsWith('# ')) {
-      elements.push(<h1 key={i} className="text-2xl font-bold text-foreground mt-4 mb-2">{renderInline(line.slice(2))}</h1>);
+      elements.push(<h1 key={i} className="text-2xl font-bold text-foreground mt-4 mb-2">{renderInline(line.slice(2), onLinkClick)}</h1>);
       continue;
     }
     if (line.startsWith('## ')) {
-      elements.push(<h2 key={i} className="text-xl font-bold text-foreground mt-3 mb-2">{renderInline(line.slice(3))}</h2>);
+      elements.push(<h2 key={i} className="text-xl font-bold text-foreground mt-3 mb-2">{renderInline(line.slice(3), onLinkClick)}</h2>);
       continue;
     }
     if (line.startsWith('### ')) {
-      elements.push(<h3 key={i} className="text-lg font-semibold text-foreground mt-3 mb-1">{renderInline(line.slice(4))}</h3>);
+      elements.push(<h3 key={i} className="text-lg font-semibold text-foreground mt-3 mb-1">{renderInline(line.slice(4), onLinkClick)}</h3>);
       continue;
     }
 
@@ -178,7 +225,7 @@ export function SimpleMarkdown({ content, highlightLine }: { content: string; hi
       elements.push(
         <div key={i} className="flex gap-2 my-0.5" style={{ paddingLeft: `${indent * 8 + 8}px` }}>
           <span className="text-muted-foreground mt-1.5 shrink-0">&#8226;</span>
-          <span className="text-sm text-foreground">{renderInline(text)}</span>
+          <span className="text-sm text-foreground">{renderInline(text, onLinkClick)}</span>
         </div>
       );
       continue;
@@ -192,7 +239,7 @@ export function SimpleMarkdown({ content, highlightLine }: { content: string; hi
         elements.push(
           <div key={i} className="flex gap-2 my-0.5" style={{ paddingLeft: `${indent * 8 + 8}px` }}>
             <span className="text-muted-foreground shrink-0">{match[2]}.</span>
-            <span className="text-sm text-foreground">{renderInline(match[3])}</span>
+            <span className="text-sm text-foreground">{renderInline(match[3], onLinkClick)}</span>
           </div>
         );
         continue;
@@ -218,26 +265,121 @@ export function SimpleMarkdown({ content, highlightLine }: { content: string; hi
       }
     }
 
-    // Blockquote
+    // Table (lines starting with |)
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      // Collect all consecutive table lines
+      const tableLines: string[] = [trimmed];
+      let j = i + 1;
+      while (j < lines.length) {
+        const next = lines[j].trim();
+        if (next.startsWith('|') && next.endsWith('|')) {
+          tableLines.push(next);
+          j++;
+        } else {
+          break;
+        }
+      }
+
+      // Need at least 2 lines (header + separator) to be a table
+      if (tableLines.length >= 2) {
+        const parseRow = (row: string) =>
+          row.slice(1, -1).split('|').map(cell => cell.trim());
+
+        const headerCells = parseRow(tableLines[0]);
+
+        // Check if second line is a separator (contains only -, :, |, spaces)
+        const isSeparator = /^[|\s:+-]+$/.test(tableLines[1]) && tableLines[1].includes('-');
+        const separatorCells = isSeparator ? parseRow(tableLines[1]) : [];
+
+        // Determine alignment from separator
+        const alignments = separatorCells.map(cell => {
+          const left = cell.startsWith(':');
+          const right = cell.endsWith(':');
+          if (left && right) return 'center' as const;
+          if (right) return 'right' as const;
+          return 'left' as const;
+        });
+
+        const dataStartIdx = isSeparator ? 2 : 1;
+        const dataRows = tableLines.slice(dataStartIdx).map(parseRow);
+
+        elements.push(
+          <div key={i} className="my-2 overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  {headerCells.map((cell, ci) => (
+                    <th
+                      key={ci}
+                      className="px-3 py-1.5 text-left font-semibold text-foreground"
+                      style={alignments[ci] ? { textAlign: alignments[ci] } : undefined}
+                    >
+                      {renderInline(cell, onLinkClick)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dataRows.map((row, ri) => (
+                  <tr key={ri} className="border-b border-border/50">
+                    {row.map((cell, ci) => (
+                      <td
+                        key={ci}
+                        className="px-3 py-1.5 text-foreground"
+                        style={alignments[ci] ? { textAlign: alignments[ci] } : undefined}
+                      >
+                        {renderInline(cell, onLinkClick)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
+        i = j - 1; // skip consumed lines (loop will i++)
+        continue;
+      }
+    }
+
+    // Blockquote — group consecutive > lines
     if (line.startsWith('> ')) {
+      const quoteLines: string[] = [line.slice(2)];
+      let j = i + 1;
+      while (j < lines.length && lines[j].startsWith('> ')) {
+        quoteLines.push(lines[j].slice(2));
+        j++;
+      }
+      const quoteText = quoteLines.join('\n');
       elements.push(
-        <blockquote key={i} className="border-l-2 border-primary/50 pl-3 my-1 text-sm text-muted-foreground italic">
-          {renderInline(line.slice(2))}
-        </blockquote>
+        <div key={i} className="relative group my-1">
+          <CopyButton text={quoteText} />
+          <blockquote className="border-l-2 border-primary/50 pl-3 pr-8 text-sm text-muted-foreground italic">
+            {quoteLines.map((ql, qi) => (
+              <p key={qi} className="my-0.5">{renderInline(ql, onLinkClick)}</p>
+            ))}
+          </blockquote>
+        </div>
       );
+      i = j - 1;
       continue;
     }
 
     // Regular paragraph
-    elements.push(<p key={i} className="text-sm text-foreground my-0.5">{renderInline(line)}</p>);
+    elements.push(<p key={i} className="text-sm text-foreground my-0.5">{renderInline(line, onLinkClick)}</p>);
   }
 
   // Close any open code block
   if (inCodeBlock && codeBlockContent.length > 0) {
+    const codeText = codeBlockContent.join('\n');
     elements.push(
-      <pre key="final-code" className="bg-secondary/80 border border-border rounded-md p-3 my-2 overflow-x-auto text-xs">
-        <code>{codeBlockContent.join('\n')}</code>
-      </pre>
+      <div key="final-code" className="relative group my-2">
+        <CopyButton text={codeText} />
+        <pre className="bg-secondary/80 border border-border rounded-md p-3 overflow-x-auto text-xs">
+          <code>{codeText}</code>
+        </pre>
+      </div>
     );
   }
 

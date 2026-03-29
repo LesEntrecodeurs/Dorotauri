@@ -22,6 +22,7 @@ interface DocumentViewerProps {
   onBack: () => void;
   onEdit: () => void;
   onDelete: (id: string) => void;
+  onLinkClick?: (href: string) => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -42,7 +43,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function DocumentViewer({ document, attachments, onBack, onEdit, onDelete }: DocumentViewerProps) {
+export default function DocumentViewer({ document, attachments, onBack, onEdit, onDelete, onLinkClick }: DocumentViewerProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const tags = parseTags(document.tags);
 
@@ -113,7 +114,7 @@ export default function DocumentViewer({ document, attachments, onBack, onEdit, 
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        <SimpleMarkdown content={document.content} />
+        <SimpleMarkdown content={document.content} onLinkClick={onLinkClick} />
       </div>
 
       {/* Attachments */}

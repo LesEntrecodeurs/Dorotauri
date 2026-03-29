@@ -198,6 +198,24 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
     }
   };
 
+  // Resolve internal links: match by document ID or title (case-insensitive)
+  const handleInternalLink = useCallback((href: string) => {
+    // Try exact ID match first
+    const byId = allDocuments.find(d => d.id === href);
+    if (byId) {
+      handleSelectDocument(byId.id);
+      return;
+    }
+    // Try title match (case-insensitive)
+    const lower = href.toLowerCase();
+    const byTitle = allDocuments.find(d => d.title.toLowerCase() === lower);
+    if (byTitle) {
+      handleSelectDocument(byTitle.id);
+      return;
+    }
+    console.warn('Internal link not found:', href);
+  }, [allDocuments]);
+
   // Search
   const handleSearch = async (query: string) => {
     if (!isElectron() || !query.trim()) {
@@ -476,6 +494,7 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
                     }}
                     onEdit={() => setViewMode('edit')}
                     onDelete={handleDeleteDocument}
+                    onLinkClick={handleInternalLink}
                   />
                 </motion.div>
               )}
