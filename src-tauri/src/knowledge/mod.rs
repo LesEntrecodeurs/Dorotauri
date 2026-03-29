@@ -96,6 +96,191 @@ export interface User {
         let purged = db::purge_old_sessions(&conn, 90).unwrap();
         assert_eq!(purged, 0, "Should not purge a session from today");
     }
+
+    #[test]
+    fn test_cross_source_integration() {
+        // Create a project with TS files
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        std::fs::create_dir_all(&src).unwrap();
+
+        std::fs::write(
+            src.join("auth.ts"),
+            r#"
+export function handleAuth(req: Request, res: Response): void {
+    validateToken(req.headers.authorization);
+}
+
+function validateToken(token: string): boolean {
+    return token.startsWith('Bearer');
+}
+"#,
+        )
+        .unwrap();
+
+        let project_path = dir.path().to_string_lossy().to_string();
+        let conn = db::open(&project_path).unwrap();
+
+        // 1. Index code
+        indexer::index_project(&conn, dir.path(), None).unwrap();
+
+        // 2. Capture a past session
+        session_capture::capture_session(
+            &conn,
+            "session-past",
+            "agent-1",
+            Some("Implement OAuth token validation"),
+            "completed",
+            &["src/auth.ts".to_string()],
+            &["feat: add token validation".to_string()],
+            Some("Added Bearer token check to handleAuth"),
+            "2026-03-01T10:00:00Z",
+            "2026-03-01T10:30:00Z",
+            None,
+        )
+        .unwrap();
+
+        // 3. Simulate Claude Code memory
+        conn.execute(
+            "INSERT INTO knowledge_fts (content, source_type, source_id, file) VALUES ('Auth decision: use Bearer tokens with JWT, rotate every 24h', 'claude_memory', 'auth.md', 'auth.md')",
+            [],
+        )
+        .unwrap();
+
+        // 4. Search "token" should find code + session + memory
+        let results = search::search(&conn, "token", None, 20, None, 0.0).unwrap();
+        assert!(
+            results.len() >= 2,
+            "Should find multiple results for 'token'"
+        );
+
+        // Verify we get different source types
+        let source_types: std::collections::HashSet<&str> =
+            results.iter().map(|r| r.source_type.as_str()).collect();
+        assert!(
+            source_types.len() >= 2,
+            "Should have at least 2 different source types"
+        );
+
+        // 5. Repo map should include auth symbols
+        let map = repo_map::generate(&conn, &project_path, 2048).unwrap();
+        assert!(
+            map.contains("handleAuth"),
+            "Repo map should contain handleAuth"
+        );
+
+        // 6. Purge should not delete recent session
+        let purged = db::purge_old_sessions(&conn, 90).unwrap();
+        assert_eq!(purged, 0);
+
+        // 7. Search for session should still work
+        let results = search::search(&conn, "OAuth", Some("session"), 10, None, 0.0).unwrap();
+        assert!(
+            !results.is_empty(),
+            "Session search should find OAuth session"
+        );
+    }
+
+    #[test]
+    fn test_reindex_updates_symbols() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("src");
+        std::fs::create_dir_all(&src).unwrap();
+
+        // Initial file
+        let file = src.join("service.ts");
+        std::fs::write(&file, "export function oldFunction(): void {}\n").unwrap();
+
+        let project_path = dir.path().to_string_lossy().to_string();
+        let conn = db::open(&project_path).unwrap();
+
+        indexer::index_project(&conn, dir.path(), None).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM symbols WHERE name = 'oldFunction'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+
+        // Modify file — replace function
+        std::fs::write(&file, "export function newFunction(): void {}\n").unwrap();
+
+        // Re-index single file
+        indexer::index_file(&conn, dir.path(), &file, None).unwrap();
+
+        // Old function should be gone, new one should exist
+        let old_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM symbols WHERE name = 'oldFunction'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let new_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM symbols WHERE name = 'newFunction'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(old_count, 0, "Old function should be removed");
+        assert_eq!(new_count, 1, "New function should be indexed");
+    }
+
+    #[test]
+    fn test_session_lifecycle() {
+        let dir = tempfile::tempdir().unwrap();
+        let project_path = dir.path().to_string_lossy().to_string();
+        let conn = db::open(&project_path).unwrap();
+
+        // Capture 3 sessions
+        for i in 0..3 {
+            session_capture::capture_session(
+                &conn,
+                &format!("sess-{i}"),
+                "agent-1",
+                Some(&format!("Task {i}")),
+                "completed",
+                &[format!("file{i}.ts")],
+                &[format!("commit {i}")],
+                None,
+                "2026-03-29T10:00:00Z",
+                "2026-03-29T10:05:00Z",
+                None,
+            )
+            .unwrap();
+        }
+
+        // All 3 should be searchable
+        let results = search::search(&conn, "Task", None, 10, None, 0.0).unwrap();
+        assert!(results.len() >= 3);
+
+        // Pin session 0
+        conn.execute(
+            "UPDATE sessions SET pinned = TRUE WHERE id = 'sess-0'",
+            [],
+        )
+        .unwrap();
+
+        // Force old timestamps for purge testing
+        conn.execute(
+            "UPDATE sessions SET started_at = '2020-01-01T00:00:00Z' WHERE id != 'sess-0'",
+            [],
+        )
+        .unwrap();
+
+        // Purge should delete 2 unpinned old sessions
+        let purged = db::purge_old_sessions(&conn, 1).unwrap();
+        assert_eq!(purged, 2);
+
+        // Session 0 (pinned) should survive
+        let remaining: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(remaining, 1);
+    }
 }
 
 use std::collections::HashMap;

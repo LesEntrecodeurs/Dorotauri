@@ -412,4 +412,56 @@ mod tests {
         // FTS5 MATCH with empty string may error; we just ensure no panic.
         let _ = search(&conn, "", None, 10, None, 0.0);
     }
+
+    #[test]
+    fn test_cross_source_search() {
+        let conn = setup_db();
+
+        // Insert a symbol
+        conn.execute(
+            "INSERT INTO symbols (file, name, kind, signature, line, exported) VALUES ('auth.ts', 'handleAuth', 'function', 'function handleAuth(req, res)', 23, TRUE)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO knowledge_fts (content, source_type, source_id, file) VALUES ('handleAuth function handleAuth(req, res)', 'symbol', '1', 'auth.ts')",
+            [],
+        )
+        .unwrap();
+
+        // Insert a session about auth
+        conn.execute(
+            "INSERT INTO sessions (id, agent_id, status, started_at) VALUES ('sess-auth', 'a1', 'completed', '2026-01-01')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO knowledge_fts (content, source_type, source_id, file) VALUES ('Fixed authentication bug in handleAuth', 'session', 'sess-auth', '')",
+            [],
+        )
+        .unwrap();
+
+        // Insert a Claude memory about auth
+        conn.execute(
+            "INSERT INTO knowledge_fts (content, source_type, source_id, file) VALUES ('Auth strategy: migrating to OAuth Google', 'claude_memory', 'auth_decisions.md', 'auth_decisions.md')",
+            [],
+        )
+        .unwrap();
+
+        // Search should find all three types
+        let results = search(&conn, "auth", None, 10, None, 0.0).unwrap();
+        assert!(
+            results.len() >= 3,
+            "Should find symbol + session + claude_memory, got {}",
+            results.len()
+        );
+
+        let types: Vec<&str> = results.iter().map(|r| r.source_type.as_str()).collect();
+        assert!(types.contains(&"symbol"), "Should contain symbol result");
+        assert!(types.contains(&"session"), "Should contain session result");
+        assert!(
+            types.contains(&"claude_memory"),
+            "Should contain claude_memory result"
+        );
+    }
 }

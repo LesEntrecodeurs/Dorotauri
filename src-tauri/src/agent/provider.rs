@@ -334,4 +334,51 @@ mod tests {
         let cmd = provider.build_command(&config, None);
         assert!(!cmd.contains(&"--print".to_string()));
     }
+
+    #[test]
+    fn test_claude_repo_map_file() {
+        let provider = ClaudeProvider;
+        let mut config = default_config("test");
+        config.repo_map_file = Some(PathBuf::from(
+            "/home/user/.dorotoring/projects/abc123/repo-map.md",
+        ));
+        let cmd = provider.build_command(&config, None);
+        // Should have ONE --append-system-prompt-file flag (only repo_map_file since system_prompt_file is None)
+        let count = cmd
+            .iter()
+            .filter(|s| *s == "--append-system-prompt-file")
+            .count();
+        assert_eq!(count, 1);
+        assert!(cmd.contains(
+            &"/home/user/.dorotoring/projects/abc123/repo-map.md".to_string()
+        ));
+    }
+
+    #[test]
+    fn test_claude_repo_map_file_with_system_prompt() {
+        let provider = ClaudeProvider;
+        let mut config = default_config("test");
+        config.system_prompt_file = Some(PathBuf::from(
+            "/home/user/.dorotoring/agent-instructions.md",
+        ));
+        config.repo_map_file = Some(PathBuf::from(
+            "/home/user/.dorotoring/projects/abc123/repo-map.md",
+        ));
+        let cmd = provider.build_command(&config, None);
+        let count = cmd
+            .iter()
+            .filter(|s| *s == "--append-system-prompt-file")
+            .count();
+        assert_eq!(count, 2); // Both system prompt AND repo map
+    }
+
+    #[test]
+    fn test_codex_ignores_repo_map_file() {
+        let provider = CodexProvider;
+        let mut config = default_config("test");
+        config.repo_map_file = Some(PathBuf::from("/some/path/repo-map.md"));
+        let cmd = provider.build_command(&config, None);
+        // Codex doesn't support system prompt files
+        assert!(!cmd.contains(&"--append-system-prompt-file".to_string()));
+    }
 }

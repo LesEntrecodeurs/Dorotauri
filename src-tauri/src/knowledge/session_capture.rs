@@ -289,4 +289,59 @@ mod tests {
         let files: Vec<String> = serde_json::from_str(&files_json).unwrap();
         assert_eq!(files, vec!["a.rs", "b.rs"]);
     }
+
+    #[test]
+    fn test_capture_preserves_pinned() {
+        let conn = setup_db();
+
+        // Insert and pin
+        capture_session(
+            &conn,
+            "s1",
+            "a1",
+            Some("task"),
+            "completed",
+            &[],
+            &[],
+            None,
+            "2026-01-01T00:00:00Z",
+            "2026-01-01T00:01:00Z",
+            None,
+        )
+        .unwrap();
+        conn.execute("UPDATE sessions SET pinned = TRUE WHERE id = 's1'", [])
+            .unwrap();
+
+        // Re-capture (update status)
+        capture_session(
+            &conn,
+            "s1",
+            "a1",
+            Some("task updated"),
+            "failed",
+            &[],
+            &[],
+            None,
+            "2026-01-01T00:00:00Z",
+            "2026-01-01T00:02:00Z",
+            None,
+        )
+        .unwrap();
+
+        // Pinned should still be true
+        let pinned: bool = conn
+            .query_row("SELECT pinned FROM sessions WHERE id = 's1'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert!(pinned, "Pinned flag should be preserved on re-capture");
+
+        // Status should be updated
+        let status: String = conn
+            .query_row("SELECT status FROM sessions WHERE id = 's1'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(status, "failed");
+    }
 }

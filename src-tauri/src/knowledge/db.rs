@@ -194,3 +194,134 @@ pub fn purge_old_sessions(conn: &Connection, retention_days: u32) -> Result<usiz
 
     Ok(deleted)
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_hash_deterministic() {
+        let h1 = project_hash("/home/user/project");
+        let h2 = project_hash("/home/user/project");
+        assert_eq!(h1, h2);
+        assert_eq!(h1.len(), 12); // 6 bytes = 12 hex chars
+    }
+
+    #[test]
+    fn test_project_hash_different_paths() {
+        let h1 = project_hash("/home/user/project-a");
+        let h2 = project_hash("/home/user/project-b");
+        assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn test_open_creates_tables() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let conn = open(&project).unwrap();
+
+        // Check all tables exist
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        assert!(tables.contains(&"symbols".to_string()));
+        assert!(tables.contains(&"refs".to_string()));
+        assert!(tables.contains(&"sessions".to_string()));
+        assert!(tables.contains(&"events".to_string()));
+    }
+
+    #[test]
+    fn test_open_sets_wal_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let conn = open(&project).unwrap();
+        let mode: String = conn
+            .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(mode, "wal");
+    }
+
+    #[test]
+    fn test_open_schema_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let conn = open(&project).unwrap();
+        let version: u32 = conn
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn test_open_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let _conn1 = open(&project).unwrap();
+        let conn2 = open(&project).unwrap(); // Should not fail on re-open
+        let version: u32 = conn2
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn test_purge_old_sessions_skips_pinned() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let conn = open(&project).unwrap();
+
+        // Insert an old session (pinned)
+        conn.execute(
+            "INSERT INTO sessions (id, agent_id, status, started_at, pinned) VALUES ('s1', 'a1', 'completed', '2020-01-01T00:00:00Z', TRUE)",
+            [],
+        )
+        .unwrap();
+
+        // Insert an old session (not pinned)
+        conn.execute(
+            "INSERT INTO sessions (id, agent_id, status, started_at, pinned) VALUES ('s2', 'a1', 'completed', '2020-01-01T00:00:00Z', FALSE)",
+            [],
+        )
+        .unwrap();
+
+        let deleted = purge_old_sessions(&conn, 1).unwrap();
+        assert_eq!(deleted, 1); // Only s2 deleted
+
+        // s1 should still exist
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sessions WHERE id = 's1'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_purge_keeps_recent_sessions() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = dir.path().to_string_lossy().to_string();
+        let conn = open(&project).unwrap();
+
+        // Insert a recent session
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO sessions (id, agent_id, status, started_at, pinned) VALUES ('s1', 'a1', 'completed', ?1, FALSE)",
+            rusqlite::params![now],
+        )
+        .unwrap();
+
+        let deleted = purge_old_sessions(&conn, 90).unwrap();
+        assert_eq!(deleted, 0);
+    }
+}

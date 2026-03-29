@@ -824,4 +824,120 @@ mod tests {
         let priv_fn = result.symbols.iter().find(|s| s.name == "private").unwrap();
         assert!(!priv_fn.exported);
     }
+
+    #[test]
+    fn test_parse_typescript_interface_and_type() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.ts");
+        std::fs::write(
+            &file,
+            "export interface User {\n  id: string;\n  email: string;\n}\n\nexport type Role = 'admin' | 'user';\n",
+        )
+        .unwrap();
+        let result = parse_file(&file).unwrap();
+        assert!(result
+            .symbols
+            .iter()
+            .any(|s| s.name == "User" && matches!(s.kind, SymbolKind::Interface)));
+        assert!(result
+            .symbols
+            .iter()
+            .any(|s| s.name == "Role" && matches!(s.kind, SymbolKind::Type)));
+    }
+
+    #[test]
+    fn test_parse_typescript_exported_const() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.ts");
+        std::fs::write(
+            &file,
+            "export const API_URL = 'https://example.com';\nconst internal = 42;\n",
+        )
+        .unwrap();
+        let result = parse_file(&file).unwrap();
+        let api = result.symbols.iter().find(|s| s.name == "API_URL");
+        assert!(api.is_some());
+        assert!(api.unwrap().exported);
+        // internal should also be captured but not exported
+        let internal = result.symbols.iter().find(|s| s.name == "internal");
+        assert!(internal.is_some());
+    }
+
+    #[test]
+    fn test_parse_rust_impl_methods() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.rs");
+        std::fs::write(
+            &file,
+            "pub struct Foo;\n\nimpl Foo {\n    pub fn bar(&self) -> i32 { 42 }\n    fn private_method(&self) {}\n}\n",
+        )
+        .unwrap();
+        let result = parse_file(&file).unwrap();
+        assert!(result.symbols.iter().any(|s| s.name == "Foo"));
+        assert!(result
+            .symbols
+            .iter()
+            .any(|s| s.name == "bar" && matches!(s.kind, SymbolKind::Method) && s.exported));
+        assert!(result.symbols.iter().any(
+            |s| s.name == "private_method" && matches!(s.kind, SymbolKind::Method) && !s.exported
+        ));
+    }
+
+    #[test]
+    fn test_parse_empty_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("empty.ts");
+        std::fs::write(&file, "").unwrap();
+        let result = parse_file(&file).unwrap();
+        assert!(result.symbols.is_empty());
+        assert!(result.imports.is_empty());
+    }
+
+    #[test]
+    fn test_parse_multiple_imports() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.ts");
+        std::fs::write(
+            &file,
+            "import { A, B } from './mod1';\nimport { C } from './mod2';\n",
+        )
+        .unwrap();
+        let result = parse_file(&file).unwrap();
+        assert_eq!(result.imports.len(), 2);
+        assert_eq!(result.imports[0].symbols.len(), 2);
+        assert!(result.imports[0].symbols.contains(&"A".to_string()));
+        assert!(result.imports[0].symbols.contains(&"B".to_string()));
+    }
+
+    #[test]
+    fn test_parse_go_exported_type() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.go");
+        std::fs::write(
+            &file,
+            "package main\n\ntype UserService struct {\n\tDB *sql.DB\n}\n\ntype internal struct{}\n",
+        )
+        .unwrap();
+        let result = parse_file(&file).unwrap();
+        let us = result
+            .symbols
+            .iter()
+            .find(|s| s.name == "UserService")
+            .unwrap();
+        assert!(us.exported);
+        let int = result
+            .symbols
+            .iter()
+            .find(|s| s.name == "internal")
+            .unwrap();
+        assert!(!int.exported);
+    }
+
+    #[test]
+    fn test_unsupported_extension() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.txt");
+        std::fs::write(&file, "hello world").unwrap();
+        assert!(parse_file(&file).is_err());
+    }
 }
