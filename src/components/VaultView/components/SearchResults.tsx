@@ -1,6 +1,5 @@
 
 
-import { motion } from 'framer-motion';
 import {
   FileText,
   Clock,
@@ -66,13 +65,10 @@ export default function SearchResults({ results, query, onSelectDocument }: Sear
         const tags = parseTags(doc.tags);
 
         return (
-          <motion.button
+          <button
             key={doc.id}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.03 }}
             onClick={() => onSelectDocument(doc.id)}
-            className="w-full text-left p-3 rounded-md border border-border bg-card hover:bg-secondary/50 hover:border-border/80 transition-all"
+            className="animate-mount-fade-up w-full text-left p-3 rounded-md border border-border bg-card hover:bg-secondary/50 hover:border-border/80 transition-all"
           >
             <h3 className="font-medium text-sm text-foreground">{doc.title}</h3>
 
@@ -105,7 +101,7 @@ export default function SearchResults({ results, query, onSelectDocument }: Sear
                 ))}
               </div>
             )}
-          </motion.button>
+          </button>
         );
       })}
     </div>

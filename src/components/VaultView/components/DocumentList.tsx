@@ -1,6 +1,5 @@
 
 
-import { motion } from 'framer-motion';
 import {
   FileText,
   Clock,
@@ -67,14 +66,11 @@ export default function DocumentList({ documents, selectedDocId, onSelectDocumen
         const preview = doc.content.replace(/[#*_`~\[\]]/g, '').slice(0, 120);
 
         return (
-          <motion.button
+          <button
             key={doc.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.03 }}
             onClick={() => onSelectDocument(doc.id)}
             className={`
-              w-full text-left p-3 rounded-md border transition-all
+              animate-mount-fade-up w-full text-left p-3 rounded-md border transition-all
               ${isSelected
                 ? 'bg-primary/10 border-primary/30 shadow-sm'
                 : 'bg-card border-border hover:bg-secondary/50 hover:border-border/80'
@@ -117,7 +113,7 @@ export default function DocumentList({ documents, selectedDocId, onSelectDocumen
                 )}
               </div>
             )}
-          </motion.button>
+          </button>
         );
       })}
     </div>

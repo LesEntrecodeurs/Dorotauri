@@ -1,7 +1,7 @@
 
 
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   Folder,
   FolderPlus,
@@ -94,6 +94,7 @@ function FolderNode({ folder, childFolders, allFolders, documents, selectedFolde
     () => countUnreadInFolder(folder.id, allFolders, documents, readDocIds),
     [folder.id, allFolders, documents, readDocIds]
   );
+  const expandAnim = useAnimatePresence(expanded && hasContent, 150);
 
   const handleCreateSubfolder = () => {
     if (newSubfolderName.trim()) {
@@ -155,14 +156,9 @@ function FolderNode({ folder, childFolders, allFolders, documents, selectedFolde
         </span>
       </div>
 
-      <AnimatePresence>
-        {expanded && hasContent && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+      {expandAnim.shouldRender && (
+        <div data-state={expandAnim.animationState} className="animate-expand">
+          <div>
             {/* Child folders */}
             {childFolders.map(child => {
               const grandchildren = allFolders.filter(f => f.parent_id === child.id);
@@ -236,9 +232,9 @@ function FolderNode({ folder, childFolders, allFolders, documents, selectedFolde
                 />
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

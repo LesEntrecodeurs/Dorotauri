@@ -1,7 +1,6 @@
 
 
 import React, { useState, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Save,
@@ -229,10 +228,8 @@ export default function DocumentEditor({ document, folders, defaultFolderId, onS
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex flex-col h-full"
+    <div
+      className="animate-mount-fade-up flex flex-col h-full"
       onKeyDown={handleKeyDown}
     >
       {/* Header */}
@@ -420,6 +417,6 @@ export default function DocumentEditor({ document, folders, defaultFolderId, onS
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

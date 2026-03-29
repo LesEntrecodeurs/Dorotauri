@@ -1,7 +1,6 @@
 
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/store';
 import {
   Search,
@@ -440,15 +439,9 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <AnimatePresence mode="wait">
+            <>
               {viewMode === 'list' && (
-                <motion.div
-                  key="list"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="h-full overflow-y-auto"
-                >
+                <div className="animate-mount-fade-up h-full overflow-y-auto">
                   <DocumentList
                     documents={documents}
                     selectedDocId={selectedDoc?.id || null}
@@ -458,33 +451,21 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
                       setViewMode('edit');
                     }}
                   />
-                </motion.div>
+                </div>
               )}
 
               {viewMode === 'search' && (
-                <motion.div
-                  key="search"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="h-full overflow-y-auto"
-                >
+                <div className="animate-mount-fade-up h-full overflow-y-auto">
                   <SearchResults
                     results={searchResults}
                     query={searchQuery}
                     onSelectDocument={handleSelectDocument}
                   />
-                </motion.div>
+                </div>
               )}
 
               {viewMode === 'view' && selectedDoc && (
-                <motion.div
-                  key="view"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="h-full overflow-y-auto"
-                >
+                <div className="animate-mount-fade-up h-full overflow-y-auto">
                   <DocumentViewer
                     document={selectedDoc}
                     attachments={selectedDocAttachments}
@@ -496,17 +477,11 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
                     onDelete={handleDeleteDocument}
                     onLinkClick={handleInternalLink}
                   />
-                </motion.div>
+                </div>
               )}
 
               {viewMode === 'edit' && (
-                <motion.div
-                  key="edit"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="h-full overflow-y-auto"
-                >
+                <div className="animate-mount-fade-up h-full overflow-y-auto">
                   <DocumentEditor
                     document={selectedDoc}
                     folders={folders}
@@ -516,9 +491,9 @@ export default function VaultView({ embedded }: { embedded?: boolean } = {}) {
                       setViewMode(selectedDoc ? 'view' : 'list');
                     }}
                   />
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
+            </>
           )}
         </VaultPanel>
       </div>
