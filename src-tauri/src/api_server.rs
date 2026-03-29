@@ -715,8 +715,10 @@ async fn hook_status(
 
     let result = state
         .agent_manager
-        .set_state(&body.agent_id, new_state)
+        .set_state(&body.agent_id, new_state.clone())
         .await;
+
+    let status_str = body.status.clone();
 
     // Update cwd if provided by the hook (tracks real project directory)
     if let Some(cwd) = body.cwd {
@@ -740,6 +742,40 @@ async fn hook_status(
 
     if let Ok(ref agent) = result {
         state.app_handle.emit("agent:status", agent).ok();
+    }
+
+    // Capture session for knowledge layer on terminal states
+    if matches!(new_state, AgentState::Completed | AgentState::Error) {
+        if let Ok(ref agent) = result {
+            let knowledge = state.knowledge.clone();
+            let agent_cwd = agent.cwd.clone();
+            let agent_id = agent.id.clone();
+            let agent_name = agent.name.clone();
+            let agent_created = agent.created_at.clone();
+            let status_for_capture = status_str.clone();
+            tokio::spawn(async move {
+                let conn = match knowledge.get_conn(&agent_cwd).await {
+                    Ok(c) => c,
+                    Err(_) => return,
+                };
+                let conn_guard = conn.lock().unwrap();
+                let embedding = knowledge.embedding.try_lock().ok();
+                let engine_ref = embedding.as_deref();
+                let session_id = uuid::Uuid::new_v4().to_string();
+                let now = chrono::Utc::now().to_rfc3339();
+                crate::knowledge::session_capture::capture_session(
+                    &conn_guard,
+                    &session_id,
+                    &agent_id,
+                    agent_name.as_deref(),
+                    &status_for_capture,
+                    &[], &[], None,
+                    &agent_created,
+                    &now,
+                    engine_ref,
+                ).ok();
+            });
+        }
     }
 
     Json(serde_json::json!({ "ok": result.is_ok() }))

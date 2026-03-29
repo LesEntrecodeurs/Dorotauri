@@ -60,6 +60,9 @@ pub fn run() {
     let api_event_bus = Arc::clone(&app_state.event_bus);
     let api_knowledge = Arc::clone(&knowledge_engine);
 
+    // Clone for Tauri managed state (so commands can access KnowledgeEngine)
+    let knowledge_for_manage = Arc::clone(&knowledge_engine);
+
     tauri::Builder::default()
         .manage(app_state)
         .manage(pty_manager)
@@ -67,6 +70,7 @@ pub fn run() {
         .manage(vault_db)
         .manage(sftp_manager)
         .manage(cwd_tracker)
+        .manage(knowledge_for_manage)
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -89,6 +93,26 @@ pub fn run() {
                 let mut engine = embed_init.lock().await;
                 if let Err(e) = engine.init().await {
                     eprintln!("[embedding] Init failed (will retry later): {e}");
+                }
+            });
+
+            // Purge old sessions at startup
+            tauri::async_runtime::spawn(async move {
+                let projects_dir = dirs::home_dir()
+                    .map(|h| h.join(".dorotoring").join("projects"));
+                if let Some(dir) = projects_dir {
+                    if let Ok(entries) = std::fs::read_dir(&dir) {
+                        for entry in entries.flatten() {
+                            let db_path = entry.path().join("knowledge.db");
+                            if db_path.exists() {
+                                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                                    if let Err(e) = crate::knowledge::db::purge_old_sessions(&conn, 90) {
+                                        eprintln!("[knowledge] Purge error: {e}");
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             });
 

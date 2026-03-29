@@ -258,6 +258,7 @@ pub async fn agent_start(
     state: State<'_, Arc<AppState>>,
     pty_manager: State<'_, Arc<PtyManager>>,
     cwd_tracker: State<'_, Arc<CwdTracker>>,
+    knowledge: State<'_, Arc<crate::knowledge::KnowledgeEngine>>,
     app_handle: AppHandle,
     id: String,
     prompt: Option<String>,
@@ -382,6 +383,37 @@ pub async fn agent_start(
 
     // Emit status event
     app_handle.emit("agent:status", &updated_agent).ok();
+
+    // Trigger knowledge layer indexing for this project
+    {
+        let knowledge = Arc::clone(&knowledge);
+        let cwd = updated_agent.cwd.clone();
+        tauri::async_runtime::spawn(async move {
+            let conn = match knowledge.get_conn(&cwd).await {
+                Ok(c) => c,
+                Err(e) => { eprintln!("[knowledge] DB open error: {e}"); return; }
+            };
+            let conn_guard = conn.lock().unwrap();
+            let embedding = knowledge.embedding.try_lock().ok();
+            let engine_ref = embedding.as_deref();
+            match crate::knowledge::indexer::index_project(&conn_guard, std::path::Path::new(&cwd), engine_ref) {
+                Ok(count) => {
+                    eprintln!("[knowledge] Indexed {count} symbols for {cwd}");
+                    if let Err(e) = crate::knowledge::repo_map::write_to_file(&conn_guard, &cwd, 2048) {
+                        eprintln!("[knowledge] Repo map error: {e}");
+                    }
+                }
+                Err(e) => eprintln!("[knowledge] Index error: {e}"),
+            }
+            // Index Claude Code memory
+            if let Some(mem_dir) = crate::knowledge::claude_memory::find_memory_dir(&cwd) {
+                match crate::knowledge::claude_memory::index_memory_dir(&conn_guard, &mem_dir, engine_ref) {
+                    Ok(count) => eprintln!("[knowledge] Indexed {count} Claude Code memory files"),
+                    Err(e) => eprintln!("[knowledge] Memory index error: {e}"),
+                }
+            }
+        });
+    }
 
     Ok(updated_agent)
 }

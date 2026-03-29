@@ -349,11 +349,24 @@ pub struct AppSettings {
     pub hidden_projects: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_project_path: Option<String>,
+    #[serde(default = "default_true")]
+    pub knowledge_enabled: bool,
+    #[serde(default = "default_repo_map_budget")]
+    pub repo_map_budget: u32,
+    #[serde(default)]
+    pub knowledge_languages: Vec<String>,
+    #[serde(default = "default_reindex_trigger")]
+    pub reindex_trigger: String,
+    #[serde(default = "default_session_retention")]
+    pub session_retention_days: u32,
 }
 
 fn default_true() -> bool {
     true
 }
+fn default_repo_map_budget() -> u32 { 2048 }
+fn default_reindex_trigger() -> String { "on-save".to_string() }
+fn default_session_retention() -> u32 { 90 }
 
 impl Default for AppSettings {
     fn default() -> Self {
@@ -403,6 +416,11 @@ impl Default for AppSettings {
             favorite_projects: None,
             hidden_projects: None,
             default_project_path: None,
+            knowledge_enabled: true,
+            repo_map_budget: 2048,
+            knowledge_languages: Vec::new(),
+            reindex_trigger: "on-save".to_string(),
+            session_retention_days: 90,
         }
     }
 }
