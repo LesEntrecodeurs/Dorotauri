@@ -2,11 +2,10 @@ pub mod db;
 pub mod tree_sitter;
 pub mod reference_graph;
 pub mod indexer;
-// These will be created in later tasks - just declare them:
-// pub mod repo_map;
-// pub mod file_watcher;
-// pub mod session_capture;
-// pub mod claude_memory;
+pub mod repo_map;
+pub mod file_watcher;
+pub mod session_capture;
+pub mod claude_memory;
 // pub mod search;
 
 use std::collections::HashMap;
