@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   Bot,
   AlertCircle,
@@ -36,11 +36,7 @@ function AgentItem({
   onOpenTerminal: (agentId: string) => void;
 }) {
   return (
-    <motion.div
-      layoutId={`notification-agent-${agent.id}`}
-      initial={false}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+    <div
       className={cn(
         'p-3 border transition-colors cursor-pointer hover:bg-secondary/50',
         agent.status === 'waiting'
@@ -101,7 +97,7 @@ function AgentItem({
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -111,17 +107,17 @@ export function NotificationPanel({
   onToggle,
   onOpenTerminal,
 }: NotificationPanelProps) {
+  const panelAnim = useAnimatePresence(!isCollapsed);
+
   const waitingAgents = agents.filter(a => a.status === 'waiting');
   const runningAgents = agents.filter(a => a.status === 'running');
   const completedAgents = agents.filter(a => a.status === 'completed');
   const errorAgents = agents.filter(a => a.status === 'error');
 
   return (
-    <motion.div
-      className="absolute top-4 bottom-4 right-4 z-50 flex"
-      initial={false}
-      animate={{ width: isCollapsed ? 48 : 320 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+    <div
+      className="absolute top-4 bottom-4 right-4 z-50 flex animate-panel-width"
+      style={{ width: isCollapsed ? 48 : 320 }}
     >
       {/* Toggle button */}
       <button
@@ -143,122 +139,118 @@ export function NotificationPanel({
       </button>
 
       {/* Panel content */}
-      <AnimatePresence>
-        {!isCollapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex-1 bg-card/95 border border-border overflow-hidden flex flex-col"
-          >
-            {/* Header */}
-            <div className="px-4 py-3 border-b border-border bg-secondary/30">
-              <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-primary" />
-                <span className="font-medium text-sm text-foreground">Activity</span>
-                {waitingAgents.length > 0 && (
-                  <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-warning text-white font-bold">
-                    {waitingAgents.length}
-                  </span>
-                )}
+      {panelAnim.shouldRender && (
+        <div
+          data-state={panelAnim.animationState}
+          className="animate-fade flex-1 bg-card/95 border border-border overflow-hidden flex flex-col"
+        >
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-border bg-secondary/30">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-primary" />
+              <span className="font-medium text-sm text-foreground">Activity</span>
+              {waitingAgents.length > 0 && (
+                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-warning text-white font-bold">
+                  {waitingAgents.length}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+            <>
+              {/* Waiting agents */}
+              {waitingAgents.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-warning" />
+                    <span className="text-xs font-medium text-warning uppercase tracking-wide">
+                      Needs Attention
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {waitingAgents.map(agent => (
+                      <AgentItem key={agent.id} agent={agent} showAction onOpenTerminal={onOpenTerminal} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Running agents */}
+              {runningAgents.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                    <span className="text-xs font-medium text-primary uppercase tracking-wide">
+                      Working
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {runningAgents.map(agent => (
+                      <AgentItem key={agent.id} agent={agent} onOpenTerminal={onOpenTerminal} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Completed agents */}
+              {completedAgents.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                    <span className="text-xs font-medium text-success uppercase tracking-wide">
+                      Completed
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {completedAgents.map(agent => (
+                      <AgentItem key={agent.id} agent={agent} onOpenTerminal={onOpenTerminal} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Error agents */}
+              {errorAgents.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle className="w-3.5 h-3.5 text-destructive" />
+                    <span className="text-xs font-medium text-destructive uppercase tracking-wide">
+                      Errors
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {errorAgents.map(agent => (
+                      <AgentItem key={agent.id} agent={agent} onOpenTerminal={onOpenTerminal} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+
+            {/* Empty state */}
+            {agents.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Bot className="w-10 h-10 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">No agents yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Create an agent to see activity</p>
               </div>
-            </div>
+            )}
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-4">
-              <LayoutGroup>
-                {/* Waiting agents */}
-                {waitingAgents.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="w-3.5 h-3.5 text-warning" />
-                      <span className="text-xs font-medium text-warning uppercase tracking-wide">
-                        Needs Attention
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {waitingAgents.map(agent => (
-                        <AgentItem key={agent.id} agent={agent} showAction onOpenTerminal={onOpenTerminal} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Running agents */}
-                {runningAgents.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
-                      <span className="text-xs font-medium text-primary uppercase tracking-wide">
-                        Working
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {runningAgents.map(agent => (
-                        <AgentItem key={agent.id} agent={agent} onOpenTerminal={onOpenTerminal} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Completed agents */}
-                {completedAgents.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                      <span className="text-xs font-medium text-success uppercase tracking-wide">
-                        Completed
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {completedAgents.map(agent => (
-                        <AgentItem key={agent.id} agent={agent} onOpenTerminal={onOpenTerminal} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Error agents */}
-                {errorAgents.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <XCircle className="w-3.5 h-3.5 text-destructive" />
-                      <span className="text-xs font-medium text-destructive uppercase tracking-wide">
-                        Errors
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {errorAgents.map(agent => (
-                        <AgentItem key={agent.id} agent={agent} onOpenTerminal={onOpenTerminal} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </LayoutGroup>
-
-              {/* Empty state */}
-              {agents.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <Bot className="w-10 h-10 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">No agents yet</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Create an agent to see activity</p>
+            {/* All idle state */}
+            {agents.length > 0 && waitingAgents.length === 0 && runningAgents.length === 0 && completedAgents.length === 0 && errorAgents.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mb-3">
+                  <Bot className="w-5 h-5 text-muted-foreground" />
                 </div>
-              )}
-
-              {/* All idle state */}
-              {agents.length > 0 && waitingAgents.length === 0 && runningAgents.length === 0 && completedAgents.length === 0 && errorAgents.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center mb-3">
-                    <Bot className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">All agents idle</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Start an agent to see activity</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+                <p className="text-sm text-muted-foreground">All agents idle</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Start an agent to see activity</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

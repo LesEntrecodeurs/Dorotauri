@@ -1,7 +1,7 @@
 
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
+
 import { useNavigate } from 'react-router';
 import { useElectronAgents, useElectronFS, useElectronSkills, isElectron } from '@/hooks/useElectron';
 import { useClaude } from '@/hooks/useClaude';
@@ -173,7 +173,7 @@ export default function CanvasView() {
         ))}
 
         {/* Agent Nodes */}
-        <AnimatePresence>
+        <>
           {filteredAgents.map((agent) => (
             <AgentNodeCard
               key={agent.id}
@@ -186,10 +186,10 @@ export default function CanvasView() {
               onEdit={() => handleEditAgent(agent.id)}
             />
           ))}
-        </AnimatePresence>
+        </>
 
         {/* Project Nodes */}
-        <AnimatePresence>
+        <>
           {filteredProjects.map((project) => (
             <ProjectNodeCard
               key={project.id}
@@ -200,7 +200,7 @@ export default function CanvasView() {
               onAddAgent={() => handleAddAgentToProject(project.path)}
             />
           ))}
-        </AnimatePresence>
+        </>
       </div>
 
       <CanvasStatusBar

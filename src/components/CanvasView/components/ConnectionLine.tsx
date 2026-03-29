@@ -1,7 +1,5 @@
 
 
-import { motion } from 'framer-motion';
-
 interface ConnectionLineProps {
   from: { x: number; y: number };
   to: { x: number; y: number };
@@ -20,15 +18,14 @@ export function ConnectionLine({ from, to, isActive }: ConnectionLineProps) {
           <stop offset="100%" stopColor={isActive ? 'hsl(var(--chart-2))' : 'hsl(var(--muted))'} />
         </linearGradient>
       </defs>
-      <motion.path
+      <path
         d={path}
         fill="none"
         stroke={`url(#gradient-${from.x.toFixed(0)}-${to.x.toFixed(0)})`}
         strokeWidth={isActive ? 2.5 : 1.5}
         strokeDasharray={isActive ? '0' : '6,4'}
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: 1, opacity: isActive ? 1 : 0.5 }}
-        transition={{ duration: 0.8 }}
+        opacity={isActive ? 1 : 0.5}
+        className="animate-mount-fade-in"
       />
       {isActive && (
         <>

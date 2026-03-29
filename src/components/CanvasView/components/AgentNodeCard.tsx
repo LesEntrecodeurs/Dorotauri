@@ -1,7 +1,7 @@
 
 
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   FolderGit2,
   Play,
@@ -58,17 +58,15 @@ export function AgentNodeCard({
   }, [showMenu]);
 
   const isRunning = node.status === 'running' || node.status === 'waiting';
+  const menuAnim = useAnimatePresence(showMenu);
 
   return (
-    <motion.div
+    <div
       className={cn(
-        'node-card absolute select-none touch-none',
+        'node-card absolute select-none touch-none animate-mount-fade-up',
         isDragging ? 'z-50 cursor-grabbing' : 'z-10 cursor-pointer'
       )}
       style={{ left: node.position.x, top: node.position.y }}
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      whileHover={{ scale: isDragging ? 1 : 1.02 }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -108,14 +106,10 @@ export function AgentNodeCard({
               >
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </Button>
-              <AnimatePresence>
-                {showMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                    transition={{ duration: 0.1 }}
-                    className="absolute right-0 top-full mt-1 w-36 bg-card border border-border shadow-xl z-50 overflow-hidden"
+              {menuAnim.shouldRender && (
+                  <div
+                    data-state={menuAnim.animationState}
+                    className="animate-fade absolute right-0 top-full mt-1 w-36 bg-card border border-border shadow-xl z-50 overflow-hidden"
                   >
                     <button
                       onClick={(e) => {
@@ -128,9 +122,8 @@ export function AgentNodeCard({
                       <Settings2 className="w-4 h-4 text-primary" />
                       Edit
                     </button>
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -207,6 +200,6 @@ export function AgentNodeCard({
         {/* Connection point */}
         <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-card border border-primary/50" />
       </Card>
-    </motion.div>
+    </div>
   );
 }

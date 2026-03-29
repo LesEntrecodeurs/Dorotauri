@@ -1,7 +1,7 @@
 
 
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   FolderGit2,
   GitBranch,
@@ -49,17 +49,15 @@ export function ProjectNodeCard({
   }, [showMenu]);
 
   const agentCount = node.agentIds.length;
+  const menuAnim = useAnimatePresence(showMenu);
 
   return (
-    <motion.div
+    <div
       className={cn(
-        'node-card absolute select-none touch-none',
+        'node-card absolute select-none touch-none animate-mount-fade-up',
         isDragging ? 'z-50 cursor-grabbing' : 'z-10 cursor-pointer'
       )}
       style={{ left: node.position.x, top: node.position.y }}
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      whileHover={{ scale: isDragging ? 1 : 1.02 }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -98,14 +96,10 @@ export function ProjectNodeCard({
             >
               <MoreVertical className="w-4 h-4 text-muted-foreground" />
             </Button>
-            <AnimatePresence>
-              {showMenu && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                  transition={{ duration: 0.1 }}
-                  className="absolute right-0 top-full mt-1 w-40 bg-card border border-border shadow-xl z-50 overflow-hidden"
+            {menuAnim.shouldRender && (
+                <div
+                  data-state={menuAnim.animationState}
+                  className="animate-fade absolute right-0 top-full mt-1 w-40 bg-card border border-border shadow-xl z-50 overflow-hidden"
                 >
                   <button
                     onClick={(e) => {
@@ -118,9 +112,8 @@ export function ProjectNodeCard({
                     <Plus className="w-4 h-4 text-primary" />
                     Add agent
                   </button>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
           </div>
         </div>
 
@@ -135,6 +128,6 @@ export function ProjectNodeCard({
           )}
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }
