@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   Zap,
   Plus,
@@ -115,6 +115,140 @@ const SCHEDULE_PRESETS = [
   { value: '1440', label: 'Daily', minutes: 1440 },
 ];
 
+// Expandable details sub-component so we can use useAnimatePresence per item
+function AutomationExpandDetails({
+  isExpanded,
+  automation,
+}: {
+  isExpanded: boolean;
+  automation: Automation;
+}) {
+  const expandAnim = useAnimatePresence(isExpanded);
+  const githubConfig = automation.source.config as { repos?: string[]; pollFor?: string[] };
+  const jiraConfig = automation.source.config as { projectKeys?: string[]; jql?: string };
+  if (!expandAnim.shouldRender) return null;
+  return (
+    <div data-state={expandAnim.animationState} className="animate-expand overflow-hidden">
+      <div className="px-4 pb-4 pt-2 border-t border-border/50 space-y-3">
+        {/* GitHub Repos */}
+        {automation.source.type === 'github' && githubConfig?.repos && githubConfig.repos.length > 0 && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Github className="w-3 h-3" />
+              Repositories
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {githubConfig.repos.map((repo, i) => (
+                <span key={i} className="px-2 py-0.5 bg-secondary rounded text-xs font-mono">
+                  {repo}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Poll For */}
+        {automation.source.type === 'github' && githubConfig?.pollFor && githubConfig.pollFor.length > 0 && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <GitBranch className="w-3 h-3" />
+              Polling for
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {githubConfig.pollFor.map((type, i) => (
+                <span key={i} className="px-2 py-0.5 bg-secondary rounded text-xs flex items-center gap-1">
+                  {type === 'pull_requests' && <GitPullRequest className="w-3 h-3" />}
+                  {type === 'issues' && <AlertCircle className="w-3 h-3" />}
+                  {type === 'releases' && <Tag className="w-3 h-3" />}
+                  {type.replace('_', ' ')}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* JIRA Project Keys */}
+        {automation.source.type === 'jira' && jiraConfig?.projectKeys && jiraConfig.projectKeys.length > 0 && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <TicketCheck className="w-3 h-3" />
+              Project Keys
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {jiraConfig.projectKeys.map((key, i) => (
+                <span key={i} className="px-2 py-0.5 bg-secondary rounded text-xs font-mono">
+                  {key}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* JIRA JQL */}
+        {automation.source.type === 'jira' && jiraConfig?.jql && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <TicketCheck className="w-3 h-3" />
+              JQL Query
+            </div>
+            <div className="px-3 py-2 bg-secondary/50 rounded text-xs font-mono whitespace-pre-wrap">
+              {jiraConfig.jql}
+            </div>
+          </div>
+        )}
+
+        {/* Agent Prompt */}
+        {automation.agent.enabled && automation.agent.prompt && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Bot className="w-3 h-3" />
+              Agent Prompt
+            </div>
+            <div className="px-3 py-2 bg-secondary/50 rounded text-xs font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+              {automation.agent.prompt}
+            </div>
+          </div>
+        )}
+
+        {/* Project Path */}
+        {automation.agent.projectPath && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <FolderOpen className="w-3 h-3" />
+              Project Path
+            </div>
+            <div className="px-2 py-1 bg-secondary rounded text-xs font-mono truncate">
+              {automation.agent.projectPath}
+            </div>
+          </div>
+        )}
+
+        {/* Output Template */}
+        {automation.outputs.some(o => o.template) && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <MessageSquare className="w-3 h-3" />
+              Output Template
+            </div>
+            <div className="px-3 py-2 bg-secondary/50 rounded text-xs font-mono whitespace-pre-wrap max-h-24 overflow-y-auto">
+              {automation.outputs.find(o => o.template)?.template}
+            </div>
+          </div>
+        )}
+
+        {/* Metadata */}
+        <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground/60 pt-2 border-t border-border/30">
+          <span>ID: {automation.id}</span>
+          <span>Created: {new Date(automation.createdAt).toLocaleDateString()}</span>
+          {automation.updatedAt !== automation.createdAt && (
+            <span>Updated: {new Date(automation.updatedAt).toLocaleDateString()}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AutomationsPage() {
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -160,6 +294,10 @@ export default function AutomationsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const toastAnim = useAnimatePresence(!!toast);
+  const createFormAnim = useAnimatePresence(showCreateForm);
+  const logsModalAnim = useAnimatePresence(!!selectedLogs);
 
   // Load automations via MCP call (simulated via fetch to API that calls MCP)
   const loadAutomations = useCallback(async () => {
@@ -411,24 +549,20 @@ export default function AutomationsPage() {
       </div>
 
       {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className={`fixed top-4 right-4 z-50 px-4 py-3 shadow-lg flex items-center gap-2 ${
-              toast.type === 'success' ? 'bg-green-500/90 text-white' :
-              toast.type === 'error' ? 'bg-red-500/90 text-white' :
-              'bg-blue-500/90 text-white'
-            }`}
-          >
-            {toast.type === 'success' && <CheckCircle className="w-4 h-4" />}
-            {toast.type === 'error' && <XCircle className="w-4 h-4" />}
-            <span className="text-sm font-medium">{toast.message}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {toastAnim.shouldRender && toast && (
+        <div
+          data-state={toastAnim.animationState}
+          className={`animate-fade fixed top-4 right-4 z-50 px-4 py-3 shadow-lg flex items-center gap-2 ${
+            toast.type === 'success' ? 'bg-green-500/90 text-white' :
+            toast.type === 'error' ? 'bg-red-500/90 text-white' :
+            'bg-blue-500/90 text-white'
+          }`}
+        >
+          {toast.type === 'success' && <CheckCircle className="w-4 h-4" />}
+          {toast.type === 'error' && <XCircle className="w-4 h-4" />}
+          <span className="text-sm font-medium">{toast.message}</span>
+        </div>
+      )}
 
       {/* Loading state */}
       {isLoading ? (
@@ -464,11 +598,9 @@ export default function AutomationsPage() {
                 const githubConfig = automation.source.config as { repos?: string[]; pollFor?: string[] };
                 const jiraConfig = automation.source.config as { projectKeys?: string[]; jql?: string };
                 return (
-                  <motion.div
+                  <div
                     key={automation.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`bg-card border overflow-hidden transition-colors ${
+                    className={`animate-mount-fade-up bg-card border overflow-hidden transition-colors ${
                       automation.enabled ? 'border-border' : 'border-border/50 opacity-60'
                     }`}
                   >
@@ -617,135 +749,8 @@ export default function AutomationsPage() {
                     </div>
 
                     {/* Expandable Details Section */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="px-4 pb-4 pt-2 border-t border-border/50 space-y-3">
-                            {/* GitHub Repos */}
-                            {automation.source.type === 'github' && githubConfig?.repos && githubConfig.repos.length > 0 && (
-                              <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                                  <Github className="w-3 h-3" />
-                                  Repositories
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {githubConfig.repos.map((repo, i) => (
-                                    <span key={i} className="px-2 py-0.5 bg-secondary rounded text-xs font-mono">
-                                      {repo}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Poll For */}
-                            {automation.source.type === 'github' && githubConfig?.pollFor && githubConfig.pollFor.length > 0 && (
-                              <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                                  <GitBranch className="w-3 h-3" />
-                                  Polling for
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {githubConfig.pollFor.map((type, i) => (
-                                    <span key={i} className="px-2 py-0.5 bg-secondary rounded text-xs flex items-center gap-1">
-                                      {type === 'pull_requests' && <GitPullRequest className="w-3 h-3" />}
-                                      {type === 'issues' && <AlertCircle className="w-3 h-3" />}
-                                      {type === 'releases' && <Tag className="w-3 h-3" />}
-                                      {type.replace('_', ' ')}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* JIRA Project Keys */}
-                            {automation.source.type === 'jira' && jiraConfig?.projectKeys && jiraConfig.projectKeys.length > 0 && (
-                              <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                                  <TicketCheck className="w-3 h-3" />
-                                  Project Keys
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {jiraConfig.projectKeys.map((key, i) => (
-                                    <span key={i} className="px-2 py-0.5 bg-secondary rounded text-xs font-mono">
-                                      {key}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* JIRA JQL */}
-                            {automation.source.type === 'jira' && jiraConfig?.jql && (
-                              <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                                  <TicketCheck className="w-3 h-3" />
-                                  JQL Query
-                                </div>
-                                <div className="px-3 py-2 bg-secondary/50 rounded text-xs font-mono whitespace-pre-wrap">
-                                  {jiraConfig.jql}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Agent Prompt */}
-                            {automation.agent.enabled && automation.agent.prompt && (
-                              <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                                  <Bot className="w-3 h-3" />
-                                  Agent Prompt
-                                </div>
-                                <div className="px-3 py-2 bg-secondary/50 rounded text-xs font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
-                                  {automation.agent.prompt}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Project Path */}
-                            {automation.agent.projectPath && (
-                              <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                                  <FolderOpen className="w-3 h-3" />
-                                  Project Path
-                                </div>
-                                <div className="px-2 py-1 bg-secondary rounded text-xs font-mono truncate">
-                                  {automation.agent.projectPath}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Output Template */}
-                            {automation.outputs.some(o => o.template) && (
-                              <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                                  <MessageSquare className="w-3 h-3" />
-                                  Output Template
-                                </div>
-                                <div className="px-3 py-2 bg-secondary/50 rounded text-xs font-mono whitespace-pre-wrap max-h-24 overflow-y-auto">
-                                  {automation.outputs.find(o => o.template)?.template}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Metadata */}
-                            <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground/60 pt-2 border-t border-border/30">
-                              <span>ID: {automation.id}</span>
-                              <span>Created: {new Date(automation.createdAt).toLocaleDateString()}</span>
-                              {automation.updatedAt !== automation.createdAt && (
-                                <span>Updated: {new Date(automation.updatedAt).toLocaleDateString()}</span>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
+                    <AutomationExpandDetails isExpanded={isExpanded} automation={automation} />
+                  </div>
                 );
               })
             )}
@@ -754,22 +759,17 @@ export default function AutomationsPage() {
       )}
 
       {/* Create Automation Modal */}
-      <AnimatePresence>
-        {showCreateForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowCreateForm(false)}
+      {createFormAnim.shouldRender && (
+        <div
+          data-state={createFormAnim.animationState}
+          className="animate-fade fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowCreateForm(false)}
+        >
+          <div
+            data-state={createFormAnim.animationState}
+            onClick={(e) => e.stopPropagation()}
+            className="animate-modal bg-card border border-border w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-border w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            >
               <div className="p-6 border-b border-border flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Create Automation</h2>
                 <button
@@ -1094,28 +1094,22 @@ Post the tweet as a comment.`}
                   )}
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Logs Modal */}
-      <AnimatePresence>
-        {selectedLogs && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setSelectedLogs(null)}
+      {logsModalAnim.shouldRender && selectedLogs && (
+        <div
+          data-state={logsModalAnim.animationState}
+          className="animate-fade fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedLogs(null)}
+        >
+          <div
+            data-state={logsModalAnim.animationState}
+            onClick={(e) => e.stopPropagation()}
+            className="animate-modal bg-card border border-border w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-border w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col"
-            >
               <div className="p-4 border-b border-border flex items-center justify-between gap-4">
                 <h2 className="font-semibold shrink-0">Logs: {selectedLogs.automation.name}</h2>
 
@@ -1180,10 +1174,9 @@ Post the tweet as a comment.`}
                   </pre>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   Puzzle,
   Search,
@@ -211,6 +211,13 @@ export default function PluginsPage() {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<import('xterm').Terminal | null>(null);
   const ptyIdRef = useRef<string | null>(null);
+
+  const toastAnim = useAnimatePresence(!!showToast);
+  const categoryDropdownAnim = useAnimatePresence(showCategoryDropdown);
+  const marketplaceDropdownAnim = useAnimatePresence(showMarketplaceDropdown);
+  const authorDropdownAnim = useAnimatePresence(showAuthorDropdown);
+  const selectedPluginAnim = useAnimatePresence(!!selectedPlugin);
+  const installTerminalAnim = useAnimatePresence(showInstallTerminal);
 
   useEffect(() => {
     setHasElectron(isElectron());
@@ -552,35 +559,31 @@ export default function PluginsPage() {
       </div>
 
       {/* Toast Notification */}
-      <AnimatePresence>
-        {showToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`p-4 border flex items-center justify-between mt-4 ${showToast.type === 'success'
-              ? 'bg-primary/10 border-primary/30 text-primary'
-              : showToast.type === 'error'
-                ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                : 'bg-white/10 border-white/30 text-white'
-              }`}
-          >
-            <div className="flex items-center gap-3">
-              {showToast.type === 'error' ? (
-                <XCircle className="w-5 h-5" />
-              ) : showToast.type === 'success' ? (
-                <CheckCircle className="w-5 h-5" />
-              ) : (
-                <TerminalIcon className="w-5 h-5" />
-              )}
-              <p className="text-sm">{showToast.message}</p>
-            </div>
-            <button onClick={() => setShowToast(null)} className="p-1 hover:opacity-70">
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {toastAnim.shouldRender && showToast && (
+        <div
+          data-state={toastAnim.animationState}
+          className={`animate-fade p-4 border flex items-center justify-between mt-4 ${showToast.type === 'success'
+            ? 'bg-primary/10 border-primary/30 text-primary'
+            : showToast.type === 'error'
+              ? 'bg-red-500/10 border-red-500/30 text-red-400'
+              : 'bg-white/10 border-white/30 text-white'
+            }`}
+        >
+          <div className="flex items-center gap-3">
+            {showToast.type === 'error' ? (
+              <XCircle className="w-5 h-5" />
+            ) : showToast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <TerminalIcon className="w-5 h-5" />
+            )}
+            <p className="text-sm">{showToast.message}</p>
+          </div>
+          <button onClick={() => setShowToast(null)} className="p-1 hover:opacity-70">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mt-4 shrink-0">
@@ -610,23 +613,20 @@ export default function PluginsPage() {
             <ChevronDown className="w-4 h-4 ml-auto" />
           </button>
 
-          <AnimatePresence>
-            {showCategoryDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                className="absolute top-full mt-2 right-0 w-48 bg-card border border-border shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
+          {categoryDropdownAnim.shouldRender && (
+            <div
+              data-state={categoryDropdownAnim.animationState}
+              className="animate-fade absolute top-full mt-2 right-0 w-48 bg-card border border-border shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
+            >
+              <button
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setShowCategoryDropdown(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary ${!selectedCategory ? 'text-white' : 'text-muted-foreground'
+                  }`}
               >
-                <button
-                  onClick={() => {
-                    setSelectedCategory(null);
-                    setShowCategoryDropdown(false);
-                  }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary ${!selectedCategory ? 'text-white' : 'text-muted-foreground'
-                    }`}
-                >
-                  All Categories
+                All Categories
                 </button>
                 {PLUGIN_CATEGORIES.map((cat) => {
                   const Icon = CATEGORY_ICONS[cat] || Puzzle;
@@ -645,9 +645,8 @@ export default function PluginsPage() {
                     </button>
                   );
                 })}
-              </motion.div>
-            )}
-          </AnimatePresence>
+            </div>
+          )}
         </div>
 
         {/* Marketplace Filter */}
@@ -665,41 +664,37 @@ export default function PluginsPage() {
             <ChevronDown className="w-4 h-4 ml-auto" />
           </button>
 
-          <AnimatePresence>
-            {showMarketplaceDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                className="absolute top-full mt-2 right-0 w-56 bg-card border border-border shadow-lg z-20 py-2"
+          {marketplaceDropdownAnim.shouldRender && (
+            <div
+              data-state={marketplaceDropdownAnim.animationState}
+              className="animate-fade absolute top-full mt-2 right-0 w-56 bg-card border border-border shadow-lg z-20 py-2"
+            >
+              <button
+                onClick={() => {
+                  setSelectedMarketplace(null);
+                  setShowMarketplaceDropdown(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary ${!selectedMarketplace ? 'text-white' : 'text-muted-foreground'
+                  }`}
               >
+                All Sources
+              </button>
+              {MARKETPLACES.map((marketplace) => (
                 <button
+                  key={marketplace.id}
                   onClick={() => {
-                    setSelectedMarketplace(null);
+                    setSelectedMarketplace(marketplace.id);
                     setShowMarketplaceDropdown(false);
                   }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary ${!selectedMarketplace ? 'text-white' : 'text-muted-foreground'
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-secondary ${selectedMarketplace === marketplace.id ? 'text-white' : 'text-muted-foreground'
                     }`}
                 >
-                  All Sources
+                  <div className="font-medium">{marketplace.name}</div>
+                  <div className="text-xs text-muted-foreground">{marketplace.description}</div>
                 </button>
-                {MARKETPLACES.map((marketplace) => (
-                  <button
-                    key={marketplace.id}
-                    onClick={() => {
-                      setSelectedMarketplace(marketplace.id);
-                      setShowMarketplaceDropdown(false);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-secondary ${selectedMarketplace === marketplace.id ? 'text-white' : 'text-muted-foreground'
-                      }`}
-                  >
-                    <div className="font-medium">{marketplace.name}</div>
-                    <div className="text-xs text-muted-foreground">{marketplace.description}</div>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Author Filter */}
@@ -717,40 +712,36 @@ export default function PluginsPage() {
             <ChevronDown className="w-4 h-4 ml-auto" />
           </button>
 
-          <AnimatePresence>
-            {showAuthorDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                className="absolute top-full mt-2 right-0 w-56 bg-card border border-border shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
+          {authorDropdownAnim.shouldRender && (
+            <div
+              data-state={authorDropdownAnim.animationState}
+              className="animate-fade absolute top-full mt-2 right-0 w-56 bg-card border border-border shadow-lg z-20 py-2 max-h-80 overflow-y-auto"
+            >
+              <button
+                onClick={() => {
+                  setSelectedAuthor(null);
+                  setShowAuthorDropdown(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary ${!selectedAuthor ? 'text-white' : 'text-muted-foreground'
+                  }`}
               >
+                All Authors
+              </button>
+              {AUTHORS.map((author) => (
                 <button
+                  key={author}
                   onClick={() => {
-                    setSelectedAuthor(null);
+                    setSelectedAuthor(author);
                     setShowAuthorDropdown(false);
                   }}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary ${!selectedAuthor ? 'text-white' : 'text-muted-foreground'
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary truncate ${selectedAuthor === author ? 'text-white' : 'text-muted-foreground'
                     }`}
                 >
-                  All Authors
+                  {author}
                 </button>
-                {AUTHORS.map((author) => (
-                  <button
-                    key={author}
-                    onClick={() => {
-                      setSelectedAuthor(author);
-                      setShowAuthorDropdown(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-secondary truncate ${selectedAuthor === author ? 'text-white' : 'text-muted-foreground'
-                      }`}
-                  >
-                    {author}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -794,63 +785,52 @@ export default function PluginsPage() {
       </div>
 
       {/* Plugin Details Modal */}
-      <AnimatePresence>
-        {selectedPlugin && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedPlugin(null)}
+      {selectedPluginAnim.shouldRender && selectedPlugin && (
+        <div
+          data-state={selectedPluginAnim.animationState}
+          className="animate-fade fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedPlugin(null)}
+        >
+          <div
+            data-state={selectedPluginAnim.animationState}
+            onClick={(e) => e.stopPropagation()}
+            className="animate-modal w-full max-w-lg bg-card border border-border p-6"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg bg-card border border-border p-6"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{selectedPlugin.name}</h3>
-                <button onClick={() => setSelectedPlugin(null)} className="p-1 hover:bg-secondary">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">{selectedPlugin.description}</p>
-              <div className="p-3 bg-secondary border border-border font-mono text-xs mb-4">
-                {getInstallCommand(selectedPlugin)}
-              </div>
-              <button
-                onClick={() => {
-                  handleInstall(selectedPlugin);
-                  setSelectedPlugin(null);
-                }}
-                className="w-full py-2.5 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors"
-              >
-                {hasElectron ? 'Install Plugin' : 'Copy Install Command'}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">{selectedPlugin.name}</h3>
+              <button onClick={() => setSelectedPlugin(null)} className="p-1 hover:bg-secondary">
+                <X className="w-5 h-5" />
               </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">{selectedPlugin.description}</p>
+            <div className="p-3 bg-secondary border border-border font-mono text-xs mb-4">
+              {getInstallCommand(selectedPlugin)}
+            </div>
+            <button
+              onClick={() => {
+                handleInstall(selectedPlugin);
+                setSelectedPlugin(null);
+              }}
+              className="w-full py-2.5 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors"
+            >
+              {hasElectron ? 'Install Plugin' : 'Copy Install Command'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Installation Terminal Modal */}
-      <AnimatePresence>
-        {showInstallTerminal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={closeInstallTerminal}
+      {installTerminalAnim.shouldRender && (
+        <div
+          data-state={installTerminalAnim.animationState}
+          className="animate-fade fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={closeInstallTerminal}
+        >
+          <div
+            data-state={installTerminalAnim.animationState}
+            onClick={(e) => e.stopPropagation()}
+            className="animate-modal w-full max-w-4xl bg-[#1A1726] border border-border overflow-hidden"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-4xl bg-[#1A1726] border border-border overflow-hidden"
-            >
               {/* Terminal Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
                 <div className="flex items-center gap-3">
@@ -905,10 +885,9 @@ export default function PluginsPage() {
                   Close
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

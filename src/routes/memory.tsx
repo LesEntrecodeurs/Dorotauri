@@ -1,7 +1,7 @@
 
 
 import { useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   Brain,
   FileText,
@@ -211,9 +211,11 @@ function ProjectCard({
 function NewFileModal({
   onConfirm,
   onClose,
+  animationState,
 }: {
   onConfirm: (name: string) => void;
   onClose: () => void;
+  animationState?: string;
 }) {
   const [name, setName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -225,18 +227,12 @@ function NewFileModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+    <div data-state={animationState} className="animate-fade fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
       onClick={onClose}
     >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-card border border-border p-6 w-80 shadow-xl"
+      <div
+        data-state={animationState}
+        className="animate-modal bg-card border border-border p-6 w-80 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -269,8 +265,8 @@ function NewFileModal({
             Create
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -303,6 +299,8 @@ export default function MemoryPage() {
   const [editingFile, setEditingFile] = useState<MemoryFile | null>(null);
   const [showNewFileModal, setShowNewFileModal] = useState(false);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
+
+  const newFileModalAnim = useAnimatePresence(showNewFileModal);
 
   const handleSelectProject = useCallback((project: ProjectMemory) => {
     selectProject(project);
@@ -470,31 +468,18 @@ export default function MemoryPage() {
                   </p>
                 </div>
               ) : (
-                <motion.div
-                  initial="hidden"
-                  animate="visible"
-                  variants={{
-                    visible: { transition: { staggerChildren: 0.04 } },
-                    hidden: {},
-                  }}
-                >
+                <div>
                   {filteredProjects.map((project) => (
-                    <motion.div
-                      key={project.id}
-                      variants={{
-                        hidden: { opacity: 0, x: -8 },
-                        visible: { opacity: 1, x: 0 },
-                      }}
-                    >
+                    <div key={project.id}>
                       <ProjectCard
                         project={project}
                         isSelected={selectedProject?.id === project.id}
                         activeAgents={agentCountByPath.get(project.projectPath) ?? 0}
                         onClick={() => handleSelectProject(project)}
                       />
-                    </motion.div>
+                    </div>
                   ))}
-                </motion.div>
+                </div>
               )}
             </div>
           </div>
@@ -566,62 +551,50 @@ export default function MemoryPage() {
 
           {/* ── Right: Content viewer / editor ── */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            <AnimatePresence mode="wait">
-              {selectedFile ? (
-                <motion.div
-                  key={selectedFile.path}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.1 }}
-                  className="flex-1 flex flex-col overflow-hidden"
-                >
-                  {editingFile?.path === selectedFile.path ? (
-                    <FileEditor
-                      file={editingFile}
-                      onSave={handleSave}
-                      onCancel={() => setEditingFile(null)}
-                      saving={saving}
-                    />
-                  ) : (
-                    <FileViewer
-                      file={selectedFile}
-                      onEdit={() => setEditingFile(selectedFile)}
-                      onDelete={() => handleDelete(selectedFile.path)}
-                    />
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex-1 flex flex-col items-center justify-center text-center px-8"
-                >
-                  <Brain className="w-12 h-12 text-muted-foreground/20 mb-4" />
-                  <p className="text-sm text-muted-foreground">
-                    {selectedProject
-                      ? 'Select a memory file to view or edit'
-                      : 'Select a project to explore its memory'}
-                  </p>
-                  <p className="text-xs text-muted-foreground/50 mt-2 max-w-xs leading-relaxed">
-                    Claude Code automatically saves learnings, patterns, and architectural notes here as you work.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {selectedFile ? (
+              <div
+                key={selectedFile.path}
+                className="animate-mount-fade-in flex-1 flex flex-col overflow-hidden"
+              >
+                {editingFile?.path === selectedFile.path ? (
+                  <FileEditor
+                    file={editingFile}
+                    onSave={handleSave}
+                    onCancel={() => setEditingFile(null)}
+                    saving={saving}
+                  />
+                ) : (
+                  <FileViewer
+                    file={selectedFile}
+                    onEdit={() => setEditingFile(selectedFile)}
+                    onDelete={() => handleDelete(selectedFile.path)}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="animate-mount-fade-in flex-1 flex flex-col items-center justify-center text-center px-8">
+                <Brain className="w-12 h-12 text-muted-foreground/20 mb-4" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedProject
+                    ? 'Select a memory file to view or edit'
+                    : 'Select a project to explore its memory'}
+                </p>
+                <p className="text-xs text-muted-foreground/50 mt-2 max-w-xs leading-relaxed">
+                  Claude Code automatically saves learnings, patterns, and architectural notes here as you work.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* ── New file modal ── */}
-        <AnimatePresence>
-          {showNewFileModal && (
-            <NewFileModal
-              onConfirm={handleCreateFile}
-              onClose={() => setShowNewFileModal(false)}
-            />
-          )}
-        </AnimatePresence>
+        {newFileModalAnim.shouldRender && (
+          <NewFileModal
+            onConfirm={handleCreateFile}
+            onClose={() => setShowNewFileModal(false)}
+            animationState={newFileModalAnim.animationState}
+          />
+        )}
 
       </>}
     </div>

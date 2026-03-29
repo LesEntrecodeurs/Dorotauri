@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { Save, Loader2, AlertCircle, Check, RefreshCw } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
 import {
@@ -52,6 +52,8 @@ function SettingsPageInner() {
   }, [sectionParam]);
   const [showInstallTerminal, setShowInstallTerminal] = useState(false);
   const [installCommand, setInstallCommand] = useState('');
+
+  const installTerminalAnim = useAnimatePresence(showInstallTerminal);
 
   const {
     settings,
@@ -255,28 +257,20 @@ function SettingsPageInner() {
         />
 
         {/* Content Area */}
-        <motion.div
-          key={activeSection}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.15 }}
-          className="flex-1 overflow-y-auto pr-2"
-        >
+        <div className="animate-mount-fade-up flex-1 overflow-y-auto pr-2">
           {renderContent()}
-        </motion.div>
+        </div>
       </div>
 
       {/* Installation Terminal Modal */}
-      <AnimatePresence>
-        {showInstallTerminal && (
-          <InstallTerminalModal
-            show={showInstallTerminal}
-            command={installCommand}
-            onClose={() => setShowInstallTerminal(false)}
-            onComplete={fetchSettings}
-          />
-        )}
-      </AnimatePresence>
+      {installTerminalAnim.shouldRender && (
+        <InstallTerminalModal
+          show={showInstallTerminal}
+          command={installCommand}
+          onClose={() => setShowInstallTerminal(false)}
+          onComplete={fetchSettings}
+        />
+      )}
     </div>
   );
 }

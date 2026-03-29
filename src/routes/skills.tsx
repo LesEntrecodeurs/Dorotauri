@@ -1,7 +1,7 @@
 
 
 import { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   Sparkles,
   Search,
@@ -48,6 +48,9 @@ export default function SkillsPage() {
   const [showInstallTerminal, setShowInstallTerminal] = useState(false);
   const [currentInstallRepo, setCurrentInstallRepo] = useState('');
   const [currentInstallTitle, setCurrentInstallTitle] = useState('');
+
+  const toastAnim = useAnimatePresence(!!showToast);
+  const customInstallAnim = useAnimatePresence(showCustomInstall);
 
   // Live skills data from skills.sh
   const [liveSkills, setLiveSkills] = useState<Skill[] | null>(null);
@@ -230,51 +233,42 @@ export default function SkillsPage() {
       </div>
 
       {/* Toast Notification */}
-      <AnimatePresence>
-        {showToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`p-4 border flex items-center justify-between ${showToast.type === 'success'
-              ? 'bg-primary/10 border-primary/30 text-primary'
-              : showToast.type === 'error'
-                ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                : 'bg-white/10 border-white/30 text-white'
-              }`}
-          >
-            <div className="flex items-center gap-3">
-              {showToast.type === 'error' ? (
-                <XCircle className="w-5 h-5" />
-              ) : (
-                <CheckCircle className="w-5 h-5" />
-              )}
-              <p className="text-sm">{showToast.message}</p>
-            </div>
-            <button onClick={() => setShowToast(null)} className="p-1 hover:opacity-70">
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {toastAnim.shouldRender && showToast && (
+        <div
+          data-state={toastAnim.animationState}
+          className={`animate-fade p-4 border flex items-center justify-between ${showToast.type === 'success'
+            ? 'bg-primary/10 border-primary/30 text-primary'
+            : showToast.type === 'error'
+              ? 'bg-red-500/10 border-red-500/30 text-red-400'
+              : 'bg-white/10 border-white/30 text-white'
+            }`}
+        >
+          <div className="flex items-center gap-3">
+            {showToast.type === 'error' ? (
+              <XCircle className="w-5 h-5" />
+            ) : (
+              <CheckCircle className="w-5 h-5" />
+            )}
+            <p className="text-sm">{showToast.message}</p>
+          </div>
+          <button onClick={() => setShowToast(null)} className="p-1 hover:opacity-70">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Custom Install Modal */}
-      <AnimatePresence>
-        {showCustomInstall && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowCustomInstall(false)}
+      {customInstallAnim.shouldRender && (
+        <div
+          data-state={customInstallAnim.animationState}
+          className="animate-fade fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCustomInstall(false)}
+        >
+          <div
+            data-state={customInstallAnim.animationState}
+            onClick={(e) => e.stopPropagation()}
+            className="animate-modal w-full max-w-md bg-card border border-border p-6"
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-card border border-border p-6"
-            >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <TerminalIcon className="w-5 h-5 text-muted-foreground" />
@@ -344,10 +338,9 @@ export default function SkillsPage() {
                   </p>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="flex gap-3 mt-3">

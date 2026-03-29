@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import {
   FolderKanban,
   MessageSquare,
@@ -110,6 +110,8 @@ export default function ProjectsPage() {
   const [showAgentDialog, setShowAgentDialog] = useState(false);
   // Default project confirmation dialog
   const [pendingDefaultPath, setPendingDefaultPath] = useState<string | null>(null);
+
+  const pendingDefaultAnim = useAnimatePresence(!!pendingDefaultPath);
 
   // Load git branch for selected project
   const loadGitBranch = useCallback(async (projectPath: string) => {
@@ -644,13 +646,10 @@ export default function ProjectsPage() {
           const color = getProjectColor(project.name);
 
           return (
-            <motion.div
+            <div
               key={project.id}
-              layoutId={project.id}
               onClick={() => setSelectedProject(isSelected ? null : project)}
               className="group relative cursor-pointer"
-              whileHover={{ y: -4 }}
-              whileTap={{ scale: 0.98 }}
             >
               {/* Folder Card */}
               <div
@@ -767,17 +766,15 @@ export default function ProjectsPage() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
           );
         })}
 
         {/* Add Project Card */}
         {hasElectron && (
-          <motion.div
+          <div
             onClick={handleAddProject}
             className="cursor-pointer"
-            whileHover={{ y: -4 }}
-            whileTap={{ scale: 0.98 }}
           >
             <div className="relative bg-card border border-dashed border-border p-4 hover:border-white/30 transition-all h-full min-h-[140px] flex flex-col items-center justify-center gap-2">
               <div className="w-14 h-11 flex items-center justify-center rounded-sm bg-white/5">
@@ -785,7 +782,7 @@ export default function ProjectsPage() {
               </div>
               <span className="text-xs text-muted-foreground">Add Project</span>
             </div>
-          </motion.div>
+          </div>
         )}
       </div>
 
@@ -806,348 +803,44 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Project Detail Panel (legacy — disabled, replaced by ProjectDocsPanel split view) */}
-      {false && <AnimatePresence>
-        {selectedProject && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedProject(null)}
-              className="fixed inset-0 bg-black/60 z-40"
-            />
-
-            {/* Panel */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-background border-l border-border z-50 overflow-y-auto"
-            >
-              {/* Header with color accent */}
-              <div
-                className="sticky top-0 bg-card border-b border-border z-10"
-                style={{ borderBottomColor: getProjectColor(selectedProject.name).main, borderBottomWidth: '2px' }}
-              >
-                <div className="p-4 flex items-start justify-between">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className="w-12 h-12 flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: getProjectColor(selectedProject.name).bg }}
-                    >
-                      <FolderOpen className="w-7 h-7" style={{ color: getProjectColor(selectedProject.name).main }} />
-                    </div>
-                    <div className="min-w-0 pt-1">
-                      <h2 className="font-semibold text-lg truncate">{selectedProject.name}</h2>
-                      <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">
-                        {selectedProject.path}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSelectedProject(null)}
-                    className="p-2 hover:bg-secondary transition-colors shrink-0"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Git Branch */}
-                {hasElectron && (
-                  <div className="px-4 pb-3 flex items-center gap-2">
-                    <GitBranch className="w-4 h-4 text-orange-400" />
-                    {gitLoading ? (
-                      <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
-                    ) : gitBranch ? (
-                      <span className="text-sm px-2 py-0.5 bg-orange-500/15 text-orange-400 font-mono">
-                        {gitBranch}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Not a git repository</span>
-                    )}
-                    <button
-                      onClick={() => loadGitBranch(selectedProject.path)}
-                      className="p-1 hover:bg-secondary rounded transition-colors ml-auto"
-                      title="Refresh"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${gitLoading ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Content */}
-              <div className="p-4 space-y-4">
-                {/* Quick Actions */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => window.open(`cursor://file${selectedProject.path}`, '_blank')}
-                    className="flex-1 px-4 py-2.5 border border-border bg-secondary text-sm flex items-center justify-center gap-2 hover:bg-white/5 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Open in Cursor
-                  </button>
-                  {hasElectron && (
-                    <button
-                      onClick={() => setShowAgentDialog(true)}
-                      className="flex-1 px-4 py-2.5 bg-foreground text-background text-sm font-medium flex items-center justify-center gap-2 hover:bg-foreground/90 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Launch Agent
-                    </button>
-                  )}
-                </div>
-
-                {/* Set as default */}
-                <button
-                  onClick={() => handleSetDefault(selectedProject.path)}
-                  className={`w-full px-4 py-2 text-sm flex items-center justify-center gap-2 border transition-colors ${
-                    isDefaultProject(selectedProject.path)
-                      ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400'
-                      : 'border-border bg-secondary text-muted-foreground hover:text-foreground hover:border-yellow-500/30'
-                  }`}
-                >
-                  <Pin className={`w-4 h-4 ${isDefaultProject(selectedProject.path) ? 'fill-current text-yellow-400' : ''}`} />
-                  {isDefaultProject(selectedProject.path) ? 'Default Project' : 'Pin as Default'}
-                </button>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-card border border-border p-3 text-center">
-                    <p className="text-2xl font-bold">{selectedProject.sessions.length}</p>
-                    <p className="text-xs text-muted-foreground">Sessions</p>
-                  </div>
-                  <div className="bg-card border border-border p-3 text-center">
-                    <p className="text-2xl font-bold">{projectAgents.length}</p>
-                    <p className="text-xs text-muted-foreground">Agents</p>
-                  </div>
-                  <div className="bg-card border border-border p-3 text-center">
-                    <p className="text-sm font-medium">{formatDate(selectedProject.lastActivity)}</p>
-                    <p className="text-xs text-muted-foreground">Last Active</p>
-                  </div>
-                </div>
-
-                {/* Project Agents */}
-                {hasElectron && projectAgents.length > 0 && (
-                  <div className="border border-border bg-card p-4">
-                    <h3 className="text-sm font-medium flex items-center gap-2 mb-3">
-                      <Bot className="w-4 h-4" />
-                      Agents ({projectAgents.length})
-                    </h3>
-
-                    <div className="space-y-2">
-                      {projectAgents.map((agent) => {
-                        const statusColor = STATUS_COLORS[agent.processState] || STATUS_COLORS.inactive;
-                        const charEmoji = CHARACTER_EMOJIS[agent.character || 'robot'] || '🤖';
-                        const isIdle = agent.processState === 'inactive' || agent.processState === 'completed';
-
-                        return (
-                          <div
-                            key={agent.id}
-                            className="p-3 bg-secondary border border-border"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-lg">{charEmoji}</span>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate">
-                                    {agent.name || `Agent ${agent.id.slice(0, 6)}`}
-                                  </p>
-                                  <span className={`text-[10px] px-1.5 py-0.5 ${statusColor.bg} ${statusColor.text}`}>
-                                    {agent.processState}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {isIdle && (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => handleRestartAgent(agent, true)}
-                                    className="p-1.5 text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
-                                    title="Resume"
-                                  >
-                                    <RotateCcw className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleRestartAgent(agent, false)}
-                                    className="p-1.5 text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
-                                    title="Start"
-                                  >
-                                    <Play className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Sessions */}
-                <div className="border border-border bg-card p-4">
-                  <h3 className="text-sm font-medium flex items-center gap-2 mb-3">
-                    <Terminal className="w-4 h-4" />
-                    Sessions ({selectedProject.sessions.length})
-                  </h3>
-
-                  {selectedProject.sessions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No sessions yet</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {selectedProject.sessions.slice(0, 5).map((session) => (
-                        <button
-                          key={session.id}
-                          onClick={() => setSelectedSession(selectedSession === session.id ? null : session.id)}
-                          className={`
-                            w-full text-left p-3 transition-all border
-                            ${selectedSession === session.id
-                              ? 'bg-white/10 border-white/30'
-                              : 'bg-secondary border-border hover:border-white/20'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-mono text-muted-foreground truncate">
-                              {session.id.slice(0, 12)}...
-                            </p>
-                            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${selectedSession === session.id ? 'rotate-180' : ''
-                              }`} />
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatDate(session.lastActivity)}
-                          </p>
-                        </button>
-                      ))}
-                      {selectedProject.sessions.length > 5 && (
-                        <p className="text-xs text-muted-foreground text-center pt-2">
-                          +{selectedProject.sessions.length - 5} more sessions
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Session Messages */}
-                <AnimatePresence>
-                  {selectedSession && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="border border-border bg-card p-4 overflow-hidden"
-                    >
-                      <h3 className="text-sm font-medium flex items-center gap-2 mb-3">
-                        <MessageSquare className="w-4 h-4" />
-                        Messages
-                      </h3>
-
-                      {messagesLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                        </div>
-                      ) : (
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {messages.slice(0, 10).map((message) => (
-                            <div
-                              key={message.uuid}
-                              className={`p-3 ${message.type === 'user'
-                                  ? 'bg-white/10 border-l-2 border-white'
-                                  : 'bg-secondary'
-                                }`}
-                            >
-                              <p className="text-[10px] text-muted-foreground mb-1">
-                                {message.type === 'user' ? 'You' : 'Claude'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {getMessagePreview(message.content)}
-                              </p>
-                            </div>
-                          ))}
-                          {messages.length === 0 && (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                              No messages found
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Project Path */}
-                <div className="border border-border bg-card p-4">
-                  <h3 className="text-sm font-medium mb-2">Full Path</h3>
-                  <p className="font-mono text-xs text-muted-foreground break-all select-all">
-                    {selectedProject.path}
-                  </p>
-                </div>
-
-                {/* Delete Custom Project */}
-                {isCustomProject(selectedProject.path) && (
-                  <button
-                    onClick={(e) => handleRemoveProject(selectedProject.path, e)}
-                    className="w-full px-4 py-2.5 border border-red-500/30 text-red-400 text-sm flex items-center justify-center gap-2 hover:bg-red-500/10 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Remove Project
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>}
 
       {/* Replace Default Project Confirmation Dialog */}
-      <AnimatePresence>
-        {pendingDefaultPath && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setPendingDefaultPath(null)}
-              className="fixed inset-0 bg-black/60 z-[60]"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-full max-w-sm"
-            >
-              <div className="bg-card border border-border p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <Pin className="w-5 h-5 text-yellow-400" />
-                  <h3 className="font-medium">Replace Default Project?</h3>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  <span className="text-foreground font-mono">{defaultProjectPath.split('/').pop()}</span> is currently the default project. Replace it with{' '}
-                  <span className="text-foreground font-mono">{pendingDefaultPath.split('/').pop()}</span>?
-                </p>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setPendingDefaultPath(null)}
-                    className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmSetDefault}
-                    className="px-4 py-2 bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors"
-                  >
-                    Replace
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {pendingDefaultAnim.shouldRender && pendingDefaultPath && (
+        <div
+          data-state={pendingDefaultAnim.animationState}
+          className="animate-fade fixed inset-0 bg-black/60 z-[60] flex items-center justify-center"
+          onClick={() => setPendingDefaultPath(null)}
+        >
+          <div
+            data-state={pendingDefaultAnim.animationState}
+            className="animate-modal bg-card border border-border p-6 space-y-4 w-full max-w-sm mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <Pin className="w-5 h-5 text-yellow-400" />
+              <h3 className="font-medium">Replace Default Project?</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              <span className="text-foreground font-mono">{defaultProjectPath.split('/').pop()}</span> is currently the default project. Replace it with{' '}
+              <span className="text-foreground font-mono">{pendingDefaultPath.split('/').pop()}</span>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setPendingDefaultPath(null)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSetDefault}
+                className="px-4 py-2 bg-foreground text-background text-sm font-medium hover:bg-foreground/90 transition-colors"
+              >
+                Replace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Launch Agent Modal */}
       <NewChatModal
