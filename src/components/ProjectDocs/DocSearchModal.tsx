@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { Search, Loader2, FileText } from 'lucide-react';
 
 interface DocSearchResult {
@@ -94,6 +94,8 @@ export function DocSearchModal({ projectPath, open, onClose, onSelect }: DocSear
     }
   }, [results, selectedIndex, onSelect, onClose]);
 
+  const { shouldRender, animationState } = useAnimatePresence(open);
+
   // Group results by file for display, tracking global indices
   const grouped = useMemo(() => {
     const groups: { relative: string; startIndex: number; items: DocSearchResult[] }[] = [];
@@ -110,27 +112,20 @@ export function DocSearchModal({ projectPath, open, onClose, onSelect }: DocSear
     return groups;
   }, [results]);
 
-  if (!open) return null;
+  if (!shouldRender) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center"
-        onClick={onClose}
+    <div
+      data-state={animationState}
+      className="animate-fade fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        data-state={animationState}
+        className="animate-modal w-[80%] max-w-4xl h-[70vh] bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
       >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: -10 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: -10 }}
-          transition={{ duration: 0.15 }}
-          className="w-[80%] max-w-4xl h-[70vh] bg-card border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={handleKeyDown}
-        >
           {/* Search input */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
             {isSearching ? (
@@ -223,9 +218,8 @@ export function DocSearchModal({ projectPath, open, onClose, onSelect }: DocSear
               Close
             </span>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    </div>
   );
 }
 

@@ -6,7 +6,7 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import type { DockerContainer, ContainerStats, ContainerDetail, DockerImage, DockerVolume, DockerNetwork } from '@/types/docker';
 import ServiceMap from '@/components/Docker/ServiceMap';
 import {
@@ -109,8 +109,7 @@ function ContainerRow({ container, stats, isActing, onStart, onStop, onRestart, 
   const displayName = container.service || container.names;
 
   return (
-    <motion.div layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-      className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors"
+    <div className="animate-mount-fade-up flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors"
     >
       <div className={`w-2 h-2 rounded-full shrink-0 ${colors.dot}`} />
       <div className="flex-1 min-w-0 cursor-pointer" onClick={onInspect}>
@@ -140,7 +139,7 @@ function ContainerRow({ container, stats, isActing, onStart, onStop, onRestart, 
           </>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -157,9 +156,10 @@ function ProjectSection({ group, expanded, onToggle, actionLoading, stats, onSta
   const noneRunning = group.runningCount === 0;
   const isProjectActing = actionLoading === `project:${group.name}`;
   const isStandalone = group.name === '__standalone__';
+  const expandAnim = useAnimatePresence(expanded);
 
   return (
-    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-lg border border-border bg-card overflow-hidden">
+    <div className="animate-mount-fade-up rounded-lg border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none" onClick={onToggle}>
         {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${allRunning ? 'bg-green-500' : group.runningCount > 0 ? 'bg-orange-500' : 'bg-gray-500'}`} />
@@ -176,19 +176,19 @@ function ProjectSection({ group, expanded, onToggle, actionLoading, stats, onSta
           )}
         </div>
       </div>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="border-t border-border overflow-hidden">
+      {expandAnim.shouldRender && (
+        <div data-state={expandAnim.animationState} className="animate-expand border-t border-border overflow-hidden">
+          <div>
             {group.containers.map(c => (
               <ContainerRow key={c.id} container={c} stats={stats.get(c.id)} isActing={actionLoading === c.id}
                 onStart={() => onStartContainer(c.id)} onStop={() => onStopContainer(c.id)} onRestart={() => onRestartContainer(c.id)}
                 onOpenLogs={() => onOpenLogs(c.id, c.service || c.names)} onOpenShell={() => onOpenShell(c.id, c.service || c.names)}
                 onInspect={() => onInspect(c.id)} />
             ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -196,9 +196,12 @@ function ProjectSection({ group, expanded, onToggle, actionLoading, stats, onSta
 
 function DetailPanel({ detail, onClose }: { detail: ContainerDetail; onClose: () => void }) {
   const [tab, setTab] = useState<'env' | 'mounts' | 'network' | 'config'>('env');
+  const { animationState } = useAnimatePresence(true);
   return (
-    <motion.div initial={{ height: 0 }} animate={{ height: '40%' }} exit={{ height: 0 }} transition={{ duration: 0.2 }}
-      className="border-t border-border bg-card overflow-hidden flex flex-col">
+    <div
+      data-state={animationState}
+      className="animate-panel-height border-t border-border bg-card overflow-hidden flex flex-col"
+    >
       <div className="flex items-center justify-between px-3 py-1.5 bg-secondary border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           {(['env', 'mounts', 'network', 'config'] as const).map(t => (
@@ -244,7 +247,7 @@ function DetailPanel({ detail, onClose }: { detail: ContainerDetail; onClose: ()
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -273,9 +276,12 @@ function DockerTerminalPanel({ panel, onClose }: { panel: TerminalPanel; onClose
   }, [isReady, panel.ptyId, write]);
 
   const typeLabel = { logs: 'Logs', shell: 'Shell', 'compose-up': 'Compose Up', 'compose-down': 'Compose Down', pull: 'Pull' }[panel.type];
+  const { animationState } = useAnimatePresence(true);
   return (
-    <motion.div initial={{ height: 0 }} animate={{ height: '40%' }} exit={{ height: 0 }} transition={{ duration: 0.2 }}
-      className="border-t border-border bg-[#0a0a1a] overflow-hidden flex flex-col">
+    <div
+      data-state={animationState}
+      className="animate-panel-height border-t border-border bg-[#0a0a1a] overflow-hidden flex flex-col"
+    >
       <div className="flex items-center justify-between px-3 py-1.5 bg-secondary border-b border-border shrink-0">
         <div className="flex items-center gap-2 text-xs">
           <Badge variant="secondary" className="text-[10px]">{typeLabel}</Badge>
@@ -284,7 +290,7 @@ function DockerTerminalPanel({ panel, onClose }: { panel: TerminalPanel; onClose
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onClose}><X className="w-3.5 h-3.5" /></Button>
       </div>
       <div ref={terminalRef} className="flex-1 min-h-0" />
-    </motion.div>
+    </div>
   );
 }
 
@@ -653,10 +659,8 @@ export default function DockerPage() {
       )}
 
       {/* Bottom panels */}
-      <AnimatePresence>
-        {terminalPanel && <DockerTerminalPanel key={terminalPanel.ptyId} panel={terminalPanel} onClose={handleCloseTerminal} />}
-        {detailPanel && !terminalPanel && <DetailPanel key="detail" detail={detailPanel} onClose={handleCloseDetail} />}
-      </AnimatePresence>
+      {terminalPanel && <DockerTerminalPanel key={terminalPanel.ptyId} panel={terminalPanel} onClose={handleCloseTerminal} />}
+      {detailPanel && !terminalPanel && <DetailPanel key="detail" detail={detailPanel} onClose={handleCloseDetail} />}
     </div>
   );
 }

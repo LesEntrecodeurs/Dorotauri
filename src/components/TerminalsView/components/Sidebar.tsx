@@ -1,7 +1,7 @@
 
 
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAnimatePresence } from '@/hooks/useAnimatePresence';
 import { Users, Sparkles, FolderKanban, X } from 'lucide-react';
 import type { Agent } from '@/types/electron';
 import SidebarAgentList from './SidebarAgentList';
@@ -31,6 +31,7 @@ export default function Sidebar({
   onStopAgent,
   installedSkills,
 }: SidebarProps) {
+  const { shouldRender, animationState } = useAnimatePresence(open);
   const [tab, setTab] = useState<SidebarTab>('agents');
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -63,15 +64,12 @@ export default function Sidebar({
   }, [open, onClose]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
+    <>
+      {shouldRender && (
+        <div
           ref={panelRef}
-          initial={{ opacity: 0, x: 10, scale: 0.95 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: 10, scale: 0.95 }}
-          transition={{ duration: 0.15 }}
-          className="absolute top-0 right-0 z-50 flex flex-col bg-card border border-border shadow-2xl overflow-hidden"
+          data-state={animationState}
+          className="animate-slide-right absolute top-0 right-0 z-50 flex flex-col bg-card border border-border shadow-2xl overflow-hidden"
           style={{ width: 300, maxHeight: 'calc(100% - 32px)' }}
         >
           {/* Header */}
@@ -127,8 +125,8 @@ export default function Sidebar({
               <SidebarProjectBrowser agents={agents} onFocusPanel={(id) => { onFocusPanel(id); onClose(); }} />
             )}
           </div>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

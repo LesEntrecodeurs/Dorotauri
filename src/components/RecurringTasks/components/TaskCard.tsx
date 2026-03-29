@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import {
   CalendarClock,
   Clock,
@@ -43,10 +42,7 @@ export function TaskCard({
   onDelete,
 }: TaskCardProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
+    <div className="animate-mount-fade-up">
       <Card className="p-4 hover:border-primary/30 transition-colors">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -193,6 +189,6 @@ export function TaskCard({
           </div>
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }
