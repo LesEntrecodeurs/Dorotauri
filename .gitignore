@@ -55,6 +55,8 @@ mcp-x/node_modules
 mcp-x/dist
 mcp-world/node_modules
 mcp-world/dist
+mcp-code-intelligence/node_modules
+mcp-code-intelligence/dist
 electron/dist
 
 .idea

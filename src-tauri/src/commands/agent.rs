@@ -205,12 +205,20 @@ fn build_start_config(
         .filter(|p| p.exists());
     let system_prompt_file = crate::ensure_agent_instructions();
 
+    let repo_map_file = {
+        let hash = crate::knowledge::db::project_hash(&agent.cwd);
+        dirs::home_dir()
+            .map(|h| h.join(".dorotoring").join("projects").join(&hash).join("repo-map.md"))
+            .filter(|p| p.exists())
+    };
+
     AgentStartConfig {
         prompt: prompt.unwrap_or("").to_string(),
         cwd: PathBuf::from(&agent.cwd),
         skip_permissions,
         mcp_config,
         system_prompt_file,
+        repo_map_file,
         model: None,
         secondary_paths: agent.secondary_paths.clone(),
         continue_session,
@@ -250,6 +258,7 @@ pub async fn agent_start(
     state: State<'_, Arc<AppState>>,
     pty_manager: State<'_, Arc<PtyManager>>,
     cwd_tracker: State<'_, Arc<CwdTracker>>,
+    knowledge: State<'_, Arc<crate::knowledge::KnowledgeEngine>>,
     app_handle: AppHandle,
     id: String,
     prompt: Option<String>,
@@ -360,12 +369,16 @@ pub async fn agent_start(
         .await
         .map_err(|e| format!("state transition failed: {e}"))?;
 
-    // Update pty_id and clear error
+    // Update pty_id, clear error, and store task prompt
+    let prompt_clone = prompt.clone();
     let updated_agent = state
         .agent_manager
         .update(&id, |a| {
             a.pty_id = Some(pty_id);
             a.error = None;
+            if prompt_clone.is_some() {
+                a.task_prompt = prompt_clone.clone();
+            }
         })
         .await
         .map_err(|e| format!("update failed: {e}"))?;
@@ -374,6 +387,101 @@ pub async fn agent_start(
 
     // Emit status event
     app_handle.emit("agent:status", &updated_agent).ok();
+
+    // Read repo map budget and knowledge_enabled from settings
+    let (repo_map_budget, knowledge_enabled) = {
+        let settings = state.settings.lock().unwrap();
+        (settings.repo_map_budget as usize, settings.knowledge_enabled)
+    };
+
+    // Trigger knowledge layer indexing for this project
+    if knowledge_enabled {
+        let knowledge = Arc::clone(&knowledge);
+        let cwd = updated_agent.cwd.clone();
+        let budget = repo_map_budget;
+        tauri::async_runtime::spawn(async move {
+            if knowledge.register_indexing(&cwd).await {
+                let conn = match knowledge.get_conn(&cwd).await {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("[knowledge] DB open error: {e}");
+                        knowledge.finish_indexing(&cwd).await;
+                        return;
+                    }
+                };
+                {
+                    let conn_guard = conn.lock().unwrap();
+                    let embedding = knowledge.embedding.try_lock().ok();
+                    let engine_ref = embedding.as_deref();
+                    match crate::knowledge::indexer::index_project(&conn_guard, std::path::Path::new(&cwd), engine_ref) {
+                        Ok(count) => {
+                            eprintln!("[knowledge] Indexed {count} symbols for {cwd}");
+                            if let Err(e) = crate::knowledge::repo_map::write_to_file(&conn_guard, &cwd, budget) {
+                                eprintln!("[knowledge] Repo map error: {e}");
+                            }
+                        }
+                        Err(e) => eprintln!("[knowledge] Index error: {e}"),
+                    }
+                    // Index Claude Code memory
+                    if let Some(mem_dir) = crate::knowledge::claude_memory::find_memory_dir(&cwd) {
+                        match crate::knowledge::claude_memory::index_memory_dir(&conn_guard, &mem_dir, engine_ref) {
+                            Ok(count) => eprintln!("[knowledge] Indexed {count} Claude Code memory files"),
+                            Err(e) => eprintln!("[knowledge] Memory index error: {e}"),
+                        }
+                    }
+                } // conn_guard dropped here before await
+                knowledge.finish_indexing(&cwd).await;
+            }
+        });
+    }
+
+    // Start file watcher for incremental re-indexing
+    if knowledge_enabled {
+        let knowledge = knowledge.inner().clone();
+        let cwd = updated_agent.cwd.clone();
+        let budget = repo_map_budget;
+        tauri::async_runtime::spawn(async move {
+            if !knowledge.register_watcher(&cwd).await {
+                return; // watcher already active for this project
+            }
+            let project_path = std::path::Path::new(&cwd);
+            let (_watcher, mut rx) =
+                match crate::knowledge::file_watcher::watch_project(project_path) {
+                    Ok(w) => w,
+                    Err(e) => {
+                        eprintln!("[knowledge] File watcher error: {e}");
+                        knowledge.finish_watching(&cwd).await;
+                        return;
+                    }
+                };
+            // Keep watcher alive and process batches
+            while let Some(changed_files) = rx.recv().await {
+                let conn = match knowledge.get_conn(&cwd).await {
+                    Ok(c) => c,
+                    Err(_) => continue,
+                };
+                let conn_guard = conn.lock().unwrap();
+                let embedding = knowledge.embedding.try_lock().ok();
+                let engine_ref = embedding.as_deref();
+                for file in &changed_files {
+                    if let Err(e) = crate::knowledge::indexer::index_file(
+                        &conn_guard,
+                        project_path,
+                        file,
+                        engine_ref,
+                    ) {
+                        eprintln!("[knowledge] Re-index error for {}: {e}", file.display());
+                    }
+                }
+                // Recalculate PageRank after batch
+                crate::knowledge::reference_graph::build_and_rank(&conn_guard).ok();
+                // Regenerate repo map
+                crate::knowledge::repo_map::write_to_file(&conn_guard, &cwd, budget).ok();
+            }
+            // Watcher channel closed — deregister so future agent_start can re-register
+            knowledge.finish_watching(&cwd).await;
+        });
+    }
 
     Ok(updated_agent)
 }

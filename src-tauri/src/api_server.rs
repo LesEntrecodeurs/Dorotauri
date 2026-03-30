@@ -9,7 +9,7 @@ use axum::{
     },
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -39,6 +39,7 @@ pub struct ApiState {
     pub api_token: String,
     /// Legacy AppState — kept for settings access and non-agent routes.
     pub app_state: Arc<AppState>,
+    pub knowledge: Arc<crate::knowledge::KnowledgeEngine>,
 }
 
 // ---------------------------------------------------------------------------
@@ -714,8 +715,10 @@ async fn hook_status(
 
     let result = state
         .agent_manager
-        .set_state(&body.agent_id, new_state)
+        .set_state(&body.agent_id, new_state.clone())
         .await;
+
+    let status_str = body.status.clone();
 
     // Update cwd if provided by the hook (tracks real project directory)
     if let Some(cwd) = body.cwd {
@@ -739,6 +742,77 @@ async fn hook_status(
 
     if let Ok(ref agent) = result {
         state.app_handle.emit("agent:status", agent).ok();
+    }
+
+    // Capture session for knowledge layer on terminal states (if enabled)
+    let knowledge_enabled = state.app_state.settings.lock().unwrap().knowledge_enabled;
+    if knowledge_enabled && matches!(new_state, AgentState::Completed | AgentState::Error) {
+        if let Ok(ref agent) = result {
+            let knowledge = state.knowledge.clone();
+            let agent_cwd = agent.cwd.clone();
+            let agent_id = agent.id.clone();
+            let agent_task_prompt = agent.task_prompt.clone();
+            let agent_created = agent.created_at.clone();
+            let status_for_capture = status_str.clone();
+            tokio::spawn(async move {
+                let conn = match knowledge.get_conn(&agent_cwd).await {
+                    Ok(c) => c,
+                    Err(_) => return,
+                };
+                let conn_guard = conn.lock().unwrap();
+                let embedding = knowledge.embedding.try_lock().ok();
+                let engine_ref = embedding.as_deref();
+                let session_id = uuid::Uuid::new_v4().to_string();
+                let now = chrono::Utc::now().to_rfc3339();
+
+                // Try to extract recent commits from git
+                let mut commits = Vec::new();
+                if let Ok(output) = std::process::Command::new("git")
+                    .arg("log")
+                    .arg("--oneline")
+                    .arg("--since=1 hour ago")
+                    .arg("--no-merges")
+                    .current_dir(&agent_cwd)
+                    .output()
+                {
+                    if output.status.success() {
+                        let log = String::from_utf8_lossy(&output.stdout);
+                        commits = log.lines().map(|l| l.to_string()).collect();
+                    }
+                }
+
+                // Try to get modified files from git status
+                let mut files = Vec::new();
+                if let Ok(output) = std::process::Command::new("git")
+                    .arg("diff")
+                    .arg("--name-only")
+                    .arg("HEAD~1")
+                    .current_dir(&agent_cwd)
+                    .output()
+                {
+                    if output.status.success() {
+                        let diff = String::from_utf8_lossy(&output.stdout);
+                        files = diff
+                            .lines()
+                            .filter(|l| !l.is_empty())
+                            .map(|l| l.to_string())
+                            .collect();
+                    }
+                }
+
+                crate::knowledge::session_capture::capture_session(
+                    &conn_guard,
+                    &session_id,
+                    &agent_id,
+                    agent_task_prompt.as_deref(),
+                    &status_for_capture,
+                    &files, &commits, None,
+                    &agent_created,
+                    &now,
+                    engine_ref,
+                ).ok();
+            });
+        }
     }
 
     Json(serde_json::json!({ "ok": result.is_ok() }))
@@ -979,11 +1053,17 @@ async fn start_agent_inner(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let prompt_for_capture = body.prompt.clone();
     let updated_agent = state
         .agent_manager
         .update(&id.to_string(), |a| {
             a.pty_id = Some(pty_id);
             a.error = None;
+            if let Some(ref p) = prompt_for_capture {
+                if !p.is_empty() {
+                    a.task_prompt = Some(p.clone());
+                }
+            }
         })
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -1009,12 +1089,20 @@ fn build_start_config(
         .filter(|p| p.exists());
     let system_prompt_file = crate::ensure_agent_instructions();
 
+    let repo_map_file = {
+        let hash = crate::knowledge::db::project_hash(&agent.cwd);
+        dirs::home_dir()
+            .map(|h| h.join(".dorotoring").join("projects").join(&hash).join("repo-map.md"))
+            .filter(|p| p.exists())
+    };
+
     AgentStartConfig {
         prompt: prompt.unwrap_or("").to_string(),
         cwd: PathBuf::from(&agent.cwd),
         skip_permissions,
         mcp_config,
         system_prompt_file,
+        repo_map_file,
         model: None,
         secondary_paths: agent.secondary_paths.clone(),
         continue_session: false,
@@ -1048,6 +1136,538 @@ fn get_cli_path_for_provider(
 }
 
 // ---------------------------------------------------------------------------
+// Knowledge Layer handlers
+// ---------------------------------------------------------------------------
+
+/// GET /api/code/repo-map — generate a budget-aware repo map for a project.
+async fn code_repo_map(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let project = params
+        .get("project")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let budget: usize = params
+        .get("budget")
+        .and_then(|b| b.parse().ok())
+        .unwrap_or(2048);
+
+    let conn = state
+        .knowledge
+        .get_conn(&project)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let map = crate::knowledge::repo_map::generate(&conn_guard, &project, budget)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Count symbols and files from the DB.
+    let symbols_count: i64 = conn_guard
+        .query_row("SELECT COUNT(*) FROM symbols", [], |row| row.get(0))
+        .unwrap_or(0);
+
+    let files_count: i64 = conn_guard
+        .query_row(
+            "SELECT COUNT(DISTINCT file) FROM symbols",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    Ok(Json(serde_json::json!({
+        "map": map,
+        "symbols_count": symbols_count,
+        "files_count": files_count,
+    })))
+}
+
+/// GET /api/code/outline — parse a file and return its symbols.
+async fn code_outline(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let file = params.get("file").ok_or(StatusCode::BAD_REQUEST)?.clone();
+    let path = std::path::Path::new(&file);
+
+    // Security: only allow absolute paths to real files with supported extensions.
+    // This prevents path traversal to arbitrary files.
+    let allowed_extensions = ["ts", "js", "tsx", "jsx", "py", "rs", "go"];
+    let has_allowed_ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| allowed_extensions.contains(&e))
+        .unwrap_or(false);
+
+    if !path.is_absolute() || !path.is_file() || !has_allowed_ext {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let parse_result = crate::knowledge::tree_sitter::parse_file(path)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let lines = std::fs::read_to_string(path)
+        .map(|s| s.lines().count())
+        .unwrap_or(0);
+
+    let language = crate::knowledge::tree_sitter::detect_language(path)
+        .map(|l| format!("{l:?}"))
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let symbols: Vec<serde_json::Value> = parse_result
+        .symbols
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "kind": s.kind.as_str(),
+                "name": s.name,
+                "signature": s.signature,
+                "line": s.line,
+                "end_line": s.end_line,
+                "exported": s.exported,
+            })
+        })
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "path": file,
+        "lines": lines,
+        "language": language,
+        "symbols": symbols,
+    })))
+}
+
+/// GET /api/code/references — find definition and references for a symbol.
+async fn code_references(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let symbol = params
+        .get("symbol")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let project = params
+        .get("project")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let conn = state
+        .knowledge
+        .get_conn(&project)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Query definition.
+    let definition: Option<serde_json::Value> = conn_guard
+        .query_row(
+            "SELECT file, line, kind, signature FROM symbols WHERE name = ?1",
+            rusqlite::params![symbol],
+            |row| {
+                Ok(serde_json::json!({
+                    "file": row.get::<_, String>(0)?,
+                    "line": row.get::<_, i64>(1)?,
+                    "kind": row.get::<_, String>(2)?,
+                    "signature": row.get::<_, Option<String>>(3)?,
+                }))
+            },
+        )
+        .ok();
+
+    // Query references.
+    let mut stmt = conn_guard
+        .prepare("SELECT from_file, line FROM refs WHERE to_symbol = ?1")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let references: Vec<serde_json::Value> = stmt
+        .query_map(rusqlite::params![symbol], |row| {
+            Ok(serde_json::json!({
+                "from_file": row.get::<_, String>(0)?,
+                "line": row.get::<_, Option<i64>>(1)?,
+            }))
+        })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(Json(serde_json::json!({
+        "definition": definition,
+        "references": references,
+    })))
+}
+
+/// GET /api/knowledge/search — hybrid FTS + embedding search.
+async fn knowledge_search(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let query = params
+        .get("query")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let project = params
+        .get("project")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let type_filter = params.get("type").cloned();
+
+    let max_results: usize = params
+        .get("max_results")
+        .and_then(|m| m.parse().ok())
+        .unwrap_or(10);
+
+    let conn = state
+        .knowledge
+        .get_conn(&project)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Try to lock the embedding engine; if it's busy, search without embeddings.
+    let embedding_guard = state.knowledge.embedding.try_lock().ok();
+    let embedding_ref = embedding_guard.as_deref();
+
+    let results = crate::knowledge::search::search(
+        &conn_guard,
+        &query,
+        type_filter.as_deref(),
+        max_results,
+        embedding_ref,
+        0.5,
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({ "results": results })))
+}
+
+/// GET /api/sessions — list sessions for a project.
+async fn list_sessions(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let project = params
+        .get("project")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let limit: i64 = params
+        .get("limit")
+        .and_then(|l| l.parse().ok())
+        .unwrap_or(20);
+
+    let conn = state
+        .knowledge
+        .get_conn(&project)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut stmt = conn_guard
+        .prepare(
+            "SELECT id, agent_id, prompt, status, files_modified, commits, transcript,
+                    started_at, ended_at, pinned
+             FROM sessions
+             ORDER BY started_at DESC
+             LIMIT ?1",
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let sessions: Vec<serde_json::Value> = stmt
+        .query_map(rusqlite::params![limit], |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, String>(0)?,
+                "agent_id": row.get::<_, String>(1)?,
+                "prompt": row.get::<_, Option<String>>(2)?,
+                "status": row.get::<_, String>(3)?,
+                "files_modified": row.get::<_, Option<String>>(4)?,
+                "commits": row.get::<_, Option<String>>(5)?,
+                "transcript": row.get::<_, Option<String>>(6)?,
+                "started_at": row.get::<_, String>(7)?,
+                "ended_at": row.get::<_, Option<String>>(8)?,
+                "pinned": row.get::<_, bool>(9)?,
+            }))
+        })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(Json(serde_json::json!({ "sessions": sessions })))
+}
+
+/// POST /api/sessions — capture a completed session.
+async fn create_session(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let project = body["project"]
+        .as_str()
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let session_id = body["id"]
+        .as_str()
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let agent_id = body["agent_id"]
+        .as_str()
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let prompt = body["prompt"].as_str();
+
+    let status = body["status"]
+        .as_str()
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let files_modified: Vec<String> = body["files_modified"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let commits: Vec<String> = body["commits"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let transcript = body["transcript"].as_str();
+
+    let started_at = body["started_at"]
+        .as_str()
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let ended_at = body["ended_at"]
+        .as_str()
+        .unwrap_or("");
+
+    let conn = state
+        .knowledge
+        .get_conn(project)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Try to get embedding engine for session capture.
+    let embedding_guard = state.knowledge.embedding.try_lock().ok();
+    let embedding_ref = embedding_guard.as_deref();
+
+    crate::knowledge::session_capture::capture_session(
+        &conn_guard,
+        session_id,
+        agent_id,
+        prompt,
+        status,
+        &files_modified,
+        &commits,
+        transcript,
+        started_at,
+        ended_at,
+        embedding_ref,
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({ "stored": true })))
+}
+
+/// PUT /api/sessions/{id}/pin — pin a session.
+async fn pin_session(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let project = params
+        .get("project")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let conn = state
+        .knowledge
+        .get_conn(&project)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    conn_guard
+        .execute(
+            "UPDATE sessions SET pinned = TRUE WHERE id = ?1",
+            rusqlite::params![id],
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({ "pinned": true })))
+}
+
+/// POST /api/events — create an event.
+async fn create_event(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    if let Err(status) = check_auth(&headers, &state.api_token) {
+        return (status, Json(serde_json::json!({ "error": "unauthorized" })));
+    }
+    let project = match body["project"].as_str() {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "missing project" }))),
+    };
+
+    let from_agent = match body["from_agent"].as_str() {
+        Some(a) => a,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "missing from_agent" }))),
+    };
+
+    let to_agent = body["to_agent"].as_str();
+    let event_type = match body["event_type"].as_str() {
+        Some(t) => t,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "missing event_type" }))),
+    };
+
+    let payload = body["payload"].to_string();
+    let tab_id = body["tab_id"].as_str();
+
+    let conn = match state.knowledge.get_conn(project).await {
+        Ok(c) => c,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": "db" }))),
+    };
+
+    let conn_guard = match conn.lock() {
+        Ok(g) => g,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": "lock" }))),
+    };
+
+    let result = conn_guard.execute(
+        "INSERT INTO events (from_agent, to_agent, event_type, payload, tab_id) VALUES (?1, ?2, ?3, ?4, ?5)",
+        rusqlite::params![from_agent, to_agent, event_type, payload, tab_id],
+    );
+
+    match result {
+        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "stored": true }))),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": "insert failed" }))),
+    }
+}
+
+/// GET /api/events — list events for a project.
+async fn list_events(
+    AxumState(state): AxumState<ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_auth(&headers, &state.api_token)?;
+
+    let project = params
+        .get("project")
+        .ok_or(StatusCode::BAD_REQUEST)?
+        .clone();
+
+    let since: i64 = params
+        .get("since")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+
+    let limit: i64 = params
+        .get("limit")
+        .and_then(|l| l.parse().ok())
+        .unwrap_or(50);
+
+    let agent_filter = params.get("agent").cloned();
+    let tab_filter = params.get("tab").cloned();
+
+    let conn = state
+        .knowledge
+        .get_conn(&project)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let conn_guard = conn.lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Build dynamic SQL with optional agent/tab filters
+    let mut sql = "SELECT seq, from_agent, to_agent, event_type, payload, tab_id, created_at FROM events WHERE seq > ?1".to_string();
+    let mut bind_idx = 2u32;
+
+    if agent_filter.is_some() {
+        sql.push_str(&format!(" AND from_agent = ?{bind_idx}"));
+        bind_idx += 1;
+    }
+    if tab_filter.is_some() {
+        sql.push_str(&format!(" AND tab_id = ?{bind_idx}"));
+        bind_idx += 1;
+    }
+    sql.push_str(&format!(" ORDER BY seq ASC LIMIT ?{bind_idx}"));
+
+    // Build dynamic param list
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+    param_values.push(Box::new(since));
+    if let Some(ref agent) = agent_filter {
+        param_values.push(Box::new(agent.clone()));
+    }
+    if let Some(ref tab) = tab_filter {
+        param_values.push(Box::new(tab.clone()));
+    }
+    param_values.push(Box::new(limit));
+
+    let params_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+
+    let mut stmt = conn_guard
+        .prepare(&sql)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let events: Vec<serde_json::Value> = stmt
+        .query_map(params_refs.as_slice(), |row| {
+            Ok(serde_json::json!({
+                "seq": row.get::<_, i64>(0)?,
+                "from_agent": row.get::<_, String>(1)?,
+                "to_agent": row.get::<_, Option<String>>(2)?,
+                "event_type": row.get::<_, String>(3)?,
+                "payload": row.get::<_, String>(4)?,
+                "tab_id": row.get::<_, Option<String>>(5)?,
+                "created_at": row.get::<_, String>(6)?,
+            }))
+        })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(Json(serde_json::json!({ "events": events })))
+}
+
+// ---------------------------------------------------------------------------
 // Server entry point
 // ---------------------------------------------------------------------------
 
@@ -1057,6 +1677,7 @@ pub async fn start(
     pty_manager: Arc<PtyManager>,
     app_handle: AppHandle,
     app_state: Arc<AppState>,
+    knowledge: Arc<crate::knowledge::KnowledgeEngine>,
 ) {
     let api_token = ensure_api_token();
     eprintln!("[api_server] API server starting on 127.0.0.1:31415");
@@ -1068,6 +1689,7 @@ pub async fn start(
         app_handle,
         api_token,
         app_state,
+        knowledge,
     };
 
     let cors = CorsLayer::new()
@@ -1078,6 +1700,7 @@ pub async fn start(
         .allow_methods([
             axum::http::Method::GET,
             axum::http::Method::POST,
+            axum::http::Method::PUT,
             axum::http::Method::DELETE,
             axum::http::Method::OPTIONS,
         ])
@@ -1102,6 +1725,17 @@ pub async fn start(
         // Hooks (no auth — called by local processes)
         .route("/api/hooks/status", post(hook_status))
         .route("/api/hooks/output", post(hook_output))
+        // Knowledge Layer — Code Intelligence
+        .route("/api/code/repo-map", get(code_repo_map))
+        .route("/api/code/outline", get(code_outline))
+        .route("/api/code/references", get(code_references))
+        // Knowledge Layer — Unified Search
+        .route("/api/knowledge/search", get(knowledge_search))
+        // Knowledge Layer — Sessions
+        .route("/api/sessions", get(list_sessions).post(create_session))
+        .route("/api/sessions/{id}/pin", put(pin_session))
+        // Knowledge Layer — Events
+        .route("/api/events", get(list_events).post(create_event))
         // WebSocket endpoints
         .route("/ws/events", get(ws_events_handler))
         .route("/ws/pty/{agent_id}", get(ws_pty_handler))

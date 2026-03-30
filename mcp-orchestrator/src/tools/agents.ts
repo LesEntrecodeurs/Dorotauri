@@ -123,4 +123,25 @@ export function registerAgentProxy(server: McpServer): void {
       return { content: [{ type: "text", text: JSON.stringify(data) }] };
     }
   );
+
+  server.tool(
+    "tail_events",
+    "Get real-time events from other agents running in the same project. Use this to check what other agents are currently doing before modifying shared files.",
+    {
+      project: z.string().describe("Project root path"),
+      since_seq: z.number().optional().describe("Only events after this sequence number"),
+      agent_id: z.string().optional().describe("Filter by agent ID"),
+      tab_id: z.string().optional().describe("Filter by tab ID"),
+      limit: z.number().optional().describe("Max events (default 50)"),
+    },
+    async ({ project, since_seq, agent_id, tab_id, limit }) => {
+      const params = new URLSearchParams({ project });
+      if (since_seq !== undefined) params.set("since", since_seq.toString());
+      if (agent_id) params.set("agent", agent_id);
+      if (tab_id) params.set("tab", tab_id);
+      if (limit) params.set("limit", limit.toString());
+      const data = await apiRequest(`/api/events?${params}`);
+      return { content: [{ type: "text", text: JSON.stringify(data) }] };
+    },
+  );
 }

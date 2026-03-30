@@ -8,6 +8,8 @@ pub mod business_state;
 mod commands;
 mod cwd_tracker;
 mod db;
+pub mod embedding;
+pub mod knowledge;
 pub mod migration;
 mod notifications;
 mod pty;
@@ -36,6 +38,18 @@ pub fn run() {
     let sftp_manager = Arc::new(sftp::SftpManager::new());
     let cwd_tracker = Arc::new(cwd_tracker::CwdTracker::new());
 
+    // Initialize Knowledge Layer
+    let data_dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join(".dorotoring");
+    let embedding_engine = Arc::new(tokio::sync::Mutex::new(
+        embedding::EmbeddingEngine::new(&data_dir),
+    ));
+    let knowledge_engine = Arc::new(knowledge::KnowledgeEngine::new(
+        data_dir,
+        Arc::clone(&embedding_engine),
+    ));
+
     // Clone the AgentManager Arc so the polling task can update cwd
     let cwd_agent_manager = Arc::clone(&app_state.agent_manager);
 
@@ -44,6 +58,10 @@ pub fn run() {
     let api_pty_manager = Arc::clone(&pty_manager);
     let api_agent_manager = Arc::clone(&app_state.agent_manager);
     let api_event_bus = Arc::clone(&app_state.event_bus);
+    let api_knowledge = Arc::clone(&knowledge_engine);
+
+    // Clone for Tauri managed state (so commands can access KnowledgeEngine)
+    let knowledge_for_manage = Arc::clone(&knowledge_engine);
 
     tauri::Builder::default()
         .manage(app_state)
@@ -52,6 +70,7 @@ pub fn run() {
         .manage(vault_db)
         .manage(sftp_manager)
         .manage(cwd_tracker)
+        .manage(knowledge_for_manage)
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -68,6 +87,35 @@ pub fn run() {
                 },
             );
 
+            // Initialize embedding engine (background — may download model on first run)
+            let embed_init = Arc::clone(&embedding_engine);
+            tauri::async_runtime::spawn(async move {
+                let mut engine = embed_init.lock().await;
+                if let Err(e) = engine.init().await {
+                    eprintln!("[embedding] Init failed (will retry later): {e}");
+                }
+            });
+
+            // Purge old sessions at startup
+            tauri::async_runtime::spawn(async move {
+                let projects_dir = dirs::home_dir()
+                    .map(|h| h.join(".dorotoring").join("projects"));
+                if let Some(dir) = projects_dir {
+                    if let Ok(entries) = std::fs::read_dir(&dir) {
+                        for entry in entries.flatten() {
+                            let db_path = entry.path().join("knowledge.db");
+                            if db_path.exists() {
+                                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                                    if let Err(e) = crate::knowledge::db::purge_old_sessions(&conn, 90) {
+                                        eprintln!("[knowledge] Purge error: {e}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
             // Start API server for MCP orchestrator
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(api_server::start(
@@ -76,6 +124,7 @@ pub fn run() {
                 api_pty_manager,
                 handle,
                 api_app_state,
+                api_knowledge,
             ));
 
             // Start the cwd polling thread

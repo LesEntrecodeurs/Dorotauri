@@ -8,6 +8,7 @@ pub struct AgentStartConfig {
     pub skip_permissions: bool,
     pub mcp_config: Option<PathBuf>,
     pub system_prompt_file: Option<PathBuf>,
+    pub repo_map_file: Option<PathBuf>,
     pub model: Option<String>,
     pub secondary_paths: Vec<String>,
     pub continue_session: bool,
@@ -39,6 +40,10 @@ impl AgentProviderTrait for ClaudeProvider {
             cmd.push(mcp.to_string_lossy().to_string());
         }
         if let Some(f) = &config.system_prompt_file {
+            cmd.push("--append-system-prompt-file".into());
+            cmd.push(f.to_string_lossy().to_string());
+        }
+        if let Some(f) = &config.repo_map_file {
             cmd.push("--append-system-prompt-file".into());
             cmd.push(f.to_string_lossy().to_string());
         }
@@ -196,6 +201,7 @@ mod tests {
             skip_permissions: false,
             mcp_config: None,
             system_prompt_file: None,
+            repo_map_file: None,
             model: None,
             secondary_paths: Vec::new(),
             continue_session: false,
@@ -327,5 +333,52 @@ mod tests {
         let config = default_config("");
         let cmd = provider.build_command(&config, None);
         assert!(!cmd.contains(&"--print".to_string()));
+    }
+
+    #[test]
+    fn test_claude_repo_map_file() {
+        let provider = ClaudeProvider;
+        let mut config = default_config("test");
+        config.repo_map_file = Some(PathBuf::from(
+            "/home/user/.dorotoring/projects/abc123/repo-map.md",
+        ));
+        let cmd = provider.build_command(&config, None);
+        // Should have ONE --append-system-prompt-file flag (only repo_map_file since system_prompt_file is None)
+        let count = cmd
+            .iter()
+            .filter(|s| *s == "--append-system-prompt-file")
+            .count();
+        assert_eq!(count, 1);
+        assert!(cmd.contains(
+            &"/home/user/.dorotoring/projects/abc123/repo-map.md".to_string()
+        ));
+    }
+
+    #[test]
+    fn test_claude_repo_map_file_with_system_prompt() {
+        let provider = ClaudeProvider;
+        let mut config = default_config("test");
+        config.system_prompt_file = Some(PathBuf::from(
+            "/home/user/.dorotoring/agent-instructions.md",
+        ));
+        config.repo_map_file = Some(PathBuf::from(
+            "/home/user/.dorotoring/projects/abc123/repo-map.md",
+        ));
+        let cmd = provider.build_command(&config, None);
+        let count = cmd
+            .iter()
+            .filter(|s| *s == "--append-system-prompt-file")
+            .count();
+        assert_eq!(count, 2); // Both system prompt AND repo map
+    }
+
+    #[test]
+    fn test_codex_ignores_repo_map_file() {
+        let provider = CodexProvider;
+        let mut config = default_config("test");
+        config.repo_map_file = Some(PathBuf::from("/some/path/repo-map.md"));
+        let cmd = provider.build_command(&config, None);
+        // Codex doesn't support system prompt files
+        assert!(!cmd.contains(&"--append-system-prompt-file".to_string()));
     }
 }
