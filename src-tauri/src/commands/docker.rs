@@ -188,7 +188,15 @@ fn docker_cmd() -> Command {
 fn colima_cmd() -> Option<Command> {
     find_binary("colima").map(|p| {
         let mut cmd = Command::new(p);
-        cmd.env("COLIMA_HOME", colima_home());
+        let home = colima_home();
+        // Ensure Colima home and cache directories exist
+        let _ = std::fs::create_dir_all(&home);
+        let cache_dir = dirs::cache_dir()
+            .unwrap_or_else(|| home.clone())
+            .join("colima");
+        let _ = std::fs::create_dir_all(&cache_dir);
+
+        cmd.env("COLIMA_HOME", home);
         cmd.env("LIMA_HOME", lima_home());
         // Ensure limactl is findable
         if let Some(bin) = find_binary("limactl") {
