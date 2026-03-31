@@ -83,9 +83,29 @@ impl VaultDb {
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS ssh_host_groups (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                color TEXT NOT NULL DEFAULT '#6366f1',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
         ",
         )
         .map_err(|e| e.to_string())?;
+
+        // Migration: add group_id column to ssh_hosts
+        let has_group_id: bool = conn
+            .prepare("SELECT group_id FROM ssh_hosts LIMIT 0")
+            .is_ok();
+        if !has_group_id {
+            conn.execute_batch(
+                "ALTER TABLE ssh_hosts ADD COLUMN group_id TEXT REFERENCES ssh_host_groups(id) ON DELETE SET NULL;",
+            )
+            .map_err(|e| e.to_string())?;
+        }
 
         // Create FTS table if not exists
         let fts_exists: bool = conn

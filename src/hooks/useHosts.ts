@@ -36,6 +36,7 @@ export function useHosts() {
   const createHost = useCallback(async (data: {
     name: string; hostname: string; port?: number; username: string;
     authType: string; password?: string | null; keyPath?: string | null;
+    groupId?: string | null;
   }) => {
     await invoke('ssh_create_host', {
       name: data.name,
@@ -45,6 +46,7 @@ export function useHosts() {
       authType: data.authType,
       password: data.password ?? null,
       keyPath: data.keyPath ?? null,
+      groupId: data.groupId ?? null,
     });
     await refresh();
   }, [refresh]);
@@ -52,6 +54,7 @@ export function useHosts() {
   const updateHost = useCallback(async (id: string, data: {
     name: string; hostname: string; port?: number; username: string;
     authType: string; password?: string | null; keyPath?: string | null;
+    groupId?: string | null;
   }) => {
     await invoke('ssh_update_host', {
       id,
@@ -62,6 +65,7 @@ export function useHosts() {
       authType: data.authType,
       password: data.password ?? null,
       keyPath: data.keyPath ?? null,
+      groupId: data.groupId ?? null,
     });
     await refresh();
   }, [refresh]);

@@ -35,6 +35,18 @@ fn row_to_host(row: &rusqlite::Row<'_>) -> rusqlite::Result<serde_json::Value> {
         "keyPath": row.get::<_, Option<String>>(7)?,
         "createdAt": row.get::<_, String>(8)?,
         "updatedAt": row.get::<_, String>(9)?,
+        "groupId": row.get::<_, Option<String>>(10)?,
+    }))
+}
+
+fn row_to_group(row: &rusqlite::Row<'_>) -> rusqlite::Result<serde_json::Value> {
+    Ok(json!({
+        "id": row.get::<_, String>(0)?,
+        "name": row.get::<_, String>(1)?,
+        "color": row.get::<_, String>(2)?,
+        "sortOrder": row.get::<_, i64>(3)?,
+        "createdAt": row.get::<_, String>(4)?,
+        "updatedAt": row.get::<_, String>(5)?,
     }))
 }
 
@@ -45,7 +57,7 @@ pub fn ssh_list_hosts(db: State<'_, VaultDb>) -> Result<serde_json::Value, Strin
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = conn
-        .prepare("SELECT id, name, hostname, port, username, auth_type, password, key_path, created_at, updated_at FROM ssh_hosts ORDER BY name ASC")
+        .prepare("SELECT id, name, hostname, port, username, auth_type, password, key_path, created_at, updated_at, group_id FROM ssh_hosts ORDER BY name ASC")
         .map_err(|e| e.to_string())?;
 
     let rows = stmt.query_map([], |row| row_to_host(row)).map_err(|e| e.to_string())?;
@@ -63,7 +75,7 @@ pub fn ssh_get_host(db: State<'_, VaultDb>, id: String) -> Result<serde_json::Va
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
 
     conn.query_row(
-        "SELECT id, name, hostname, port, username, auth_type, password, key_path, created_at, updated_at FROM ssh_hosts WHERE id = ?1",
+        "SELECT id, name, hostname, port, username, auth_type, password, key_path, created_at, updated_at, group_id FROM ssh_hosts WHERE id = ?1",
         rusqlite::params![id],
         |row| row_to_host(row),
     )
@@ -80,6 +92,7 @@ pub fn ssh_create_host(
     auth_type: String,
     password: Option<String>,
     key_path: Option<String>,
+    group_id: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let id = uuid::Uuid::new_v4().to_string();
@@ -87,9 +100,9 @@ pub fn ssh_create_host(
     let port = port.unwrap_or(22) as i64;
 
     conn.execute(
-        "INSERT INTO ssh_hosts (id, name, hostname, port, username, auth_type, password, key_path, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-        rusqlite::params![id, name, hostname, port, username, auth_type, password, key_path, now, now],
+        "INSERT INTO ssh_hosts (id, name, hostname, port, username, auth_type, password, key_path, created_at, updated_at, group_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        rusqlite::params![id, name, hostname, port, username, auth_type, password, key_path, now, now, group_id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -104,6 +117,7 @@ pub fn ssh_create_host(
         "keyPath": key_path,
         "createdAt": now,
         "updatedAt": now,
+        "groupId": group_id,
     }))
 }
 
@@ -118,14 +132,15 @@ pub fn ssh_update_host(
     auth_type: String,
     password: Option<String>,
     key_path: Option<String>,
+    group_id: Option<String>,
 ) -> Result<(), String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     let now = chrono::Utc::now().to_rfc3339();
     let port = port.unwrap_or(22) as i64;
 
     conn.execute(
-        "UPDATE ssh_hosts SET name=?2, hostname=?3, port=?4, username=?5, auth_type=?6, password=?7, key_path=?8, updated_at=?9 WHERE id=?1",
-        rusqlite::params![id, name, hostname, port, username, auth_type, password, key_path, now],
+        "UPDATE ssh_hosts SET name=?2, hostname=?3, port=?4, username=?5, auth_type=?6, password=?7, key_path=?8, updated_at=?9, group_id=?10 WHERE id=?1",
+        rusqlite::params![id, name, hostname, port, username, auth_type, password, key_path, now, group_id],
     )
     .map_err(|e| e.to_string())?;
 
@@ -138,6 +153,115 @@ pub fn ssh_delete_host(db: State<'_, VaultDb>, id: String) -> Result<(), String>
 
     conn.execute("DELETE FROM ssh_hosts WHERE id = ?1", rusqlite::params![id])
         .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// ── Host Groups CRUD ───────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn ssh_list_host_groups(db: State<'_, VaultDb>) -> Result<serde_json::Value, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare("SELECT id, name, color, sort_order, created_at, updated_at FROM ssh_host_groups ORDER BY sort_order ASC, name ASC")
+        .map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map([], |row| row_to_group(row)).map_err(|e| e.to_string())?;
+
+    let mut groups = Vec::new();
+    for row in rows {
+        let mut group = row.map_err(|e| e.to_string())?;
+        let group_id = group["id"].as_str().unwrap_or("").to_string();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM ssh_hosts WHERE group_id = ?1",
+                rusqlite::params![group_id],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        group.as_object_mut().unwrap().insert("hostCount".to_string(), json!(count));
+        groups.push(group);
+    }
+
+    Ok(json!({ "groups": groups }))
+}
+
+#[tauri::command]
+pub fn ssh_create_host_group(
+    db: State<'_, VaultDb>,
+    name: String,
+    color: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let color = color.unwrap_or_else(|| "#6366f1".to_string());
+
+    let max_order: i64 = conn
+        .query_row("SELECT COALESCE(MAX(sort_order), -1) FROM ssh_host_groups", [], |r| r.get(0))
+        .unwrap_or(-1);
+
+    conn.execute(
+        "INSERT INTO ssh_host_groups (id, name, color, sort_order, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        rusqlite::params![id, name, color, max_order + 1, now, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "id": id,
+        "name": name,
+        "color": color,
+        "sortOrder": max_order + 1,
+        "hostCount": 0,
+        "createdAt": now,
+        "updatedAt": now,
+    }))
+}
+
+#[tauri::command]
+pub fn ssh_update_host_group(
+    db: State<'_, VaultDb>,
+    id: String,
+    name: String,
+    color: String,
+) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    conn.execute(
+        "UPDATE ssh_host_groups SET name=?2, color=?3, updated_at=?4 WHERE id=?1",
+        rusqlite::params![id, name, color, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn ssh_delete_host_group(db: State<'_, VaultDb>, id: String) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+
+    conn.execute("DELETE FROM ssh_host_groups WHERE id = ?1", rusqlite::params![id])
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn ssh_move_host_to_group(
+    db: State<'_, VaultDb>,
+    host_id: String,
+    group_id: Option<String>,
+) -> Result<(), String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    conn.execute(
+        "UPDATE ssh_hosts SET group_id=?2, updated_at=?3 WHERE id=?1",
+        rusqlite::params![host_id, group_id, now],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
