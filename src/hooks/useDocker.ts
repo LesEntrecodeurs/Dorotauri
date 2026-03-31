@@ -189,6 +189,7 @@ export function useDocker() {
     }
 
     setDaemonState('starting');
+    setSetupProgress({ step: 'Starting Docker runtime...', progress: 10 });
     try {
       await invoke<string>('docker_ensure_running');
       if (!mountedRef.current) return;

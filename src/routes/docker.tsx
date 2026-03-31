@@ -575,10 +575,12 @@ export default function DockerPage() {
   );
 
   if (daemonState === 'starting') return (
-    <div className="flex items-center justify-center h-[60vh] text-center"><div>
+    <div className="flex items-center justify-center h-[60vh] text-center"><div className="w-80">
       <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-3" />
-      <p className="text-sm font-medium">Starting Docker VM...</p>
-      <p className="text-xs text-muted-foreground mt-1">This can take up to a minute</p>
+      <p className="text-sm font-medium mb-3">Starting Docker VM...</p>
+      <p className="text-xs text-muted-foreground mb-3">{setupProgress.step}</p>
+      <div className="w-full bg-muted rounded-full h-2"><div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${setupProgress.progress}%` }} /></div>
+      <p className="text-[11px] text-muted-foreground mt-2">First launch may take a few minutes</p>
     </div></div>
   );
 

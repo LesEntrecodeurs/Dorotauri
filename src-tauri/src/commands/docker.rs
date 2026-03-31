@@ -564,15 +564,23 @@ pub async fn docker_list_containers() -> Result<Vec<DockerContainer>, String> {
 }
 
 #[tauri::command]
-pub async fn docker_ensure_running() -> Result<String, String> {
+pub async fn docker_ensure_running(app: AppHandle) -> Result<String, String> {
     // Already running (any runtime)
     if is_daemon_ready() {
         return Ok("ready".to_string());
     }
 
+    let emit_progress = |step: &str, progress: u8| {
+        let _ = app.emit("docker:setup-progress", SetupProgress {
+            step: step.into(),
+            progress,
+        });
+    };
+
     // Try Colima
     if let Some(mut cmd) = colima_cmd() {
         if !is_colima_running() {
+            emit_progress("Starting Docker VM (first launch may take a few minutes)...", 15);
             eprintln!("Starting Colima...");
             let output = cmd
                 .args(["start"])
@@ -585,21 +593,30 @@ pub async fn docker_ensure_running() -> Result<String, String> {
             }
         }
 
-        // Poll until ready (max 120s)
-        for i in 0..60 {
+        // Poll until ready (max 300s — first launch creates the VM from scratch)
+        emit_progress("Waiting for Docker daemon to be ready...", 40);
+        let max_polls = 150; // 150 × 2s = 300s
+        for i in 0..max_polls {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
             if is_daemon_ready() {
                 eprintln!("Docker daemon ready via Colima after {}s", (i + 1) * 2);
+                emit_progress("Docker is ready!", 100);
                 return Ok("started".to_string());
+            }
+            // Update progress bar (40 → 95 over the polling period)
+            let pct = 40 + ((i as u16 * 55) / max_polls as u16) as u8;
+            if i % 5 == 0 {
+                emit_progress("Waiting for Docker daemon to be ready...", pct);
             }
         }
 
         return Err(
-            "Colima started but Docker daemon not responding. Try again.".to_string(),
+            "Colima started but Docker daemon not responding after 5 minutes. Check system resources and try again.".to_string(),
         );
     }
 
     // Fallback: Docker Desktop (macOS or Windows)
+    emit_progress("Starting Docker Desktop...", 15);
     let launch = if is_windows() {
         Command::new("cmd")
             .args(["/C", "start", "", "Docker Desktop"])
@@ -612,17 +629,24 @@ pub async fn docker_ensure_running() -> Result<String, String> {
 
     match launch {
         Ok(output) if output.status.success() => {
-            for i in 0..60 {
+            emit_progress("Waiting for Docker Desktop to be ready...", 40);
+            let max_polls = 150;
+            for i in 0..max_polls {
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 if is_daemon_ready() {
                     eprintln!(
                         "Docker daemon ready via Docker Desktop after {}s",
                         (i + 1) * 2
                     );
+                    emit_progress("Docker is ready!", 100);
                     return Ok("started".to_string());
                 }
+                let pct = 40 + ((i as u16 * 55) / max_polls as u16) as u8;
+                if i % 5 == 0 {
+                    emit_progress("Waiting for Docker Desktop to be ready...", pct);
+                }
             }
-            Err("Docker Desktop starting but daemon not ready. Try again.".to_string())
+            Err("Docker Desktop starting but daemon not ready after 5 minutes. Try again.".to_string())
         }
         _ => Err("No Docker runtime found. Setup required.".to_string()),
     }
