@@ -200,6 +200,8 @@ pub fn run() {
             commands::shell::project_list_docs,
             commands::shell::project_read_doc,
             commands::shell::project_search_docs,
+            commands::shell::project_git_changed_files,
+            commands::shell::project_git_diff_file,
             // Window commands
             commands::window::window_popout,
             commands::window::window_dock,
