@@ -49,6 +49,7 @@ export default function TerminalsView() {
   const [viewFullscreen, setViewFullscreen] = useState(false);
   const [terminalFontSize, setTerminalFontSize] = useState(11);
   const pendingStartRef = useRef<{ agentId: string; prompt: string; options?: { model?: string } } | null>(null);
+  const [splitSourceAgentId, setSplitSourceAgentId] = useState<string | null>(null);
   const [terminalTheme, setTerminalTheme] = useState<'dark' | 'light'>('dark');
   const [terminalSettingsLoaded, setTerminalSettingsLoaded] = useState(!isTauri());
 
@@ -147,7 +148,7 @@ export default function TerminalsView() {
     onToggleFullscreen: () => grid.toggleFullscreen(focusedPanelId || undefined),
     onToggleBroadcast: broadcast.toggleBroadcast,
     onToggleSidebar: () => { },
-    onNewAgent: () => setShowNewChatModal(true),
+    onNewAgent: () => { setSplitSourceAgentId(null); setShowNewChatModal(true); },
     onExitFullscreen: grid.exitFullscreen,
     isFullscreen: !!grid.fullscreenPanelId,
   });
@@ -234,10 +235,17 @@ export default function TerminalsView() {
     localModel?: string,
     obsidianVaultPaths?: string[],
   ) => {
-    // Inherit CWD from the currently focused terminal
-    const focusedAgent = focusedPanelId ? agents.find(a => a.id === focusedPanelId) : null;
+    // Determine cwd: split from context menu → inherit source cwd; otherwise → home
+    let cwd: string | undefined;
+    if (splitSourceAgentId) {
+      const sourceAgent = agents.find(a => a.id === splitSourceAgentId);
+      cwd = sourceAgent?.cwd;
+    } else {
+      const { homeDir } = await import('@tauri-apps/api/path');
+      cwd = await homeDir();
+    }
     const agent = await createAgent({
-      cwd: focusedAgent?.cwd,
+      cwd,
       skills,
       worktree,
       character: character as import('@/types/electron').AgentCharacter,
@@ -254,8 +262,9 @@ export default function TerminalsView() {
     if (prompt) {
       pendingStartRef.current = { agentId: agent.id, prompt, options: { model } };
     }
+    setSplitSourceAgentId(null);
     setShowNewChatModal(false);
-  }, [createAgent, tabManager, focusedPanelId, agents]);
+  }, [createAgent, tabManager, splitSourceAgentId, agents]);
 
   // TerminalTile creates a PTY (shell) for each agent on mount.
   // Agents are started explicitly by user action or MCP calls — no auto-start
@@ -294,7 +303,7 @@ export default function TerminalsView() {
           onToggleBroadcast={broadcast.toggleBroadcast}
           onStartAll={handleStartAll}
           onStopAll={handleStopAll}
-          onNewAgent={() => setShowNewChatModal(true)}
+          onNewAgent={() => { setSplitSourceAgentId(null); setShowNewChatModal(true); }}
           runningCount={runningCount}
           totalCount={filteredAgents.length}
           fontSize={multiTerminal.fontSize}
@@ -393,7 +402,7 @@ export default function TerminalsView() {
           activeTabId={tabManager.activeTabId}
           onMoveToTab={handleMoveToTab}
           onMoveToNewTab={handleMoveToNewTab}
-          onNewAgent={() => setShowNewChatModal(true)}
+          onNewAgent={() => { setSplitSourceAgentId(contextMenu.menuState.agentId); setShowNewChatModal(true); }}
         />
 
         {/* New Chat Modal */}
@@ -401,7 +410,7 @@ export default function TerminalsView() {
           <Suspense fallback={null}>
             <NewChatModal
               open={showNewChatModal}
-              onClose={() => setShowNewChatModal(false)}
+              onClose={() => { setShowNewChatModal(false); setSplitSourceAgentId(null); }}
               onSubmit={handleNewAgent}
               installedSkills={installedSkills}
               onRefreshSkills={refreshSkills}
