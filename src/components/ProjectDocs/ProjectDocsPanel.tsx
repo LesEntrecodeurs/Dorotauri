@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { FileText, Bot, ArrowLeft, Loader2, FolderOpen, Search, Copy, Check } from 'lucide-react';
+import { FileText, Bot, ArrowLeft, Loader2, FolderOpen, Search, Copy, Check, GitBranch, RefreshCw } from 'lucide-react';
 import { DocFileTree } from './DocFileTree';
 import type { DocEntry } from './DocFileTree';
 import { SimpleMarkdown } from '@/components/VaultView/components/MarkdownRenderer';
 import { DocSearchModal } from './DocSearchModal';
 import { DocFindBar } from './DocFindBar';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { DiffFileTree } from './DiffFileTree';
+import { DiffViewer } from './DiffViewer';
+import { useDiffData } from './useDiffData';
 
 interface ProjectDocsPanelProps {
   projectPath: string;
@@ -26,6 +30,19 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
   const [searchOpen, setSearchOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const [activeTab, setActiveTab] = useState<string>('docs');
+  const {
+    changedFiles,
+    selectedFile,
+    fileDiff,
+    diffMode,
+    setDiffMode,
+    selectFile,
+    refresh: refreshDiff,
+    loading: loadingDiff,
+    loadingDiff: loadingFileDiff,
+  } = useDiffData(projectPath, activeTab === 'modifications');
 
   // Ctrl+F → in-document find, Ctrl+Shift+F → grep across documents
   useEffect(() => {
@@ -192,84 +209,202 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
         </button>
       </div>
 
-      {/* Content area */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* File tree sidebar */}
-        <div
-          className="border-r border-border shrink-0 flex flex-col overflow-hidden"
-          style={{ width: sidebarWidth }}
-        >
-          <div className="px-3 py-2 border-b border-border shrink-0">
-            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Documentation</p>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {loadingFiles ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+        <div className="border-b border-border px-4 shrink-0">
+          <TabsList className="h-auto bg-transparent p-0 gap-0">
+            <TabsTrigger
+              value="docs"
+              className="px-3 py-1.5 text-xs rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Documentation
+            </TabsTrigger>
+            <TabsTrigger
+              value="modifications"
+              className="px-3 py-1.5 text-xs rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              <GitBranch className="w-3 h-3 mr-1.5" />
+              Modifications
+              {changedFiles.length > 0 && (
+                <span className="ml-1.5 text-[9px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full tabular-nums">
+                  {changedFiles.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Documentation tab */}
+        <TabsContent value="docs" className="flex flex-1 min-h-0 mt-0" forceMount style={{ display: activeTab === 'docs' ? undefined : 'none' }}>
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            {/* File tree sidebar */}
+            <div
+              className="border-r border-border shrink-0 flex flex-col overflow-hidden"
+              style={{ width: sidebarWidth }}
+            >
+              <div className="px-3 py-2 border-b border-border shrink-0">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Documentation</p>
               </div>
-            ) : (
-              <DocFileTree
-                files={docFiles}
-                selectedPath={selectedDoc}
-                onSelect={handleSelectDoc}
+              <div className="flex-1 overflow-y-auto">
+                {loadingFiles ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <DocFileTree
+                    files={docFiles}
+                    selectedPath={selectedDoc}
+                    onSelect={handleSelectDoc}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Resize handle */}
+            <div
+              onMouseDown={handleMouseDown}
+              className="w-1 shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors"
+            />
+
+            {/* Markdown content */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <DocFindBar
+                open={findOpen}
+                onClose={() => setFindOpen(false)}
+                containerRef={contentRef}
               />
-            )}
-          </div>
-        </div>
-
-        {/* Resize handle */}
-        <div
-          onMouseDown={handleMouseDown}
-          className="w-1 shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors"
-        />
-
-        {/* Markdown content */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <DocFindBar
-            open={findOpen}
-            onClose={() => setFindOpen(false)}
-            containerRef={contentRef}
-          />
-        <div className="flex-1 overflow-y-auto" ref={contentRef}>
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : selectedDoc ? (
-            <div className="p-6">
-              {selectedFileName && (
-                <p className="text-[10px] text-muted-foreground font-mono mb-4 pb-2 border-b border-border truncate">{selectedFileName}</p>
-              )}
-              <div className="prose prose-sm dark:prose-invert max-w-none
-                prose-headings:font-semibold prose-headings:tracking-tight
-                prose-h1:text-xl prose-h1:mb-4 prose-h1:mt-0
-                prose-h2:text-lg prose-h2:mb-3
-                prose-h3:text-base prose-h3:mb-2
-                prose-p:text-sm prose-p:leading-relaxed
-                prose-code:text-xs prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
-                prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:text-xs
-                prose-li:text-sm
-                prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-                prose-table:text-sm
-                prose-th:text-left prose-th:font-medium
-              ">
-                <SimpleMarkdown content={docContent} highlightLine={targetLine ?? undefined} />
+              <div className="flex-1 overflow-y-auto" ref={contentRef}>
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : selectedDoc ? (
+                  <div className="p-6">
+                    {selectedFileName && (
+                      <p className="text-[10px] text-muted-foreground font-mono mb-4 pb-2 border-b border-border truncate">{selectedFileName}</p>
+                    )}
+                    <div className="prose prose-sm dark:prose-invert max-w-none
+                      prose-headings:font-semibold prose-headings:tracking-tight
+                      prose-h1:text-xl prose-h1:mb-4 prose-h1:mt-0
+                      prose-h2:text-lg prose-h2:mb-3
+                      prose-h3:text-base prose-h3:mb-2
+                      prose-p:text-sm prose-p:leading-relaxed
+                      prose-code:text-xs prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+                      prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-pre:text-xs
+                      prose-li:text-sm
+                      prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                      prose-table:text-sm
+                      prose-th:text-left prose-th:font-medium
+                    ">
+                      <SimpleMarkdown content={docContent} highlightLine={targetLine ?? undefined} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <FileText className="w-10 h-10 mb-3 opacity-30" />
+                    <p className="text-sm font-medium">
+                      {docFiles.length > 0 ? 'Select a document' : 'No documentation found'}
+                    </p>
+                    {docFiles.length > 0 && (
+                      <p className="text-xs mt-1 opacity-70">{docFiles.length} file{docFiles.length !== 1 ? 's' : ''} available</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <FileText className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm font-medium">
-                {docFiles.length > 0 ? 'Select a document' : 'No documentation found'}
-              </p>
-              {docFiles.length > 0 && (
-                <p className="text-xs mt-1 opacity-70">{docFiles.length} file{docFiles.length !== 1 ? 's' : ''} available</p>
+          </div>
+        </TabsContent>
+
+        {/* Modifications tab */}
+        <TabsContent value="modifications" className="flex flex-1 min-h-0 mt-0">
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            {/* Diff sidebar */}
+            <div
+              className="border-r border-border shrink-0 flex flex-col overflow-hidden"
+              style={{ width: sidebarWidth }}
+            >
+              {/* Mode selector */}
+              <div className="px-3 py-2 border-b border-border shrink-0 flex items-center gap-1">
+                <div className="flex flex-1 bg-muted rounded overflow-hidden">
+                  <button
+                    onClick={() => setDiffMode('working')}
+                    className={`flex-1 text-[10px] py-1 px-2 transition-colors ${
+                      diffMode === 'working'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Working
+                  </button>
+                  <button
+                    onClick={() => setDiffMode('last_commit')}
+                    className={`flex-1 text-[10px] py-1 px-2 transition-colors ${
+                      diffMode === 'last_commit'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Last commit
+                  </button>
+                </div>
+                <button
+                  onClick={refreshDiff}
+                  className="p-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingDiff ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              {/* File tree */}
+              <div className="flex-1 overflow-y-auto">
+                {loadingDiff ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <DiffFileTree
+                    files={changedFiles}
+                    selectedPath={selectedFile}
+                    onSelect={selectFile}
+                  />
+                )}
+              </div>
+              {/* Summary */}
+              {changedFiles.length > 0 && (
+                <div className="px-3 py-1.5 border-t border-border shrink-0">
+                  <p className="text-[10px] text-muted-foreground">
+                    {changedFiles.length} file{changedFiles.length !== 1 ? 's' : ''} modified
+                  </p>
+                </div>
               )}
             </div>
-          )}
-        </div>
-        </div>
-      </div>
+
+            {/* Resize handle */}
+            <div
+              onMouseDown={handleMouseDown}
+              className="w-1 shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors"
+            />
+
+            {/* Diff viewer */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {loadingFileDiff ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : selectedFile && fileDiff ? (
+                <DiffViewer diff={fileDiff} fileName={selectedFile} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <GitBranch className="w-10 h-10 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">
+                    {changedFiles.length > 0 ? 'Select a file to view diff' : 'No modifications'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Search modal */}
       <DocSearchModal
