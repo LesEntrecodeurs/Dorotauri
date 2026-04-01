@@ -392,7 +392,7 @@ export function ProjectDocsPanel({ projectPath, projectName, agentCount, onClose
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
               ) : selectedFile && fileDiff ? (
-                <DiffViewer diff={fileDiff} fileName={selectedFile} />
+                <DiffViewer diff={{ ...fileDiff, status: changedFiles.find((f) => f.path === selectedFile)?.status ?? fileDiff.status }} fileName={selectedFile} />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                   <GitBranch className="w-10 h-10 mb-3 opacity-30" />

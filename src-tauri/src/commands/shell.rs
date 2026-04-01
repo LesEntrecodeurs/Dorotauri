@@ -424,6 +424,9 @@ pub fn project_git_diff_file(
                 new_line: None,
             });
             old_line += 1;
+        } else if raw_line.starts_with('\\') {
+            // e.g. "\ No newline at end of file" — skip, do not emit or bump counters
+            continue;
         } else {
             let content = raw_line.strip_prefix(' ').unwrap_or(raw_line);
             total_lines += 1;
