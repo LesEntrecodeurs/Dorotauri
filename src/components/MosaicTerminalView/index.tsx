@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, memo } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef, memo } from 'react';
 import { MosaicWithoutDragDropContext, MosaicWindow, MosaicNode, getLeaves } from 'react-mosaic-component';
 import { DndProvider } from 'react-dnd';
 import { TouchBackend } from 'react-dnd-touch-backend';
@@ -236,6 +236,12 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
   const [editAgentId, setEditAgentId] = useState<string | null>(null);
   const [layoutPresetIndex, setLayoutPresetIndex] = useState(0);
 
+  // Tab drag-to-reorder state
+  const [draggingTabIdx, setDraggingTabIdx] = useState<number | null>(null);
+  const [dragOverTabIdx, setDragOverTabIdx] = useState<number | null>(null);
+  const tabDragState = useRef<{ idx: number; startX: number; started: boolean } | null>(null);
+  const tabElRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   // Hooks for skills
   const { installedSkills } = useElectronSkills();
 
@@ -332,6 +338,54 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, name: name || t.name } : t));
     setEditingTabId(null);
   }, []);
+
+  const reorderTab = useCallback((fromIdx: number, toIdx: number) => {
+    setTabs(prev => {
+      const result = [...prev];
+      const [moved] = result.splice(fromIdx, 1);
+      result.splice(toIdx, 0, moved);
+      return result;
+    });
+  }, []);
+
+  // Pointer-based tab drag
+  useEffect(() => {
+    const onPointerMove = (e: PointerEvent) => {
+      const ds = tabDragState.current;
+      if (!ds) return;
+      if (!ds.started) {
+        if (Math.abs(e.clientX - ds.startX) < 5) return;
+        ds.started = true;
+        setDraggingTabIdx(ds.idx);
+      }
+      let found: number | null = null;
+      for (let i = 0; i < tabElRefs.current.length; i++) {
+        const el = tabElRefs.current[i];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right) {
+          found = i;
+          break;
+        }
+      }
+      setDragOverTabIdx(found);
+    };
+    const onPointerUp = () => {
+      const ds = tabDragState.current;
+      if (ds?.started && dragOverTabIdx !== null && dragOverTabIdx !== ds.idx) {
+        reorderTab(ds.idx, dragOverTabIdx);
+      }
+      tabDragState.current = null;
+      setDraggingTabIdx(null);
+      setDragOverTabIdx(null);
+    };
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [dragOverTabIdx, reorderTab]);
 
   // --- Agent membership ---
 
@@ -709,47 +763,70 @@ export default function MosaicTerminalView({ agents, zenMode = false, onToggleZe
 
       {/* Tab bar — compact in zen mode */}
       <div className={`flex items-center gap-0.5 px-2 bg-secondary/80 border-b border-border shrink-0 ${zenMode ? 'py-0 h-6 text-[10px]' : 'py-1'}`}>
-        {tabs.map(tab => (
-          <div
-            key={tab.id}
-            className={`
-              group flex items-center gap-1 px-2.5 py-1 text-xs rounded-t-md cursor-pointer transition-all relative
-              ${tab.id === activeTabId
-                ? 'bg-card border border-b-0 border-border text-foreground -mb-px z-10'
-                : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
-              }
-            `}
-            onClick={() => { setActiveTabId(tab.id); setMaximizedAgent(null); }}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setEditingTabId(tab.id);
-              setEditingName(tab.name);
-            }}
-          >
-            {editingTabId === tab.id ? (
-              <input
-                autoFocus
-                className="w-20 bg-transparent border-b border-foreground text-xs outline-none"
-                value={editingName}
-                onChange={e => setEditingName(e.target.value)}
-                onBlur={() => renameTab(tab.id, editingName)}
-                onKeyDown={e => { if (e.key === 'Enter') renameTab(tab.id, editingName); if (e.key === 'Escape') setEditingTabId(null); }}
-                onClick={e => e.stopPropagation()}
-              />
-            ) : (
-              <span>{tab.name}</span>
-            )}
-            <span className="text-[10px] text-muted-foreground">({tab.agentIds.length})</span>
-            {tabs.length > 1 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); deleteTab(tab.id); }}
-                className="ml-0.5 p-0.5 hover:bg-red-500/20 text-muted-foreground hover:text-red-400 rounded"
+        {(() => {
+          // Show tabs in preview order while dragging
+          const displayTabs = (draggingTabIdx !== null && dragOverTabIdx !== null && draggingTabIdx !== dragOverTabIdx)
+            ? (() => { const r = [...tabs]; const [m] = r.splice(draggingTabIdx, 1); r.splice(dragOverTabIdx, 0, m); return r; })()
+            : tabs;
+
+          return displayTabs.map((tab, displayIdx) => {
+            const originalIdx = tabs.indexOf(tab);
+            const isDragging = draggingTabIdx === originalIdx;
+            return (
+              <div
+                key={tab.id}
+                ref={el => { tabElRefs.current[displayIdx] = el; }}
+                className={`
+                  group flex items-center gap-1 px-2.5 py-1 text-xs rounded-t-md cursor-pointer transition-all relative select-none
+                  ${tab.id === activeTabId
+                    ? 'bg-card border border-b-0 border-border text-foreground -mb-px z-10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-card/50'
+                  }
+                  ${isDragging ? 'opacity-40' : ''}
+                `}
+                onPointerDown={e => {
+                  if (editingTabId) return;
+                  if ((e.target as HTMLElement).closest('button')) return;
+                  if ((e.target as HTMLElement).closest('input')) return;
+                  tabDragState.current = { idx: originalIdx, startX: e.clientX, started: false };
+                }}
+                onClick={() => {
+                  if (tabDragState.current?.started) return;
+                  setActiveTabId(tab.id);
+                  setMaximizedAgent(null);
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  setEditingTabId(tab.id);
+                  setEditingName(tab.name);
+                }}
               >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        ))}
+                {editingTabId === tab.id ? (
+                  <input
+                    autoFocus
+                    className="w-20 bg-transparent border-b border-foreground text-xs outline-none"
+                    value={editingName}
+                    onChange={e => setEditingName(e.target.value)}
+                    onBlur={() => renameTab(tab.id, editingName)}
+                    onKeyDown={e => { if (e.key === 'Enter') renameTab(tab.id, editingName); if (e.key === 'Escape') setEditingTabId(null); }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                ) : (
+                  <span>{tab.name}</span>
+                )}
+                <span className="text-[10px] text-muted-foreground">({tab.agentIds.length})</span>
+                {tabs.length > 1 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteTab(tab.id); }}
+                    className="ml-0.5 p-0.5 hover:bg-red-500/20 text-muted-foreground hover:text-red-400 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          });
+        })()}
         <button
           onClick={createTab}
           className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded border border-dashed border-border/50 hover:border-border"
