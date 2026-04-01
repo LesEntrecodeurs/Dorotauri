@@ -233,3 +233,244 @@ pub fn project_search_docs(project_path: String, query: String) -> Vec<DocSearch
 
     results
 }
+
+// ── Git Modifications ──────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitChangedFile {
+    pub path: String,
+    pub status: String,
+    pub old_path: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiffHunkLine {
+    pub line_type: String,
+    pub content: String,
+    pub old_line: Option<u32>,
+    pub new_line: Option<u32>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiffHunk {
+    pub header: String,
+    pub old_start: u32,
+    pub new_start: u32,
+    pub lines: Vec<DiffHunkLine>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileDiff {
+    pub path: String,
+    pub status: String,
+    pub is_binary: bool,
+    pub hunks: Vec<DiffHunk>,
+    pub additions: u32,
+    pub deletions: u32,
+}
+
+#[tauri::command]
+pub fn project_git_changed_files(
+    project_path: String,
+    mode: String,
+) -> Result<Vec<GitChangedFile>, String> {
+    let args: Vec<&str> = match mode.as_str() {
+        "last_commit" => vec!["diff", "--name-status", "HEAD~1", "HEAD"],
+        _ => vec!["diff", "--name-status", "HEAD"],
+    };
+
+    let output = std::process::Command::new("git")
+        .args(&args)
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("unknown revision") || stderr.contains("bad revision") {
+            return Ok(Vec::new());
+        }
+        return Err(format!("git diff failed: {stderr}"));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut files = Vec::new();
+
+    for line in stdout.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() < 2 {
+            continue;
+        }
+        let status_code = parts[0];
+        let (status, path, old_path) = if status_code.starts_with('R') {
+            let old = parts.get(1).unwrap_or(&"").to_string();
+            let new = parts.get(2).unwrap_or(&"").to_string();
+            ("renamed".to_string(), new, Some(old))
+        } else {
+            let s = match status_code {
+                "A" => "added",
+                "M" => "modified",
+                "D" => "deleted",
+                _ => "modified",
+            };
+            (s.to_string(), parts[1].to_string(), None)
+        };
+        files.push(GitChangedFile { path, status, old_path });
+    }
+
+    Ok(files)
+}
+
+#[tauri::command]
+pub fn project_git_diff_file(
+    project_path: String,
+    file_path: String,
+    mode: String,
+) -> Result<FileDiff, String> {
+    // Security: reject path traversal
+    if file_path.contains("..") || file_path.starts_with('/') {
+        return Err("Invalid file path".to_string());
+    }
+
+    let args: Vec<String> = match mode.as_str() {
+        "last_commit" => vec![
+            "diff".into(), "HEAD~1".into(), "HEAD".into(), "--".into(), file_path.clone(),
+        ],
+        _ => vec!["diff".into(), "HEAD".into(), "--".into(), file_path.clone()],
+    };
+
+    let output = std::process::Command::new("git")
+        .args(&args)
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run git: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Detect binary
+    if stdout.contains("Binary files") {
+        return Ok(FileDiff {
+            path: file_path,
+            status: String::new(),
+            is_binary: true,
+            hunks: Vec::new(),
+            additions: 0,
+            deletions: 0,
+        });
+    }
+
+    let mut hunks: Vec<DiffHunk> = Vec::new();
+    let mut additions: u32 = 0;
+    let mut deletions: u32 = 0;
+    let mut current_hunk: Option<DiffHunk> = None;
+    let mut old_line: u32 = 0;
+    let mut new_line: u32 = 0;
+    let mut total_lines: u32 = 0;
+    let max_lines: u32 = 10_000;
+
+    for raw_line in stdout.lines() {
+        // Parse hunk header
+        if raw_line.starts_with("@@") {
+            if let Some(h) = current_hunk.take() {
+                hunks.push(h);
+            }
+            let (old_start, new_start) = parse_hunk_header(raw_line);
+            old_line = old_start;
+            new_line = new_start;
+            current_hunk = Some(DiffHunk {
+                header: raw_line.to_string(),
+                old_start,
+                new_start,
+                lines: Vec::new(),
+            });
+            continue;
+        }
+
+        if current_hunk.is_none() {
+            continue;
+        }
+
+        if total_lines >= max_lines {
+            break;
+        }
+
+        let hunk = current_hunk.as_mut().unwrap();
+
+        if let Some(content) = raw_line.strip_prefix('+') {
+            additions += 1;
+            total_lines += 1;
+            hunk.lines.push(DiffHunkLine {
+                line_type: "add".to_string(),
+                content: content.to_string(),
+                old_line: None,
+                new_line: Some(new_line),
+            });
+            new_line += 1;
+        } else if let Some(content) = raw_line.strip_prefix('-') {
+            deletions += 1;
+            total_lines += 1;
+            hunk.lines.push(DiffHunkLine {
+                line_type: "remove".to_string(),
+                content: content.to_string(),
+                old_line: Some(old_line),
+                new_line: None,
+            });
+            old_line += 1;
+        } else {
+            let content = raw_line.strip_prefix(' ').unwrap_or(raw_line);
+            total_lines += 1;
+            hunk.lines.push(DiffHunkLine {
+                line_type: "context".to_string(),
+                content: content.to_string(),
+                old_line: Some(old_line),
+                new_line: Some(new_line),
+            });
+            old_line += 1;
+            new_line += 1;
+        }
+    }
+
+    if let Some(h) = current_hunk {
+        hunks.push(h);
+    }
+
+    Ok(FileDiff {
+        path: file_path,
+        status: String::new(),
+        is_binary: false,
+        hunks,
+        additions,
+        deletions,
+    })
+}
+
+fn parse_hunk_header(header: &str) -> (u32, u32) {
+    let mut old_start = 1u32;
+    let mut new_start = 1u32;
+
+    if let Some(at_rest) = header.strip_prefix("@@ ") {
+        let parts: Vec<&str> = at_rest.splitn(4, ' ').collect();
+        if let Some(old_part) = parts.first() {
+            if let Some(stripped) = old_part.strip_prefix('-') {
+                let num = stripped.split(',').next().unwrap_or("1");
+                old_start = num.parse().unwrap_or(1);
+            }
+        }
+        if let Some(new_part) = parts.get(1) {
+            if let Some(stripped) = new_part.strip_prefix('+') {
+                let num = stripped.split(',').next().unwrap_or("1");
+                new_start = num.parse().unwrap_or(1);
+            }
+        }
+    }
+
+    (old_start, new_start)
+}
